@@ -24,7 +24,7 @@ export const enemyData = [
     },
     {
         id: 'enemy06', name: 'ドラゴン', image: 'images/enemy06.png',
-        status: { maxHp: 1000, hp: 1000, maxMp: 50, mp: 50, atk: 90, def: 70, matk: 60, mdef: 50, spd: 40, criticalRate: 0.2, dodgeRate: 0.05, criticalMultiplier: 2.0 }
+        status: { maxHp: 1000, hp: 1000, maxMp: 20, mp: 50, atk: 90, def: 70, matk: 60, mdef: 50, spd: 40, criticalRate: 0.2, dodgeRate: 0.05, criticalMultiplier: 2.0 }
     }
 ];
 
@@ -47,3 +47,4 @@ export const enemyGroups = [
         enemies: ['enemy06'] // ドラゴン
     }
 ];
+

@@ -135,3 +135,4 @@ window.getSelectedParty = getSelectedParty;
 
 // 最初の描画
 renderCharacterCards();
+

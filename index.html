@@ -15,10 +15,29 @@
         <h1 class="game-title">コマンドローグライク</h1>
         <div class="controls">
             <button id="start-button">冒険開始</button>
+            <button id="online-button">オンライン対戦</button>
             <div class="volume-control">
                 <span>音量</span>
                 <input type="range" id="volume-slider" min="0" max="100" value="50">
             </div>
+        </div>
+    </div>
+
+    <div id="online-screen" class="hidden">
+        <h2>オンライン対戦</h2>
+        <div class="online-controls">
+            <div class="peer-info">
+                <p>あなたのID: <span id="my-peer-id">接続中...</span></p>
+                <button id="copy-id-button" disabled>IDをコピー</button>
+            </div>
+            <div class="connection-controls">
+                <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
+                <button id="connect-button" disabled>接続</button>
+            </div>
+            <div class="connection-status">
+                <p id="connection-status">接続待機中...</p>
+            </div>
+            <button id="back-to-title-button">タイトルに戻る</button>
         </div>
     </div>
 
@@ -60,7 +79,7 @@
     </div>
 
     <div id="battle-screen" class="hidden">
-        <header class="game-header">            
+        <header class="game-header">
         </header>
 
         <main class="battle-container">
@@ -80,7 +99,8 @@
         </main>
     </div>
 
-    <script type="module" src="scripts/main.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="scripts/main.js"></script>
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
