@@ -126,7 +126,7 @@ function updateEnemyDisplay() {
 // 味方キャラクターの更新
 function updatePlayerDisplay() {
     if (!currentPlayerParty) return; // 安全性チェックを追加
-    
+
     currentPlayerParty.forEach((player, index) => {
         if (playerPartyEl.children[index]) {
             const playerEl = playerPartyEl.children[index];
@@ -158,7 +158,7 @@ function updatePlayerDisplay() {
 // 戦闘ロジックの開始
 async function startBattle() {
     logMessage('戦闘開始！');
-    
+
     // パーティーデータを取得（オンライン時は後で設定される場合もある）
     if (!window.isOnlineMode()) {
         currentPlayerParty = window.getSelectedParty();
@@ -168,7 +168,7 @@ async function startBattle() {
             currentPlayerParty = window.getSelectedParty();
         }
     }
-    
+
     currentGroupIndex = 0;
     currentTurn = 0;
 
@@ -185,7 +185,7 @@ async function startBattle() {
     if (window.isOnlineMode()) {
         // オンライン対戦モード
         logMessage('オンライン対戦を開始します！');
-        
+
         // 自分のパーティー情報を相手に送信
         if (currentPlayerParty) {
             window.sendData({
@@ -212,7 +212,7 @@ function handleOpponentParty(partyData) {
             p.targetMemory = { lastTargetId: null, missed: false };
         }
     });
-    
+
     // 自分のパーティーがまだ設定されていない場合は設定
     if (!currentPlayerParty) {
         currentPlayerParty = window.getSelectedParty();
@@ -225,10 +225,10 @@ function handleOpponentParty(partyData) {
             });
         }
     }
-    
+
     logMessage('相手のパーティー情報を受信しました！');
     renderBattle();
-    
+
     // ターン制バトル開始
     if (window.isHost()) {
         logMessage('あなたが先攻です！');
@@ -271,7 +271,7 @@ function playerTurnOnline() {
             resolve();
             return;
         }
-        
+
         // 生きているプレイヤーから選択
         const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
         if (alivePlayers.length === 0) {
@@ -281,7 +281,7 @@ function playerTurnOnline() {
 
         const activePlayer = alivePlayers[0]; // 簡単のため最初の生きているプレイヤー
         activePlayerIndex = currentPlayerParty.indexOf(activePlayer);
-        
+
         logMessage(`${activePlayer.name}のターン！`);
         selectCommand(activePlayerIndex);
 
@@ -303,13 +303,120 @@ function playerTurnOnline() {
                         turn: currentTurn
                     };
                     window.sendData(actionData);
-                    
+
                     // 自分側でも実行
                     performAttackOnline(activePlayer, opponentParty[enemySelection]);
                     actionTaken = true;
                 }
+            } else if (target.classList.contains('action-skill')) {
+                const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
+                skillMenuEl.classList.toggle('hidden');
+            } else if (target.classList.contains('skill-button')) {
+                const skillName = target.textContent;
+                const skill = player.active.find(s => s.name === skillName);
+                if (skill) {
+                    // 「呪縛」によるMPコスト増加
+                    let mpCost = skill.mp;
+                    if (player.effects.curse) {
+                        mpCost = Math.floor(mpCost * 1.5);
+                        logMessage(`${player.name}の「呪縛」により、MP消費が${mpCost}に増加した。`);
+                    }
+
+                    if (player.status.mp < mpCost) {
+                        logMessage(`MPが足りません！`);
+                        return; // スキル発動を中止
+                    }
+
+                    logMessage(`${player.name}は${skill.name}を使った！`);
+                    player.status.mp -= mpCost; // MP消費
+
+                    // スキルの効果をここで実行
+                    if (skill.name === 'ヒールライト') {
+                        logMessage('回復する味方を選択してください。');
+                        const targetPlayer = await selectPlayerTarget();
+                        if (targetPlayer) {
+                            performHeal(player, targetPlayer);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '連撃') {
+                        logMessage('攻撃する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performMultiAttack(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === 'なぎ払い' || skill.name === 'ブリザード') {
+                        performAreaAttack(player, currentEnemies);
+                        actionTaken = true;
+                    } else if (skill.name === '蠱惑の聖歌') {
+                        performSanctuaryHymn(player);
+                        actionTaken = true;
+                    } else if (skill.name === '深淵の理路') {
+                        performAbyssalLogic(player);
+                        actionTaken = true;
+                    } else if (skill.name === '血晶の零滴') {
+                        logMessage('攻撃する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performBloodCrystalDrop(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '滅気') {
+                        logMessage('デバフを付与する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performExtinguishSpirit(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '衰躯') {
+                        performFadingBody(player, currentEnemies);
+                        actionTaken = true;
+                    } else if (skill.name === '呪縛') {
+                        logMessage('デバフを付与する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performCurse(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else {
+                        logMessage('このスキルはまだ実装されていません。');
+                        player.status.mp += mpCost; // 未実装スキルのためMPを戻す
+                    }
+
+                    if (actionTaken) {
+                        // 呪縛の効果判定（スキルによるダメージ）
+                        if (player.effects.curse && skill.type === 'attack') { // スキルタイプに応じて修正が必要
+                            const curseDamage = Math.floor(player.status.maxHp * 0.05);
+                            player.status.hp = Math.max(0, player.status.hp - curseDamage);
+                            logMessage(`${player.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+                        }
+                    }
+                }
+            } else if (target.classList.contains('action-special')) {
+                const specialSkill = player.special;
+                if (specialSkill && specialSkill.condition && specialSkill.condition(player)) {
+                    if (player.status.mp < specialSkill.mp) {
+                        logMessage(`MPが足りません！`);
+                        return;
+                    }
+
+                    logMessage(`${player.name}は「${specialSkill.name}」を使った！`);
+                    player.status.mp -= specialSkill.mp; // MP消費
+
+                    if (specialSkill.name === '狂気の再編') {
+                        performMadnessReorganization(player);
+                        actionTaken = true;
+                    } else if (specialSkill.name === '虚空') {
+                        performVoid(player, currentEnemies);
+                        actionTaken = true;
+                    }
+                } else {
+                    logMessage('必殺技の条件を満たしていません。');
+                }
+            } else if (target.classList.contains('action-defend')) {
+                logMessage(`${player.name}は防御した。`);
+                actionTaken = true;
             }
-            // 他のアクションも同様に実装...
 
             if (actionTaken) {
                 commandAreaEl.classList.add("hidden");
@@ -333,7 +440,7 @@ function selectEnemyTargetOnline() {
             resolve(null);
             return;
         }
-        
+
         const enemies = opponentParty.filter(e => e.status.hp > 0);
         if (enemies.length === 0) {
             resolve(null);
@@ -448,7 +555,7 @@ function processEndTurnEffects(combatant) {
             const damage = Math.max(1, baseDamage - Math.floor(combatant.status.mdef / 2));
             combatant.status.hp = Math.max(0, combatant.status.hp - damage);
             logMessage(`${combatant.name}は「血晶の零滴」で${damage}のダメージを受けた！`, 'damage');
-            
+
             if (currentPlayerParty) {
                 const caster = currentPlayerParty.find(p => p.id === dropEffect.casterId);
                 if (caster) {
@@ -583,7 +690,7 @@ async function executeSkill(player, skill) {
 // 敵ターンの処理
 async function enemyTurn(enemy) {
     logMessage(`${enemy.name}のターン！`);
-    
+
     // 簡単なAI：ランダムに味方を攻撃
     if (currentPlayerParty) {
         const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
@@ -594,7 +701,7 @@ async function enemyTurn(enemy) {
             updatePlayerDisplay();
         }
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 1000));
 }
 
@@ -617,7 +724,7 @@ function performMultiAttack(attacker, target) {
         if (target.status.hp <= 0) break;
     }
     updateEnemyDisplay();
-    
+
     if (attacker.effects.curse && totalDamage > 0) {
         const curseDamage = Math.floor(attacker.status.maxHp * 0.05);
         attacker.status.hp = Math.max(0, attacker.status.hp - curseDamage);
@@ -693,17 +800,17 @@ function isBattleOver() {
     if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
         return false;
     }
-    
+
     const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
-    
+
     if (window.isOnlineMode()) {
         // オンライン対戦時：opponentPartyが未定義の場合は戦闘継続
-        const opponentsAlive = (opponentParty && Array.isArray(opponentParty)) ? 
+        const opponentsAlive = (opponentParty && Array.isArray(opponentParty)) ?
             opponentParty.some(p => p.status.hp > 0) : true;
         return !playersAlive || !opponentsAlive;
     } else {
         // シングルプレイ時：currentEnemiesが未定義の場合は戦闘継続
-        const enemiesAlive = (currentEnemies && Array.isArray(currentEnemies)) ? 
+        const enemiesAlive = (currentEnemies && Array.isArray(currentEnemies)) ?
             currentEnemies.some(e => e.status.hp > 0) : true;
         return !playersAlive || !enemiesAlive;
     }
@@ -714,9 +821,9 @@ function handleBattleEnd() {
     if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
         return;
     }
-    
+
     const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
-    
+
     if (window.isOnlineMode()) {
         if (playersAlive) {
             logMessage('勝利しました！');
@@ -728,7 +835,7 @@ function handleBattleEnd() {
         if (playersAlive) {
             logMessage('敵グループを撃破しました！');
             currentGroupIndex++;
-            
+
             currentPlayerParty.forEach(p => {
                 p.status.hp = p.status.maxHp;
                 p.status.mp = p.status.maxMp;
@@ -775,7 +882,7 @@ function selectEnemyTarget() {
             resolve(null);
             return;
         }
-        
+
         const enemies = currentEnemies.filter(e => e.status.hp > 0);
         if (enemies.length === 0) {
             resolve(null);
@@ -805,7 +912,7 @@ function selectPlayerTarget() {
             resolve(null);
             return;
         }
-        
+
         const players = currentPlayerParty.filter(p => p.status.hp > 0);
         if (players.length === 0) {
             resolve(null);
@@ -875,7 +982,7 @@ function selectCommand(playerIndex) {
     if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
         return;
     }
-    
+
     const players = document.querySelectorAll('.player-character');
     const partyMembers = currentPlayerParty;
 
@@ -891,7 +998,7 @@ function selectCommand(playerIndex) {
 // コマンドメニューの更新
 function updateCommandMenu(player) {
     if (!player) return;
-    
+
     const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
     const specialButtonEl = commandAreaEl.querySelector('.action-special');
 
@@ -918,7 +1025,7 @@ function updateCommandMenu(player) {
 // オンライン対戦用のデータ受信処理
 function handleBattleAction(data) {
     console.log('Battle action received:', data);
-    
+
     switch (data.action) {
         case 'attack':
             // 相手の攻撃を自分の画面に反映
@@ -937,7 +1044,7 @@ function handleBattleAction(data) {
     if (waitingForOpponent) {
         waitingForOpponent = false;
         currentTurn++;
-        
+
         setTimeout(() => {
             startOnlineBattle();
         }, 1000);
@@ -963,7 +1070,7 @@ window.handleOpponentParty = handleOpponentParty;
 function renderEnemySelection(enemies) {
     enemyPartyEl.innerHTML = ""; // 既存の敵表示をクリア
     if (!enemies || !Array.isArray(enemies)) return;
-    
+
     enemies.forEach(enemy => {
         const enemyEl = document.createElement("div");
         enemyEl.classList.add("character-card", "enemy-character");
@@ -988,7 +1095,7 @@ function renderEnemySelection(enemies) {
 function renderPlayerSelection(players) {
     playerPartyEl.innerHTML = ""; // 既存の味方表示をクリア
     if (!players || !Array.isArray(players)) return;
-    
+
     players.forEach(player => {
         const playerEl = document.createElement("div");
         playerEl.classList.add("character-card", "player-character");
@@ -1012,9 +1119,9 @@ function renderPlayerSelection(players) {
 }
 
 // オンライン対戦用のアクション処理
-window.handleBattleAction = function(data) {
+window.handleBattleAction = function (data) {
     console.log('Handling battle action:', data);
-    
+
     switch (data.action) {
         case 'attack':
             // 相手の攻撃を処理
@@ -1028,7 +1135,7 @@ window.handleBattleAction = function(data) {
             break;
         // 他のアクションも同様に実装...
     }
-    
+
     // 次のターンに進む
     currentTurn++;
     if (!isBattleOver()) {
@@ -1039,7 +1146,7 @@ window.handleBattleAction = function(data) {
 };
 
 // 回避判定結果の処理
-window.handleDodgeResult = function(data) {
+window.handleDodgeResult = function (data) {
     // ホスト以外は受信した結果を使用
     if (!window.isHost()) {
         // 回避判定結果をゲームに反映
@@ -1048,7 +1155,7 @@ window.handleDodgeResult = function(data) {
 };
 
 // 会心判定結果の処理
-window.handleCriticalResult = function(data) {
+window.handleCriticalResult = function (data) {
     // ホスト以外は受信した結果を使用
     if (!window.isHost()) {
         // 会心判定結果をゲームに反映
@@ -1057,20 +1164,20 @@ window.handleCriticalResult = function(data) {
 };
 
 // ゲーム状態の同期
-window.syncGameState = function(data) {
+window.syncGameState = function (data) {
     console.log('Syncing game state:', data);
-    
+
     // パーティーの状態を同期
     if (data.playerParty) {
         currentPlayerParty = data.playerParty;
         updatePlayerDisplay();
     }
-    
+
     if (data.opponentParty) {
         opponentParty = data.opponentParty;
         updateEnemyDisplay();
     }
-    
+
     // ターン情報を同期
     if (data.currentTurn !== undefined) {
         currentTurn = data.currentTurn;
