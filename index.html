@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コマンドローグライク</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/party.css">
+    <link rel="stylesheet" href="styles/battle.css">
+    <link rel="stylesheet" href="styles/online-battle.css">
+</head>
+
+<body>
+    <div id="title-screen">
+        <h1 class="game-title">コマンドローグライク</h1>
+        <div class="controls">
+            <button id="online-button">オンライン対戦</button>
+            <div class="volume-control">
+                <span>音量</span>
+                <input type="range" id="volume-slider" min="0" max="100" value="50">
+            </div>
+        </div>
+    </div>
+
+    <div id="online-battle-screen" class="hidden">
+        <h2 class="header-title">オンライン対戦ルーム</h2>
+        <div class="online-controls">
+            <input type="text" id="room-id-input" placeholder="ルームIDを入力">
+            <button id="join-room-button">ルームに参加</button>
+            <button id="create-room-button">新規ルームを作成</button>
+            <p id="status-message"></p>
+        </div>
+    </div>
+
+    <div id="party-screen" class="hidden">
+        <header class="party-header">
+            <div class="header-buttons">
+                <button id="back-button" class="action-button">戻る</button>
+            </div>
+            <h2 class="header-title">パーティー編成</h2>
+            <div class="header-buttons">
+                <button id="go-button" class="action-button">出かける</button>
+            </div>
+        </header>
+        <div class="main-content">
+            <div class="character-pane">
+                <h3>キャラクター一覧</h3>
+                <div id="character-list">
+                </div>
+            </div>
+            <div class="right-pane">
+                <div class="party-pane">
+                    <h3>パーティー</h3>
+                    <div class="party-slots">
+                        <div class="party-slot" data-slot-id="0"></div>
+                        <div class="party-slot" data-slot-id="1"></div>
+                        <div class="party-slot" data-slot-id="2"></div>
+                        <div class="party-slot" data-slot-id="3"></div>
+                    </div>
+                </div>
+                <div id="character-details">
+                    <h3>詳細情報</h3>
+                    <div id="details-content">
+                        <p class="placeholder">キャラクターを選択してください</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="battle-screen" class="hidden">
+        <header class="game-header">
+        </header>
+
+        <main class="battle-container">
+            <div class="battlefield">
+                <div id="opponent-party" class="party-area enemies">
+                </div>
+                <div id="player-party" class="party-area players">
+                </div>
+            </div>
+
+            <div class="ui-container">
+                <div id="command-area" class="command-box hidden">
+                </div>
+                <div id="message-log" class="log-box">
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/characters.js"></script>
+    <script type="module" src="scripts/party.js"></script>
+    <script type="module" src="scripts/battle-logic.js"></script>
+    <script type="module" src="scripts/online-battle.js"></script>
+</body>
+
+</html>

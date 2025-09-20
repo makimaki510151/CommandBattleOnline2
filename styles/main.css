@@ -1,0 +1,62 @@
+body {
+    background-color: #e0f7fa; /* 明るい水色 */
+    color: #333; /* 濃い灰色 */
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* `height`を`min-height`に変更 */
+    margin: 0;
+}
+
+#title-screen {
+    text-align: center;
+    background-color: #fff;
+    padding: 40px 60px;
+    border-radius: 20px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.game-title {
+    font-size: 3em;
+    color: #4db6ac; /* 少し濃い目の緑 */
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+#start-button {
+    background-color: #81c784; /* 明るい緑 */
+    color: white;
+    font-size: 1.5em;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#start-button:hover {
+    background-color: #66bb6a;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#volume-slider {
+    width: 200px;
+    cursor: pointer;
+    accent-color: #66bb6a; /* スライダーの色 */
+}
+.hidden {
+  display: none !important;
+}

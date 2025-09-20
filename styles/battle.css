@@ -1,0 +1,171 @@
+#battle-screen.hidden {
+    display: none;
+}
+
+#battle-screen {
+    width: 90%;
+    /* または、より広い幅を指定 */
+}
+
+.battle-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(110vh);
+    background-color: #bbdefb;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.battlefield {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 20px;
+}
+
+.party-area {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.enemy-character,
+.player-character {
+    text-align: center;
+    transition: transform 0.3s ease;
+    width: 20%;
+}
+
+.enemy-character img,
+.player-character img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.hp-bar,
+.mp-bar {
+    height: 8px;
+    background-color: #ccc;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+
+.hp-bar-fill {
+    height: 100%;
+    background-color: #e57373;
+    border-radius: 4px;
+}
+
+.mp-bar-fill {
+    height: 100%;
+    background-color: #42a5f5;
+    border-radius: 4px;
+}
+
+.ui-container {
+    display: flex;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-top: 20px;
+    gap: 20px;
+    min-height: 340px; /* ここを150pxから250pxに変更 */
+}
+
+.log-box {
+    flex-grow: 1;
+    background-color: #e3f2fd;
+    padding: 10px;
+    border-radius: 8px;
+    overflow-y: auto;
+}
+
+.log-box p {
+    margin: 0 0 5px 0;
+    line-height: 1.2;
+    font-size: 0.9em;
+}
+
+/* コマンドUI */
+.command-box {
+    width: 200px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.commands {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.command-button,
+.skill-button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: background-color 0.2s;
+    width: 100%;
+}
+
+.command-button:hover,
+.skill-button:hover {
+    background-color: #45a049;
+}
+
+.skill-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-left: 10px;
+}
+
+.skill-button {
+    font-size: 0.9em;
+    padding: 8px;
+    background-color: #81c784;
+}
+
+.skill-button:hover {
+    background-color: #66bb6a;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 行動するキャラクターの強調表示 */
+.player-character.active {
+    outline: 3px solid #ffeb3b;
+    box-shadow: 0 0 15px rgba(255, 235, 59, 0.8);
+    border-radius: 8px;
+}
+/* Log message colors */
+.log-message.damage {
+    color: #d32f2f; /* Red */
+}
+
+.log-message.heal {
+    color: #43a047; /* Green */
+}
+
+.log-message.status-effect {
+    color: #1976d2; /* Blue */
+}
+
+.log-message.special-event {
+    color: #fbc02d; /* Amber */
+    font-weight: bold;
+}

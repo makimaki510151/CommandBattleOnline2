@@ -1,0 +1,297 @@
+/* party.css */
+
+#party-screen {
+    /* 既存のスタイル */
+    width: 90%;
+    /* 親要素の90%の幅に設定 */
+    max-width: 1400px;
+    /* 最大幅を1400pxに設定 */
+    margin: 0 auto;
+    /* 中央寄せにする */
+}
+
+/* パーティー編成画面のメインコンテナ */
+.main-content {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    background-color: #f0f4c3;
+    border-radius: 0 0 20px 20px;
+    flex-grow: 1;
+    max-width: 1600px;
+    /* 1400pxから希望の値に変更 */
+    /* UI全体の幅を広げます */
+    margin: 0 auto;
+    height: 700px;
+}
+
+.character-pane {
+    flex: 10;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+}
+
+.right-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#character-details {
+    /* 既存のスタイル */
+    background-color: #e8f5e9;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 450px;
+    min-width: 300px;
+    position: relative;
+    /* ★ これが重要！すでに追加されています */
+}
+
+/* パーティースロットのレイアウト */
+.party-slots {
+    /* この部分はそのまま */
+    margin-top: 15px;
+    background-color: #e8f5e9;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    /* これを追加 */
+    display: flex;
+    justify-content: space-around;
+    /* 子要素を均等に配置 */
+    gap: 10px;
+}
+
+/* 各パーティースロット */
+.party-slot {
+    width: 80px;
+    height: 80px;
+    background-color: #c8e6c9;
+    border: 2px dashed #4caf50;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.party-slot:hover {
+    background-color: #a5d6a7;
+    border-color: #388e3c;
+}
+
+.party-slot.filled {
+    border-style: solid;
+}
+
+/* キャラクターアイコン */
+.party-slot .char-icon {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* キャラクター詳細の各セクション */
+.character-card .char-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* 選択されたキャラクターカードのスタイル */
+.character-card.selected {
+    border: 2px solid #ffab40;
+}
+
+#character-details .char-image {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #555;
+    margin-bottom: 10px;
+}
+
+.party-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #c8e6c9;
+    border-bottom: 2px solid #a5d6a7;
+    border-radius: 10px 10px 0 0;
+}
+
+/* ボタンを囲むコンテナ */
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* ボタン共通のデザイン */
+.action-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 戻るボタンのデザイン */
+#back-button {
+    background-color: #ef5350;
+}
+
+/* 出かけるボタンのデザイン */
+#go-button {
+    background-color: #66bb6a;
+}
+
+/* ホバー時の効果 */
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* キャラクター一覧のコンテナ */
+#character-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+    /* これをflex-startに変更 */
+}
+
+/* 各キャラクターカード */
+.character-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 140px;
+    height: 180px;
+    background-color: #fff8e1;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    text-align: center;
+    justify-content: center;
+}
+
+/* ホバー時の効果 */
+.character-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* キャラクターサムネイルの修正 */
+.character-card .char-thumb {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    object-fit: cover;
+}
+
+/* キャラクター情報の修正 */
+.char-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+}
+
+.char-info h4 {
+    margin: 0;
+    font-size: 1em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.char-info p {
+    margin: 5px 0 0;
+    font-size: 0.8em;
+    color: #777;
+}
+
+.skill-name {
+    position: relative;
+    cursor: help;
+}
+
+.skill-name::after {
+    content: attr(data-description);
+    position: absolute;
+    left: 100%;
+    top: 120%;
+    transform: translateX(-25%);
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+
+    /* ---- この2行を修正または追加 ---- */
+    white-space: normal;
+    /* 折り返しを有効にする */
+    width: 250px;
+    /* ツールチップの最大幅を指定（任意の値に調整可能） */
+
+    overflow-wrap: break-word;
+    /* 長い単語も折り返す */
+
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    z-index: 1000;
+}
+
+.skill-name:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+#details-content {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+#details-content p,
+#details-content li {
+    word-wrap: break-word;
+    /* 長い単語を強制的に改行 */
+    max-width: 100%;
+    /* 親要素の幅を超えないように制限 */
+}
+
+.status-list {
+    display: flex;
+    flex-wrap: wrap;
+    /* 要素を折り返す */
+    gap: 10px;
+
+    /* 要素間の隙間 */
+    /* 各ステータスの幅を調整して、均等に並べる */
+    p {
+        flex: 1 1 45%;
+        /* 柔軟に幅を調整し、必要なら折り返す */
+    }
+}

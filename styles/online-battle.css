@@ -1,0 +1,78 @@
+/* online-battle.css */
+#online-battle-screen.hidden {
+    display: none;
+}
+
+#online-battle-screen {
+    text-align: center;
+    background-color: #fff;
+    padding: 40px 60px;
+    border-radius: 20px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.online-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+#room-id-input {
+    padding: 10px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 250px;
+}
+
+#join-room-button,
+#create-room-button {
+    padding: 12px 24px;
+    font-size: 1.2em;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 280px;
+}
+
+#create-room-button {
+    background-color: #4CAF50;
+}
+
+#create-room-button:hover {
+    background-color: #45a049;
+}
+
+#join-room-button {
+    background-color: #2196F3;
+}
+
+#join-room-button:hover {
+    background-color: #1e88e5;
+}
+
+#status-message {
+    font-size: 1em;
+    color: #555;
+    min-height: 20px;
+}
+
+#opponent-party .player-character {
+    text-align: center;
+    transition: transform 0.3s ease;
+    width: 20%;
+}
+
+#opponent-party .player-character img {
+    transform: scaleX(-1);
+}
+
+.battle-container #opponent-party {
+    flex-direction: row-reverse;
+}
