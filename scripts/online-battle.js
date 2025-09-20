@@ -1,4 +1,5 @@
 // online-battle.js
+import { nowInSec, SkyWayAuthToken, SkyWayContext, SkyWayRoom, SkyWayStreamFactory, uuidV4 } from "@skyway-sdk/room";
 import { characters } from './characters.js';
 import { calculateDamage, performAttack, performSkill, checkWinCondition, logMessage } from './battle-logic.js';
 
@@ -24,9 +25,19 @@ if (!API_KEY || API_KEY === 'YOUR_API_KEY') {
     alert('SKYWAY APIキーが設定されていません。online-battle.jsを開き、APIキーを設定してください。');
 }
 
+async function fetchSkyWayToken() {
+    // サーバー側のトークン発行APIのURL
+    const response = await fetch('/api/skyway-token');
+    if (!response.ok) throw new Error('トークン取得失敗');
+    const data = await response.json();
+    return data.token;
+}
+
 window.connectToSkyWay = async (roomId, type) => {
     try {
-        const context = new SkyWayContext({ apiKey: API_KEY });
+        const SKYWAY_TOKEN = await fetchSkyWayToken();
+
+        const context = await SkyWayContext.Create({ token: SKYWAY_TOKEN });
         const room = new SkyWayRoom(context, {
             name: roomId,
             type: 'p2p'

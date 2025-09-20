@@ -1,7 +1,6 @@
 {
   "name": "commandbattleonline",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
     "dev": "parcel ./index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,6 +12,7 @@
     "@skyway-sdk/room": "^1.15.2"
   },
   "devDependencies": {
+    "buffer": "^6.0.3",
     "parcel": "^2.16.0"
   }
 }
