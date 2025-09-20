@@ -4,17 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒険の始まり</title>
+    <title>冒険の始まり - マルチプレイ</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/party.css">
     <link rel="stylesheet" href="styles/battle.css">
+
+    <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.4.5/skyway.min.js"></script>
+    <script type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/skyway.js"></script>
 </head>
 
 <body>
     <div id="title-screen">
         <h1 class="game-title">コマンドローグライク</h1>
         <div class="controls">
-            <button id="start-button">冒険開始</button>
+            <button id="start-button">シングルプレイ</button>
+            <button id="multi-play-button">マルチプレイ</button>
+            <div id="multi-play-ui" class="hidden">
+                <input type="text" id="room-id-input" placeholder="部屋IDを入力">
+                <button id="create-room-button">部屋を作成</button>
+                <button id="join-room-button">部屋に参加</button>
+                <p id="my-peer-id"></p>
+                <p id="status-message"></p>
+            </div>
             <div class="volume-control">
                 <span>音量</span>
                 <input type="range" id="volume-slider" min="0" max="100" value="50">
@@ -35,13 +47,12 @@
 
         <div class="main-content">
             <div class="character-pane">
-                <h3>キャラクター一覧</h3>
-                <div id="character-list">
+                <div id="character-list" class="character-grid">
                 </div>
             </div>
             <div class="right-pane">
-                <div id="party-slots-container">
-                    <h3>パーティー</h3>
+                <div class="party-preview">
+                    <h3>パーティーメンバー</h3>
                     <div class="party-slots">
                         <div class="party-slot" data-slot-id="0"></div>
                         <div class="party-slot" data-slot-id="1"></div>
@@ -80,7 +91,7 @@
         </main>
     </div>
 
-    <script type="module" src="scripts/main.js"></script>
+    
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
