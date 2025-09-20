@@ -4,20 +4,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒険の始まり</title>
+    <title>オンライン対戦</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/party.css">
     <link rel="stylesheet" href="styles/battle.css">
+    <link rel="stylesheet" href="styles/online.css">
 </head>
 
 <body>
     <div id="title-screen">
         <h1 class="game-title">コマンドローグライク</h1>
         <div class="controls">
-            <button id="start-button">冒険開始</button>
+            <button id="start-button">オンライン対戦</button>
             <div class="volume-control">
                 <span>音量</span>
                 <input type="range" id="volume-slider" min="0" max="100" value="50">
+            </div>
+        </div>
+    </div>
+
+    <div id="online-screen" class="hidden">
+        <h2 class="online-title">オンライン対戦</h2>
+        <div class="online-controls">
+            <div class="online-info-box">
+                <p>あなたのID: <span id="my-id">...</span></p>
+                <p id="connection-status">未接続</p>
+            </div>
+            <div class="input-group">
+                <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
+                <button id="connect-button">接続</button>
+            </div>
+            <p>または、</p>
+            <div class="input-group">
+                <button id="host-button">ルーム作成</button>
+            </div>
+            <div class="back-button-container">
+                <button id="back-to-title-button" class="action-button">タイトルに戻る</button>
             </div>
         </div>
     </div>
@@ -29,19 +51,19 @@
             </div>
             <h2 class="header-title">パーティー編成</h2>
             <div class="header-buttons">
-                <button id="go-button" class="action-button">出かける</button>
+                <button id="go-button" class="action-button">出撃！</button>
             </div>
         </header>
 
         <div class="main-content">
             <div class="character-pane">
-                <h3>キャラクター一覧</h3>
-                <div id="character-list">
+                <h3 class="pane-title">キャラクターリスト</h3>
+                <div id="character-list" class="character-grid">
                 </div>
             </div>
             <div class="right-pane">
-                <div id="party-slots-container">
-                    <h3>パーティー</h3>
+                <div class="party-area">
+                    <h3 class="pane-title">パーティー</h3>
                     <div class="party-slots">
                         <div class="party-slot" data-slot-id="0"></div>
                         <div class="party-slot" data-slot-id="1"></div>
@@ -60,19 +82,25 @@
     </div>
 
     <div id="battle-screen" class="hidden">
-        <header class="game-header">            
+        <header class="game-header">
         </header>
 
         <main class="battle-container">
             <div class="battlefield">
-                <div id="enemy-party" class="party-area enemies">
+                <div id="enemy-party" class="party-area players opponent">
                 </div>
-                <div id="player-party" class="party-area players">
+                <div id="player-party" class="party-area players my-party">
                 </div>
             </div>
 
             <div class="ui-container">
                 <div id="command-area" class="command-box hidden">
+                    <div class="commands">
+                        <button id="attack-button" class="command-button action-attack">攻撃</button>
+                        <button id="skill-button" class="command-button action-skill">特技</button>
+                        <button id="special-button" class="command-button action-special">必殺技</button>
+                        <button id="back-command-button" class="command-button action-back hidden">戻る</button>
+                    </div>
                 </div>
                 <div id="message-log" class="log-box">
                 </div>
@@ -80,11 +108,12 @@
         </main>
     </div>
 
-    <script type="module" src="scripts/main.js"></script>
+    <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.4.0.js"></script>
     <script type="module" src="scripts/characters.js"></script>
-    <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
     <script type="module" src="scripts/battle.js"></script>
+    <script type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/online.js"></script>
 </body>
 
 </html>
