@@ -4,11 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>コマンドローグライク</title>
+    <title>冒険の始まり</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/party.css">
     <link rel="stylesheet" href="styles/battle.css">
-    <link rel="stylesheet" href="styles/online.css">
 </head>
 
 <body>
@@ -16,33 +15,9 @@
         <h1 class="game-title">コマンドローグライク</h1>
         <div class="controls">
             <button id="start-button">冒険開始</button>
-            <button id="online-button">オンライン対戦</button>
             <div class="volume-control">
                 <span>音量</span>
                 <input type="range" id="volume-slider" min="0" max="100" value="50">
-            </div>
-        </div>
-    </div>
-
-    <div id="online-screen" class="hidden">
-        <header class="party-header">
-            <div class="header-buttons">
-                <button id="online-back-button" class="action-button">戻る</button>
-            </div>
-            <h2 class="header-title">オンライン対戦</h2>
-            <div class="header-buttons">
-                </div>
-        </header>
-        <div class="online-container">
-            <h3>ルームに参加</h3>
-            <div class="online-controls">
-                <input type="text" id="room-name-input" placeholder="ルーム名を入力">
-                <button id="join-button">ルームに参加</button>
-            </div>
-            <div class="status-box">
-                <p>接続ステータス: <span id="connection-status">未接続</span></p>
-                <p id="my-room-info"></p>
-                <p>ルームにいるメンバー: <span id="room-members">0</span>人</p>
             </div>
         </div>
     </div>
@@ -57,15 +32,16 @@
                 <button id="go-button" class="action-button">出かける</button>
             </div>
         </header>
+
         <div class="main-content">
             <div class="character-pane">
-                <h3>キャラクターリスト</h3>
-                <div id="character-list" class="character-cards">
-                    </div>
+                <h3>キャラクター一覧</h3>
+                <div id="character-list">
+                </div>
             </div>
             <div class="right-pane">
-                <div id="party-builder">
-                    <h3>パーティーメンバー</h3>
+                <div id="party-slots-container">
+                    <h3>パーティー</h3>
                     <div class="party-slots">
                         <div class="party-slot" data-slot-id="0"></div>
                         <div class="party-slot" data-slot-id="1"></div>
@@ -84,7 +60,7 @@
     </div>
 
     <div id="battle-screen" class="hidden">
-        <header class="game-header">
+        <header class="game-header">            
         </header>
 
         <main class="battle-container">
@@ -104,13 +80,11 @@
         </main>
     </div>
 
-    <script src="https://unpkg.com/@skyway-sdk/room@^1.4.0/dist/skyway-room.js"></script>
     <script type="module" src="scripts/main.js"></script>
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
     <script type="module" src="scripts/battle.js"></script>
-    <script type="module" src="scripts/online.js"></script>
 </body>
 
 </html>

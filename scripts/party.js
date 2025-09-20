@@ -45,39 +45,48 @@ function renderCharacterDetails(char) {
             <p><strong>魔法防御力:</strong> ${char.status.mdef}</p>
             <p><strong>速度:</strong> ${char.status.spd}</p>
             <p><strong>補助力:</strong> ${char.status.support}</p>
+            <p><strong>会心率:</strong> ${char.status.criticalRate * 100}%</p>
+            <p><strong>回避率:</strong> ${char.status.dodgeRate * 100}%</p>
+            <p><strong>会心倍率:</strong> ${char.status.criticalMultiplier}倍</p>
         </div>
-        <div class="skill-info">
-            <h5>パッシブスキル</h5>
-            <p><strong>${char.passive.name}:</strong> ${char.passive.desc}</p>
-            <h5>アクティブスキル</h5>
-            ${char.active.map(skill => `<p><strong>${skill.name}:</strong> ${skill.desc} (MP: ${skill.mp})</p>`).join('')}
-            <h5>必殺技</h5>
-            <p><strong>${char.special.name}:</strong> ${char.special.desc} (MP: ${char.special.mp})</p>
-        </div>
+        <h5>パッシブスキル</h5>
+        <p>
+            <strong class="skill-name" data-description="${char.passive.flavor}">${char.passive.name}</strong>: ${char.passive.desc}
+        </p>
+        <h5>アクティブスキル</h5>
+        <ul>
+            ${char.active.map(skill => `
+            <li>
+                <strong class="skill-name" data-description="${skill.flavor}">${skill.name}</strong>: ${skill.desc}
+            </li>
+            `).join('')}
+        </ul>
+        <h5>必殺技</h5>
+        <p>
+            <strong class="skill-name" data-description="${char.special.flavor}">${char.special.name}</strong>: ${char.special.desc}
+        </p>
     `;
 }
 
-// イベントリスナーのセットアップ
+// キャラクターカード選択イベント
 characterListEl.addEventListener('click', (event) => {
     const card = event.target.closest('.character-card');
-    if (card) {
-        const id = card.dataset.id;
-        if (selectedCharacterId === id) {
-            selectedCharacterId = null;
-            card.classList.remove('selected');
-            renderCharacterDetails(null);
-        } else {
-            document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
-            selectedCharacterId = id;
-            card.classList.add('selected');
-            const char = characters.find(c => c.id === id);
-            renderCharacterDetails(char);
-        }
-    }
+    if (!card) return;
+
+    // 選択状態をリセット
+    document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    selectedCharacterId = card.dataset.id;
+    const selectedChar = characters.find(c => c.id === selectedCharacterId);
+    renderCharacterDetails(selectedChar);
 });
 
+// パーティースロット配置イベント
 partySlotsEl.addEventListener('click', (event) => {
     const slot = event.target.closest('.party-slot');
+    if (!slot) return;
+
     const char = characters.find(c => c.id === selectedCharacterId);
 
     if (selectedCharacterId && !slot.classList.contains('filled')) {
@@ -117,11 +126,12 @@ partySlotsEl.addEventListener('click', (event) => {
 });
 
 // パーティー編成データを取得する関数
-export function getSelectedParty() {
+function getSelectedParty() {
     return partyMembers;
 }
 
-// ページロード時にキャラクターカードをレンダリング
-window.addEventListener('load', () => {
-    renderCharacterCards();
-});
+// グローバルスコープに公開
+window.getSelectedParty = getSelectedParty;
+
+// 最初の描画
+renderCharacterCards();
