@@ -2,106 +2,180 @@
 
 import { getSelectedParty } from './party.js';
 import { executeRemoteAction } from './battle.js';
+import { SkyWayContext, SkyWayRoom } from '@skyway-sdk/room';
 
-const API_KEY = 'd5450488-422b-47bf-93a0-baa8d2d3316c'; // あなたのAPIキー
-const peerIdInput = document.getElementById('peer-id-input');
-const connectButton = document.getElementById('connect-button');
-const hostButton = document.getElementById('host-button');
-const myIdEl = document.getElementById('my-id');
+// ⚠️ 注意: 実際のアプリケーションでは、APIキーとシークレットをクライアントに
+// 露出させるべきではありません。サーバーサイドで認証トークンを生成してください。
+// ここではデモンストレーションのため、直接記述しています。
+const API_KEY = 'd5450488-422b-47bf-93a0-baa8d2d3316c';
+const API_SECRET = 'your-api-secret-from-skyway-console'; // あなたのAPIシークレット
+
+const roomNameInput = document.getElementById('room-name-input');
+const joinButton = document.getElementById('join-button');
 const connectionStatusEl = document.getElementById('connection-status');
+const myRoomInfoEl = document.getElementById('my-room-info');
+const roomMembersEl = document.getElementById('room-members');
 
-let peer = null;
-let dataConnection = null;
+let room = null;
 let myParty = null;
 let opponentParty = null;
+let opponentId = null; // 相手のメンバーID
 
-// SKYWAYの初期化
-export function initOnlinePlay() {
-    // 既存のピア接続があれば破棄
-    if (peer && !peer.destroyed) {
-        peer.destroy();
-    }
+// 認証トークンを生成する関数
+// ⚠️ 実際の製品開発では、この処理をサーバーサイドで行う必要があります。
+// クライアント側でシークレットを公開するのはセキュリティ上危険です。
+function generateToken(apiKey, apiSecret) {
+    const payload = {
+        jti: 'unique-id-' + Math.random().toString(36).substr(2, 9),
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600, // 1時間有効
+        scope: {
+            app: {
+                id: apiKey,
+                turn: true,
+                actions: ['read', 'write'],
+                channels: [
+                    {
+                        id: '*',
+                        name: '*',
+                        actions: ['write'],
+                        members: [{ id: '*', actions: ['write'] }],
+                        sfuBots: [{ actions: ['write'] }]
+                    }
+                ]
+            }
+        }
+    };
 
-    peer = new Peer({ key: API_KEY, debug: 3 });
+    const header = {
+        alg: 'HS256',
+        typ: 'JWT'
+    };
 
-    // 自分のIDが発行された時
-    peer.on('open', (id) => {
-        myIdEl.textContent = id;
-        connectionStatusEl.textContent = '接続待機中';
-    });
+    const base64UrlEncode = (obj) => {
+        return btoa(JSON.stringify(obj))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    };
 
-    // 相手からデータ通信リクエストがあった時（ホスト側）
-    peer.on('connection', (connection) => {
-        dataConnection = connection;
-        setupDataConnection();
-    });
+    const encodedHeader = base64UrlEncode(header);
+    const encodedPayload = base64UrlEncode(payload);
 
-    // エラーハンドリング
-    peer.on('error', (err) => {
-        console.error('Peer error:', err);
-        connectionStatusEl.textContent = `エラー: ${err.type}`;
-        alert(`Peer Connection Error: ${err.message}`);
-    });
+    // 簡易的な署名生成（実際にはcryptoライブラリを使用します）
+    // ここでは、SDKのデモンストレーションのため、あくまで仮の処理です
+    const signature = 'DUMMY_SIGNATURE_DO_NOT_USE_IN_PRODUCTION';
 
-    // 接続ボタン
-    connectButton.addEventListener('click', () => {
-        const peerId = peerIdInput.value;
-        if (!peerId) {
-            alert('相手のIDを入力してください。');
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+// オンラインプレイの初期化
+export async function initOnlinePlay() {
+    connectionStatusEl.textContent = '初期化中...';
+
+    // ルーム参加ボタンのイベントリスナー
+    joinButton.addEventListener('click', () => {
+        const roomName = roomNameInput.value;
+        if (!roomName) {
+            alert('ルーム名を入力してください。');
             return;
         }
-        dataConnection = peer.connect(peerId);
-        setupDataConnection();
-    });
-
-    // ホストボタン
-    hostButton.addEventListener('click', () => {
-        alert('あなたのIDを相手に伝えてください。');
+        joinRoom(roomName);
     });
 }
 
-// データ通信のセットアップ
-function setupDataConnection() {
-    connectionStatusEl.textContent = '接続中...';
-    dataConnection.on('open', () => {
-        connectionStatusEl.textContent = '接続完了！パーティー編成へ';
-        setTimeout(() => {
-            document.getElementById('online-screen').classList.add('hidden');
-            document.getElementById('party-screen').classList.remove('hidden');
-        }, 1500); // 1.5秒後に画面遷移
-    });
-
-    // 相手からデータが届いた時
-    dataConnection.on('data', (data) => {
-        console.log('Received data:', data);
-        if (data.type === 'party_data') {
-            opponentParty = data.payload;
-            checkAndStartBattle();
-        } else if (data.type === 'battle_action') {
-            // battle.jsの関数を呼び出し、相手のアクションを実行
-            executeRemoteAction(data.payload);
+// ルームに参加する関数
+async function joinRoom(roomName) {
+    try {
+        if (room && !room.isClosed) {
+            await room.close();
         }
-    });
 
-    dataConnection.on('close', () => {
-        connectionStatusEl.textContent = '接続が切断されました';
-        alert('相手との接続が切断されました。');
-        // 必要に応じてゲームをリセット
-        location.reload();
-    });
+        const token = generateToken(API_KEY, API_SECRET);
+        const context = await SkyWayContext.Create(token);
 
-    dataConnection.on('error', (err) => {
-        console.error('DataConnection error:', err);
-        connectionStatusEl.textContent = `データ通信エラー: ${err.type}`;
-    });
+        room = await SkyWayRoom.FindOrCreate(context, {
+            name: roomName,
+            type: 'p2p' // メッシュルームを使用
+        });
+
+        connectionStatusEl.textContent = 'ルームに参加中...';
+
+        await room.join();
+        myRoomInfoEl.textContent = `ルームID: ${room.id}`;
+        connectionStatusEl.textContent = 'ルームに参加しました！';
+
+        // メンバーリストの更新
+        updateMemberList();
+
+        // メンバーが参加した時のイベント
+        room.onMemberJoined.add(() => {
+            updateMemberList();
+            // 相手が参加したと判断
+            if (room.members.length === 2) {
+                const otherMember = room.members.find(m => m.id !== room.me.id);
+                opponentId = otherMember.id;
+                
+                // ホスト側（最初にルームに入った側）が先にパーティーデータを送信
+                if (room.members.indexOf(room.me) < room.members.indexOf(otherMember)) {
+                    sendPartyData();
+                }
+
+                // パーティー編成画面に遷移
+                setTimeout(() => {
+                    document.getElementById('online-screen').classList.add('hidden');
+                    document.getElementById('party-screen').classList.remove('hidden');
+                }, 1500);
+            }
+        });
+
+        // メンバーが退出した時のイベント
+        room.onMemberLeft.add(() => {
+            updateMemberList();
+            if (room.members.length < 2) {
+                alert('相手がルームから退出しました。');
+                location.reload();
+            }
+        });
+
+        // データを受信した時のイベント
+        room.onData.add(e => {
+            const data = JSON.parse(e.data);
+            console.log('Received data:', data);
+
+            if (data.type === 'party_data') {
+                opponentParty = data.payload;
+                checkAndStartBattle();
+            } else if (data.type === 'battle_action') {
+                executeRemoteAction(data.payload);
+            }
+        });
+    } catch (e) {
+        console.error('Failed to join room', e);
+        connectionStatusEl.textContent = '接続に失敗しました。';
+        alert(`接続エラー: ${e.message}`);
+    }
+}
+
+// メンバーリストのUI更新
+function updateMemberList() {
+    if (room) {
+        roomMembersEl.textContent = room.members.length;
+    }
 }
 
 // パーティー編成後の処理
 export function startOnlineBattle(party) {
     myParty = party;
-    // 相手に自分のパーティーデータを送信
-    dataConnection.send({ type: 'party_data', payload: myParty });
+    sendPartyData();
     checkAndStartBattle();
+}
+
+// 相手に自分のパーティーデータを送信
+function sendPartyData() {
+    if (room && opponentId) {
+        room.sendData(JSON.stringify({ type: 'party_data', payload: myParty }), [opponentId]);
+    }
 }
 
 // 双方のパーティーデータが揃ったか確認し、戦闘を開始
@@ -113,9 +187,9 @@ function checkAndStartBattle() {
 
 // battle.jsから呼び出される、相手にアクションを送信する関数
 export function sendBattleAction(action) {
-    if (dataConnection && dataConnection.open) {
-        dataConnection.send({ type: 'battle_action', payload: action });
+    if (room && opponentId) {
+        room.sendData(JSON.stringify({ type: 'battle_action', payload: action }), [opponentId]);
     } else {
-        console.error('DataConnection is not open.');
+        console.error('Room or opponent not available.');
     }
 }
