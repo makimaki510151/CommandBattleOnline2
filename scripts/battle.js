@@ -125,6 +125,8 @@ function updateEnemyDisplay() {
 
 // 味方キャラクターの更新
 function updatePlayerDisplay() {
+    if (!currentPlayerParty) return; // 安全性チェックを追加
+    
     currentPlayerParty.forEach((player, index) => {
         if (playerPartyEl.children[index]) {
             const playerEl = playerPartyEl.children[index];
@@ -143,7 +145,7 @@ function updatePlayerDisplay() {
                 hpText.textContent = `${player.status.hp}/${player.status.maxHp}`;
             }
             if (mpText) {
-                hpText.textContent = `${player.status.mp}/${player.status.maxMp}`;
+                mpText.textContent = `${player.status.mp}/${player.status.maxMp}`;
             }
 
             if (player.status.hp <= 0) {
@@ -156,27 +158,41 @@ function updatePlayerDisplay() {
 // 戦闘ロジックの開始
 async function startBattle() {
     logMessage('戦闘開始！');
-    currentPlayerParty = window.getSelectedParty();
+    
+    // パーティーデータを取得（オンライン時は後で設定される場合もある）
+    if (!window.isOnlineMode()) {
+        currentPlayerParty = window.getSelectedParty();
+    } else {
+        // オンライン対戦の場合、パーティーデータがまだ設定されていない可能性がある
+        if (!currentPlayerParty) {
+            currentPlayerParty = window.getSelectedParty();
+        }
+    }
+    
     currentGroupIndex = 0;
     currentTurn = 0;
 
     // プレイヤーと敵に状態管理用オブジェクトを追加
-    currentPlayerParty.forEach(p => {
-        p.effects = {};
-        if (p.id === 'char06') { // きり（ゲーム）に執着のメモリを追加
-            p.targetMemory = { lastTargetId: null, missed: false };
-        }
-    });
+    if (currentPlayerParty) {
+        currentPlayerParty.forEach(p => {
+            p.effects = {};
+            if (p.id === 'char06') { // きり（ゲーム）に執着のメモリを追加
+                p.targetMemory = { lastTargetId: null, missed: false };
+            }
+        });
+    }
 
     if (window.isOnlineMode()) {
         // オンライン対戦モード
         logMessage('オンライン対戦を開始します！');
         
         // 自分のパーティー情報を相手に送信
-        window.sendData({
-            type: 'party_data',
-            party: currentPlayerParty
-        });
+        if (currentPlayerParty) {
+            window.sendData({
+                type: 'party_data',
+                party: currentPlayerParty
+            });
+        }
 
         // 相手のパーティー情報を待つ
         waitingForOpponent = true;
@@ -196,6 +212,19 @@ function handleOpponentParty(partyData) {
             p.targetMemory = { lastTargetId: null, missed: false };
         }
     });
+    
+    // 自分のパーティーがまだ設定されていない場合は設定
+    if (!currentPlayerParty) {
+        currentPlayerParty = window.getSelectedParty();
+        if (currentPlayerParty) {
+            currentPlayerParty.forEach(p => {
+                p.effects = {};
+                if (p.id === 'char06') {
+                    p.targetMemory = { lastTargetId: null, missed: false };
+                }
+            });
+        }
+    }
     
     logMessage('相手のパーティー情報を受信しました！');
     renderBattle();
@@ -236,6 +265,13 @@ async function startOnlineBattle() {
 // オンライン対戦用のプレイヤーターン
 function playerTurnOnline() {
     return new Promise(resolve => {
+        // currentPlayerPartyの存在確認
+        if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
+            logMessage('パーティーデータが正しく設定されていません。');
+            resolve();
+            return;
+        }
+        
         // 生きているプレイヤーから選択
         const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
         if (alivePlayers.length === 0) {
@@ -293,6 +329,11 @@ function performAttackOnline(attacker, target) {
 // オンライン対戦用の敵選択
 function selectEnemyTargetOnline() {
     return new Promise(resolve => {
+        if (!opponentParty || !Array.isArray(opponentParty)) {
+            resolve(null);
+            return;
+        }
+        
         const enemies = opponentParty.filter(e => e.status.hp > 0);
         if (enemies.length === 0) {
             resolve(null);
@@ -380,16 +421,18 @@ function processStatusEffects(combatant) {
     }
 
     // 零唯のパッシブスキル「妖艶なる書架」
-    if (combatant.id === 'char05' && currentPlayerParty.includes(combatant)) {
+    if (combatant.id === 'char05' && currentPlayerParty && currentPlayerParty.includes(combatant)) {
         const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
-        enemies.forEach(enemy => {
-            if (enemy.effects.abyssian_madness) {
-                if (Math.random() < 0.5) {
-                    enemy.effects.abyssian_madness.stacks++;
-                    logMessage(`零唯の「妖艶なる書架」が発動！${enemy.name}の狂気スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'special-event');
+        if (enemies) {
+            enemies.forEach(enemy => {
+                if (enemy.effects.abyssian_madness) {
+                    if (Math.random() < 0.5) {
+                        enemy.effects.abyssian_madness.stacks++;
+                        logMessage(`零唯の「妖艶なる書架」が発動！${enemy.name}の狂気スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'special-event');
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     return false;
@@ -406,12 +449,14 @@ function processEndTurnEffects(combatant) {
             combatant.status.hp = Math.max(0, combatant.status.hp - damage);
             logMessage(`${combatant.name}は「血晶の零滴」で${damage}のダメージを受けた！`, 'damage');
             
-            const caster = currentPlayerParty.find(p => p.id === dropEffect.casterId);
-            if (caster) {
-                const mpRecovery = Math.floor(damage * 0.5);
-                caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + mpRecovery);
-                updatePlayerDisplay();
-                logMessage(`${caster.name}はMPを${mpRecovery}回復した。`, 'heal');
+            if (currentPlayerParty) {
+                const caster = currentPlayerParty.find(p => p.id === dropEffect.casterId);
+                if (caster) {
+                    const mpRecovery = Math.floor(damage * 0.5);
+                    caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + mpRecovery);
+                    updatePlayerDisplay();
+                    logMessage(`${caster.name}はMPを${mpRecovery}回復した。`, 'heal');
+                }
             }
             dropEffect.duration--;
         } else {
@@ -540,12 +585,14 @@ async function enemyTurn(enemy) {
     logMessage(`${enemy.name}のターン！`);
     
     // 簡単なAI：ランダムに味方を攻撃
-    const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
-    if (alivePlayers.length > 0) {
-        const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
-        const damage = calculateDamage(enemy, target);
-        target.status.hp = Math.max(0, target.status.hp - damage);
-        updatePlayerDisplay();
+    if (currentPlayerParty) {
+        const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
+        if (alivePlayers.length > 0) {
+            const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+            const damage = calculateDamage(enemy, target);
+            target.status.hp = Math.max(0, target.status.hp - damage);
+            updatePlayerDisplay();
+        }
     }
     
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -580,13 +627,15 @@ function performMultiAttack(attacker, target) {
 
 // 全体攻撃
 function performAreaAttack(attacker, targets) {
-    targets.forEach(target => {
-        if (target.status.hp > 0) {
-            const damage = calculateDamage(attacker, target, attacker.attackType === 'magic');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-        }
-    });
-    updateEnemyDisplay();
+    if (targets) {
+        targets.forEach(target => {
+            if (target.status.hp > 0) {
+                const damage = calculateDamage(attacker, target, attacker.attackType === 'magic');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+            }
+        });
+        updateEnemyDisplay();
+    }
 }
 
 // 回復処理
@@ -600,32 +649,36 @@ function performHeal(healer, target) {
 // 「蠱惑の聖歌」の実装
 function performSanctuaryHymn(caster) {
     const healAmount = Math.floor(caster.status.support * 0.5);
-    currentPlayerParty.forEach(p => {
-        p.status.hp = Math.min(p.status.maxHp, p.status.hp + healAmount);
-        p.effects.abyssal_worship = { duration: 5, casterSupport: caster.status.support / 60 };
-        logMessage(`${p.name}は「深淵の崇拝」の効果を得た！`, 'status-effect');
-    });
-    updatePlayerDisplay();
+    if (currentPlayerParty) {
+        currentPlayerParty.forEach(p => {
+            p.status.hp = Math.min(p.status.maxHp, p.status.hp + healAmount);
+            p.effects.abyssal_worship = { duration: 5, casterSupport: caster.status.support / 60 };
+            logMessage(`${p.name}は「深淵の崇拝」の効果を得た！`, 'status-effect');
+        });
+        updatePlayerDisplay();
+    }
 }
 
 // 「深淵の理路」の実装
 function performAbyssalLogic(caster) {
     const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-    targets.forEach(enemy => {
-        if (enemy.effects.abyssal_echo) {
-            logMessage(`${enemy.name}には「深淵の残響」が付与されているため、「深淵の狂気」を付与できません。`);
-            return;
-        }
+    if (targets) {
+        targets.forEach(enemy => {
+            if (enemy.effects.abyssal_echo) {
+                logMessage(`${enemy.name}には「深淵の残響」が付与されているため、「深淵の狂気」を付与できません。`);
+                return;
+            }
 
-        if (!enemy.effects.abyssian_madness) {
-            enemy.effects.abyssian_madness = { stacks: 1, duration: 5 };
-            logMessage(`${enemy.name}は「深淵の狂気」状態になった！`, 'status-effect');
-        } else {
-            enemy.effects.abyssian_madness.stacks++;
-            enemy.effects.abyssian_madness.duration = 5;
-            logMessage(`${enemy.name}の「深淵の狂気」スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'status-effect');
-        }
-    });
+            if (!enemy.effects.abyssian_madness) {
+                enemy.effects.abyssian_madness = { stacks: 1, duration: 5 };
+                logMessage(`${enemy.name}は「深淵の狂気」状態になった！`, 'status-effect');
+            } else {
+                enemy.effects.abyssian_madness.stacks++;
+                enemy.effects.abyssian_madness.duration = 5;
+                logMessage(`${enemy.name}の「深淵の狂気」スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'status-effect');
+            }
+        });
+    }
 }
 
 // 「血晶の零滴」の実装
@@ -658,6 +711,10 @@ function isBattleOver() {
 
 // 戦闘終了処理
 function handleBattleEnd() {
+    if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
+        return;
+    }
+    
     const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
     
     if (window.isOnlineMode()) {
@@ -714,6 +771,11 @@ function handleGameOver() {
 // 敵選択（シングルプレイ用）
 function selectEnemyTarget() {
     return new Promise(resolve => {
+        if (!currentEnemies || !Array.isArray(currentEnemies)) {
+            resolve(null);
+            return;
+        }
+        
         const enemies = currentEnemies.filter(e => e.status.hp > 0);
         if (enemies.length === 0) {
             resolve(null);
@@ -739,6 +801,11 @@ function selectEnemyTarget() {
 // 味方選択（シングルプレイ用）
 function selectPlayerTarget() {
     return new Promise(resolve => {
+        if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
+            resolve(null);
+            return;
+        }
+        
         const players = currentPlayerParty.filter(p => p.status.hp > 0);
         if (players.length === 0) {
             resolve(null);
@@ -805,8 +872,12 @@ function logMessage(message, type = '') {
 
 // コマンド選択
 function selectCommand(playerIndex) {
+    if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
+        return;
+    }
+    
     const players = document.querySelectorAll('.player-character');
-    const partyMembers = window.getSelectedParty();
+    const partyMembers = currentPlayerParty;
 
     players.forEach(p => p.classList.remove('active'));
     if (players[playerIndex]) {
@@ -819,6 +890,8 @@ function selectCommand(playerIndex) {
 
 // コマンドメニューの更新
 function updateCommandMenu(player) {
+    if (!player) return;
+    
     const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
     const specialButtonEl = commandAreaEl.querySelector('.action-special');
 
@@ -831,7 +904,7 @@ function updateCommandMenu(player) {
     if (player.id === 'char06') {
         const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
         player.special.condition = (p) => {
-            return enemies && enemies.some(e => Object.keys(e.effects).length >= 2);
+            return enemies && enemies.some(e => Object.keys(e.effects || {}).length >= 2);
         };
     }
 
@@ -849,10 +922,12 @@ function handleBattleAction(data) {
     switch (data.action) {
         case 'attack':
             // 相手の攻撃を自分の画面に反映
-            const attacker = opponentParty.find(p => p.id === data.actorId);
-            const target = currentPlayerParty[data.targetIndex];
-            if (attacker && target) {
-                performAttackOnline(attacker, target);
+            if (opponentParty && currentPlayerParty) {
+                const attacker = opponentParty.find(p => p.id === data.actorId);
+                const target = currentPlayerParty[data.targetIndex];
+                if (attacker && target) {
+                    performAttackOnline(attacker, target);
+                }
             }
             break;
         // 他のアクションも同様に処理
@@ -884,11 +959,11 @@ window.syncGameState = syncGameState;
 // オンライン対戦用のパーティー情報受信処理をグローバルに公開
 window.handleOpponentParty = handleOpponentParty;
 
-
-
 // 敵選択のUIをレンダリング
 function renderEnemySelection(enemies) {
     enemyPartyEl.innerHTML = ""; // 既存の敵表示をクリア
+    if (!enemies || !Array.isArray(enemies)) return;
+    
     enemies.forEach(enemy => {
         const enemyEl = document.createElement("div");
         enemyEl.classList.add("character-card", "enemy-character");
@@ -909,12 +984,11 @@ function renderEnemySelection(enemies) {
     });
 }
 
-
-
-
 // 味方選択のUIをレンダリング
 function renderPlayerSelection(players) {
     playerPartyEl.innerHTML = ""; // 既存の味方表示をクリア
+    if (!players || !Array.isArray(players)) return;
+    
     players.forEach(player => {
         const playerEl = document.createElement("div");
         playerEl.classList.add("character-card", "player-character");
@@ -937,9 +1011,6 @@ function renderPlayerSelection(players) {
     });
 }
 
-
-
-
 // オンライン対戦用のアクション処理
 window.handleBattleAction = function(data) {
     console.log('Handling battle action:', data);
@@ -947,10 +1018,12 @@ window.handleBattleAction = function(data) {
     switch (data.action) {
         case 'attack':
             // 相手の攻撃を処理
-            const attacker = opponentParty.find(p => p.id === data.actorId);
-            const target = currentPlayerParty[data.targetIndex];
-            if (attacker && target) {
-                performAttackOnline(attacker, target);
+            if (opponentParty && currentPlayerParty) {
+                const attacker = opponentParty.find(p => p.id === data.actorId);
+                const target = currentPlayerParty[data.targetIndex];
+                if (attacker && target) {
+                    performAttackOnline(attacker, target);
+                }
             }
             break;
         // 他のアクションも同様に実装...
@@ -1003,4 +1076,3 @@ window.syncGameState = function(data) {
         currentTurn = data.currentTurn;
     }
 };
-
