@@ -107,15 +107,8 @@ partySlotsEl.addEventListener('click', (event) => {
             slot.dataset.charId = char.id;
             slot.classList.add('filled');
 
-            // 修正: ネットワークで送信するために、関数を含まないシンプルなオブジェクトを作成
-            const partyChar = {
-                id: char.id,
-                name: char.name,
-                image: char.image,
-                role: char.role,
-                attackType: char.attackType,
-                status: { ...char.status },
-            };
+            // 選択されたキャラクターに現在のステータスをコピーしてパーティーに加える
+            const partyChar = { ...char, status: { ...char.status } };
             partyMembers.push(partyChar);
 
             selectedCharacterId = null;

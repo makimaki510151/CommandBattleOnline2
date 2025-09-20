@@ -1,40 +1,90 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バトルアドベンチャー</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.4.1/skyway.min.js"></script>
+    <title>冒険の始まり</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/party.css">
+    <link rel="stylesheet" href="styles/battle.css">
 </head>
-<body>
 
+<body>
     <div id="title-screen">
-        <h1>バトルアドベンチャー</h1>
-        <button id="start-button">冒険開始</button>
+        <h1 class="game-title">コマンドローグライク</h1>
+        <div class="controls">
+            <button id="start-button">冒険開始</button>
+            <div class="volume-control">
+                <span>音量</span>
+                <input type="range" id="volume-slider" min="0" max="100" value="50">
+            </div>
+        </div>
     </div>
 
     <div id="party-screen" class="hidden">
-        <h2>パーティー編成</h2>
-        <div id="party-members">
+        <header class="party-header">
+            <div class="header-buttons">
+                <button id="back-button" class="action-button">戻る</button>
             </div>
-        <button id="back-button">戻る</button>
-        <button id="host-button">ホストとして開始</button>
-        <div id="join-container" class="hidden">
-            <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
-            <button id="join-button">参加</button>
+            <h2 class="header-title">パーティー編成</h2>
+            <div class="header-buttons">
+                <button id="go-button" class="action-button">出かける</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="character-pane">
+                <h3>キャラクター一覧</h3>
+                <div id="character-list">
+                </div>
+            </div>
+            <div class="right-pane">
+                <div id="party-slots-container">
+                    <h3>パーティー</h3>
+                    <div class="party-slots">
+                        <div class="party-slot" data-slot-id="0"></div>
+                        <div class="party-slot" data-slot-id="1"></div>
+                        <div class="party-slot" data-slot-id="2"></div>
+                        <div class="party-slot" data-slot-id="3"></div>
+                    </div>
+                </div>
+                <div id="character-details">
+                    <h3>詳細情報</h3>
+                    <div id="details-content">
+                        <p class="placeholder">キャラクターを選択してください</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <p id="my-peer-id"></p>
     </div>
-    
+
     <div id="battle-screen" class="hidden">
-        <div id="player-party"></div>
-        <div id="enemy-party"></div>
-        <div id="battle-log"></div>
+        <header class="game-header">            
+        </header>
+
+        <main class="battle-container">
+            <div class="battlefield">
+                <div id="enemy-party" class="party-area enemies">
+                </div>
+                <div id="player-party" class="party-area players">
+                </div>
+            </div>
+
+            <div class="ui-container">
+                <div id="command-area" class="command-box hidden">
+                </div>
+                <div id="message-log" class="log-box">
+                </div>
+            </div>
+        </main>
     </div>
-    
-    <script src="party.js"></script>
-    <script src="battle.js"></script>
-    <script src="main.js"></script>
+
+    <script type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/characters.js"></script>
+    <script type="module" src="scripts/enemies.js"></script>
+    <script type="module" src="scripts/party.js"></script>
+    <script type="module" src="scripts/battle.js"></script>
 </body>
+
 </html>

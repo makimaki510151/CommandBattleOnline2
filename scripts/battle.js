@@ -8,10 +8,6 @@ const battleScreenEl = document.getElementById('battle-screen');
 const goButton = document.getElementById('go-button');
 const partyScreen = document.getElementById('party-screen');
 
-// 対戦相手の情報と、通信用のデータチャネルを格納する
-let opponentParty = [];
-let dataChannel = null;
-
 let currentEnemies;
 let currentPlayerParty;
 let activePlayerIndex = 0;
@@ -68,7 +64,7 @@ function calculateDamage(attacker, defender, isMagic = false) {
     }
 
     logMessage(`${attacker.name}の攻撃！${defender.name}に${damage.toFixed(2)}のダメージ！`, 'damage');
-    return parseFloat(damage.toFixed(2));
+    return damage.toFixed(2);
 }
 
 // 敵キャラクターの更新
@@ -118,194 +114,318 @@ function updatePlayerDisplay() {
     });
 }
 
-// ★ P2P通信用の startBattle 関数に変更
-window.startBattle = async (channel) => {
-    dataChannel = channel;
+// 戦闘ロジックの開始
+async function startBattle() {
     logMessage('戦闘開始！');
     currentPlayerParty = window.getSelectedParty();
-    currentEnemies = opponentParty; // 敵パーティーを相手プレイヤーのパーティーに置き換え
+    currentGroupIndex = 0;
 
     // プレイヤーと敵に状態管理用オブジェクトを追加
     currentPlayerParty.forEach(p => {
         p.effects = {};
-        if (p.id === 'char06') {
+        if (p.id === 'char06') { // きり（スタイル）に執着のメモリを追加
             p.targetMemory = { lastTargetId: null, missed: false };
         }
     });
 
-    // 相手からのメッセージを待機
-    dataChannel.on('data', data => {
-        const message = JSON.parse(data);
-        handleOpponentAction(message);
-    });
-
-    // 相手が切断した場合の処理
-    dataChannel.on('close', () => {
-        logMessage('相手プレイヤーが切断しました。');
-        handleGameWin();
-    });
-
-    // 初期描画
-    renderBattle();
-    
-    // 戦闘開始のメッセージを送信し、自分のパーティー情報を相手に送る
-    dataChannel.send(JSON.stringify({
-        type: 'battle_start',
-        party: currentPlayerParty
-    }));
-
-    // 戦闘開始時に相手のパーティー情報を受け取るまで待つ
-    const receivedInitialData = await new Promise(resolve => {
-        dataChannel.on('data', message => {
-            const data = JSON.parse(message);
-            if (data.type === 'battle_start') {
-                opponentParty = data.party;
-                currentEnemies = opponentParty;
-                logMessage('相手パーティーの情報を受信しました。');
-                renderBattle(); // 相手パーティーを描画
-                resolve();
-            }
-        });
-    });
-
-    // 両者が準備完了したら、ターンを開始
-    // ここでは、ホスト側（接続待ち側）が最初のターンを開始
-    if (dataChannel.open && dataChannel.remoteId < dataChannel.localId) { // IDでどちらが先攻か決める
-        await playerTurn(currentPlayerParty[0]);
-    } else {
-        logMessage('相手のターンを待っています...');
-        // 相手からの行動メッセージを待機
-    }
-
-};
-
-// 相手からの行動を処理する関数
-function handleOpponentAction(message) {
-    if (message.type === 'action') {
-        const player = opponentParty.find(p => p.id === message.payload.performerId);
-        const target = currentPlayerParty.find(p => p.id === message.payload.targetId);
-
-        if (!player || !target) {
-            console.error('無効な行動データを受信しました。');
-            return;
-        }
-
-        logMessage(`${player.name}のターン！`);
-        let actionResult;
-
-        switch (message.payload.actionType) {
-            case 'attack':
-                actionResult = performAttack(player, target);
-                break;
-            case 'skill':
-                // スキルの処理
-                const skill = player.active.find(s => s.name === message.payload.skillName);
-                if (skill) {
-                    performSkill(skill, player, target);
-                }
-                break;
-            case 'special':
-                // 必殺技の処理
-                const specialSkill = player.special;
-                if (specialSkill && specialSkill.name === message.payload.skillName) {
-                    performSpecial(specialSkill, player, target);
-                }
-                break;
-            case 'defend':
-                logMessage(`${player.name}は防御した。`);
-                break;
-            default:
-                logMessage('未知の行動を受信しました。');
-                break;
-        }
-
-        // 呪縛の効果判定
-        if (player.effects.curse && actionResult > 0) {
-            const curseDamage = Math.floor(player.status.maxHp * 0.05);
-            player.status.hp = Math.max(0, player.status.hp - curseDamage);
-            logMessage(`${player.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
-        }
-
-        updatePlayerDisplay();
-    }
+    // 最初の敵グループを設定
+    await startNextGroup();
 }
 
+// 次の敵グループとの戦闘を開始する
+async function startNextGroup() {
+    if (currentGroupIndex >= enemyGroups.length) {
+        // すべてのグループをクリア
+        handleGameWin();
+        return;
+    }
 
-// 味方ターンの処理 (P2P用に変更)
+    const group = enemyGroups[currentGroupIndex];
+    logMessage(`${group.name}との戦闘！`);
+
+    // グループの敵データを読み込み
+    currentEnemies = group.enemies.map(enemyId => {
+        const enemy = enemyData.find(e => e.id === enemyId);
+        // ステータスをコピーして新たな敵を作成
+        return { ...enemy, status: { ...enemy.status }, effects: {} }; // effectsを追加
+    });
+
+    renderBattle(); // 敵パーティーを再描画
+    await battleLoop();
+}
+
+// 戦闘ループ（速度順）
+async function battleLoop() {
+    while (true) {
+        const allCombatants = [...currentPlayerParty, ...currentEnemies];
+        const aliveCombatants = allCombatants.filter(c => c.status.hp > 0);
+
+        // 速度順にソート
+        aliveCombatants.sort((a, b) => b.status.spd - a.status.spd);
+
+        for (const combatant of aliveCombatants) {
+            if (isBattleOver()) break;
+            if (combatant.status.hp <= 0) continue;
+
+            // ターン開始時の効果を処理
+            if (combatant.effects.abyssian_madness) { // 深淵の狂気
+                const madnessEffect = combatant.effects.abyssian_madness;
+                const disableChance = 0.1 * madnessEffect.stacks;
+                if (Math.random() < disableChance) {
+                    logMessage(`${combatant.name}は深淵の狂気に陥り、行動不能になった！`, 'status-effect');
+                    continue; // 行動をスキップ
+                }
+            }
+
+            // 「衰躯」の効果を適用
+            let originalStatus = { ...combatant.status };
+            if (combatant.effects.fadingBody) {
+                const debuffAmount = 0.25;
+                combatant.status.def = Math.max(1, combatant.status.def * (1 - debuffAmount));
+                combatant.status.mdef = Math.max(1, combatant.status.mdef * (1 - debuffAmount));
+                combatant.status.support = Math.max(1, combatant.status.support * (1 - debuffAmount));
+                logMessage(`${combatant.name}は「衰躯」でステータスが低下した！`, 'status-effect');
+            }
+
+            // 「虚空」の効果を適用
+            if (combatant.effects.void) {
+                const debuffAmount = 0.25;
+                combatant.status.atk = Math.max(1, combatant.status.atk * (1 - debuffAmount));
+                combatant.status.matk = Math.max(1, combatant.status.matk * (1 - debuffAmount));
+                combatant.status.def = Math.max(1, combatant.status.def * (1 - debuffAmount));
+                combatant.status.mdef = Math.max(1, combatant.status.mdef * (1 - debuffAmount));
+                combatant.status.spd = Math.max(1, combatant.status.spd * (1 - debuffAmount));
+                combatant.status.support = Math.max(1, combatant.status.support * (1 - debuffAmount));
+                logMessage(`${combatant.name}は「虚空」で全てのステータスが低下した！`, 'status-effect');
+            }
+
+            // 零唯のパッシブスキル「妖艶なる書架」を処理
+            if (combatant.id === 'char05' && currentPlayerParty.includes(combatant)) {
+                currentEnemies.forEach(enemy => {
+                    if (enemy.effects.abyssian_madness) {
+                        if (Math.random() < 0.5) { // 50%の確率で発動
+                            enemy.effects.abyssian_madness.stacks++;
+                            logMessage(`零唯の「妖艶なる書架」が発動！${enemy.name}の狂気スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'special-event');
+                        }
+                    }
+                });
+            }
+
+            if (currentPlayerParty.includes(combatant)) {
+                // 味方ターン
+                activePlayerIndex = currentPlayerParty.indexOf(combatant);
+                await playerTurn(combatant);
+            } else {
+                // 敵ターン
+                await enemyTurn(combatant);
+            }
+
+            // ターン終了時の効果を処理
+            if (combatant.effects.blood_crystal_drop) { // 血晶の零滴
+                const dropEffect = combatant.effects.blood_crystal_drop;
+                if (dropEffect.duration > 0) {
+                    const baseDamage = Math.floor(dropEffect.casterMatk * 0.3);
+                    const damage = Math.max(1, baseDamage - Math.floor(combatant.status.mdef / 2));
+                    combatant.status.hp = Math.max(0, combatant.status.hp - damage);
+                    logMessage(`${combatant.name}は「血晶の零滴」で${damage}のダメージを受けた！`, 'damage');
+                    const caster = currentPlayerParty.find(p => p.id === dropEffect.casterId);
+                    if (caster) {
+                        const mpRecovery = Math.floor(damage * 5);
+                        caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + mpRecovery);
+                        updatePlayerDisplay();
+                        logMessage(`${caster.name}はMPを${mpRecovery}回復した。`, 'heal');
+                    }
+                    dropEffect.duration--;
+                } else {
+                    delete combatant.effects.blood_crystal_drop;
+                    logMessage(`${combatant.name}の「血晶の零滴」効果が切れた。`, 'status-effect');
+                }
+            }
+
+            // 「衰躯」の効果時間減少
+            if (combatant.effects.fadingBody) {
+                combatant.effects.fadingBody.duration--;
+                if (combatant.effects.fadingBody.duration <= 0) {
+                    delete combatant.effects.fadingBody;
+                    logMessage(`${combatant.name}の「衰躯」効果が切れた。`, 'status-effect');
+                }
+            }
+
+            // 「呪縛」の効果時間減少
+            if (combatant.effects.curse) {
+                combatant.effects.curse.duration--;
+                if (combatant.effects.curse.duration <= 0) {
+                    delete combatant.effects.curse;
+                    logMessage(`${combatant.name}の「呪縛」効果が切れた。`, 'status-effect');
+                }
+            }
+
+            // 「滅気」の効果時間減少
+            if (combatant.effects.extinguishSpirit) {
+                combatant.effects.extinguishSpirit.duration--;
+                if (combatant.effects.extinguishSpirit.duration <= 0) {
+                    delete combatant.effects.extinguishSpirit;
+                    logMessage(`${combatant.name}の「滅気」効果が切れた。`, 'status-effect');
+                }
+            }
+
+            // 「虚空」の効果時間減少
+            if (combatant.effects.void) {
+                combatant.effects.void.duration--;
+                if (combatant.effects.void.duration <= 0) {
+                    delete combatant.effects.void;
+                    logMessage(`${combatant.name}の「虚空」効果が切れた。`, 'status-effect');
+                }
+            }
+
+            // 元のステータスに戻す
+            combatant.status = originalStatus;
+        }
+
+        if (isBattleOver()) break;
+    }
+
+    // 戦闘終了
+    handleBattleEnd();
+}
+
+// 味方ターンの処理
 function playerTurn(player) {
     return new Promise(resolve => {
         logMessage(`${player.name}のターン！`);
-        selectCommand(currentPlayerParty.indexOf(player));
+        selectCommand(activePlayerIndex);
 
         commandAreaEl.onclick = async (event) => {
-            const targetEl = event.target;
-            let actionData = null;
+            const target = event.target;
+            let actionTaken = false;
 
-            if (targetEl.classList.contains('action-attack')) {
+            if (target.classList.contains('action-attack')) {
+                // 攻撃対象を選択
                 logMessage('対象を選んでください。');
                 const enemySelection = await selectEnemyTarget();
                 if (enemySelection) {
-                    actionData = { actionType: 'attack', performerId: player.id, targetId: enemySelection.id };
+                    const damage = performAttack(player, enemySelection);
+                    // 呪縛の効果判定
+                    if (player.effects.curse && damage > 0) {
+                        const curseDamage = Math.floor(player.status.maxHp * 0.05);
+                        player.status.hp = Math.max(0, player.status.hp - curseDamage);
+                        logMessage(`${player.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+                    }
+                    actionTaken = true;
                 }
-            } else if (targetEl.classList.contains('action-skill')) {
+            } else if (target.classList.contains('action-skill')) {
                 const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
                 skillMenuEl.classList.toggle('hidden');
-            } else if (targetEl.classList.contains('skill-button')) {
-                const skillName = targetEl.textContent;
+            } else if (target.classList.contains('skill-button')) {
+                const skillName = target.textContent;
                 const skill = player.active.find(s => s.name === skillName);
                 if (skill) {
-                    // MP消費の判定
+                    // 「呪縛」によるMPコスト増加
                     let mpCost = skill.mp;
                     if (player.effects.curse) {
                         mpCost = Math.floor(mpCost * 1.5);
+                        logMessage(`${player.name}の「呪縛」により、MP消費が${mpCost}に増加した。`);
                     }
+
                     if (player.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
-                        return;
+                        return; // スキル発動を中止
                     }
-                    player.status.mp -= mpCost;
 
-                    let target;
-                    if (skill.targetType === 'single-enemy') {
-                        logMessage('攻撃する敵を選択してください。');
-                        target = await selectEnemyTarget();
-                    } else if (skill.targetType === 'single-player') {
+                    logMessage(`${player.name}は${skill.name}を使った！`);
+                    player.status.mp -= mpCost; // MP消費
+
+                    // スキルの効果をここで実行
+                    if (skill.name === 'ヒールライト') {
                         logMessage('回復する味方を選択してください。');
-                        target = await selectPlayerTarget();
-                    } else if (skill.targetType === 'all-enemy') {
-                        target = currentEnemies;
-                    } else if (skill.targetType === 'all-player') {
-                        target = currentPlayerParty;
+                        const targetPlayer = await selectPlayerTarget();
+                        if (targetPlayer) {
+                            performHeal(player, targetPlayer);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '連撃') {
+                        logMessage('攻撃する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performMultiAttack(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === 'なぎ払い' || skill.name === 'ブリザード') {
+                        performAreaAttack(player, currentEnemies);
+                        actionTaken = true;
+                    } else if (skill.name === '蠱惑の聖歌') {
+                        performSanctuaryHymn(player);
+                        actionTaken = true;
+                    } else if (skill.name === '深淵の理路') {
+                        performAbyssalLogic(player);
+                        actionTaken = true;
+                    } else if (skill.name === '血晶の零滴') {
+                        logMessage('攻撃する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performBloodCrystalDrop(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '滅気') {
+                        logMessage('デバフを付与する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performExtinguishSpirit(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else if (skill.name === '衰躯') {
+                        performFadingBody(player, currentEnemies);
+                        actionTaken = true;
+                    } else if (skill.name === '呪縛') {
+                        logMessage('デバフを付与する敵を選択してください。');
+                        const targetEnemy = await selectEnemyTarget();
+                        if (targetEnemy) {
+                            performCurse(player, targetEnemy);
+                            actionTaken = true;
+                        }
+                    } else {
+                        logMessage('このスキルはまだ実装されていません。');
+                        player.status.mp += mpCost; // 未実装スキルのためMPを戻す
                     }
 
-                    if (target) {
-                        actionData = { actionType: 'skill', performerId: player.id, skillName: skill.name, targetId: target.id };
+                    if (actionTaken) {
+                        // 呪縛の効果判定（スキルによるダメージ）
+                        if (player.effects.curse && skill.type === 'attack') { // スキルタイプに応じて修正が必要
+                            const curseDamage = Math.floor(player.status.maxHp * 0.05);
+                            player.status.hp = Math.max(0, player.status.hp - curseDamage);
+                            logMessage(`${player.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+                        }
                     }
                 }
-            } else if (targetEl.classList.contains('action-special')) {
+            } else if (target.classList.contains('action-special')) {
                 const specialSkill = player.special;
                 if (specialSkill && specialSkill.condition && specialSkill.condition(player)) {
                     if (player.status.mp < specialSkill.mp) {
                         logMessage(`MPが足りません！`);
                         return;
                     }
-                    player.status.mp -= specialSkill.mp;
-                    actionData = { actionType: 'special', performerId: player.id, skillName: specialSkill.name };
+
+                    logMessage(`${player.name}は「${specialSkill.name}」を使った！`);
+                    player.status.mp -= specialSkill.mp; // MP消費
+
+                    if (specialSkill.name === '狂気の再編') {
+                        performMadnessReorganization(player);
+                        actionTaken = true;
+                    } else if (specialSkill.name === '虚空') {
+                        performVoid(player, currentEnemies);
+                        actionTaken = true;
+                    }
                 } else {
                     logMessage('必殺技の条件を満たしていません。');
                 }
-            } else if (targetEl.classList.contains('action-defend')) {
-                actionData = { actionType: 'defend', performerId: player.id };
+            } else if (target.classList.contains('action-defend')) {
+                logMessage(`${player.name}は防御した。`);
+                actionTaken = true;
             }
 
-            if (actionData) {
-                // アクションを相手に送信
-                dataChannel.send(JSON.stringify({
-                    type: 'action',
-                    payload: actionData
-                }));
-                // ローカルでアクションを実行
-                performLocalAction(actionData, player);
+            if (actionTaken) {
+                // ターン終了
+                updatePlayerDisplay(); // MP消費を反映
                 commandAreaEl.classList.add('hidden');
                 commandAreaEl.onclick = null;
                 resolve();
@@ -314,63 +434,30 @@ function playerTurn(player) {
     });
 }
 
-// ローカルでのアクション実行
-function performLocalAction(actionData, player) {
-    const { actionType, skillName, targetId } = actionData;
-
-    switch (actionType) {
-        case 'attack':
-            const targetEnemy = currentEnemies.find(e => e.id === targetId);
-            performAttack(player, targetEnemy);
-            break;
-        case 'skill':
-            const skill = player.active.find(s => s.name === skillName);
-            if (!skill) return;
-
-            if (skill.name === 'ヒールライト') {
-                const targetPlayer = currentPlayerParty.find(p => p.id === targetId);
-                performHeal(player, targetPlayer);
-            } else if (skill.name === '連撃') {
-                const targetEnemy = currentEnemies.find(e => e.id === targetId);
-                performMultiAttack(player, targetEnemy);
-            } else if (skill.name === 'なぎ払い' || skill.name === 'ブリザード') {
-                performAreaAttack(player, currentEnemies);
-            } else if (skill.name === '蠱惑の聖歌') {
-                performSanctuaryHymn(player);
-            } else if (skill.name === '深淵の理路') {
-                performAbyssalLogic(player);
-            } else if (skill.name === '血晶の零滴') {
-                const targetEnemy = currentEnemies.find(e => e.id === targetId);
-                performBloodCrystalDrop(player, targetEnemy);
-            } else if (skill.name === '滅気') {
-                const targetEnemy = currentEnemies.find(e => e.id === targetId);
-                performExtinguishSpirit(player, targetEnemy);
-            } else if (skill.name === '衰躯') {
-                performFadingBody(player, currentEnemies);
-            } else if (skill.name === '呪縛') {
-                const targetEnemy = currentEnemies.find(e => e.id === targetId);
-                performCurse(player, targetEnemy);
-            } else if (skill.name === '虚空') {
-                performVoid(player, currentEnemies);
+// 敵ターンの処理
+function enemyTurn(enemy) {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            logMessage(`${enemy.name}のターン！`);
+            const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
+            if (alivePlayers.length > 0) {
+                const targetPlayer = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+                // 敵の行動（ここではシンプルに物理攻撃）
+                const damage = calculateDamage(enemy, targetPlayer);
+                targetPlayer.status.hp = Math.max(0, targetPlayer.status.hp - damage);
+                // 呪縛の効果判定
+                if (enemy.effects.curse && damage > 0) {
+                    const curseDamage = Math.floor(enemy.status.maxHp * 0.05);
+                    enemy.status.hp = Math.max(0, enemy.status.hp - curseDamage);
+                    logMessage(`${enemy.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+                    updateEnemyDisplay();
+                }
+                updatePlayerDisplay();
             }
-            break;
-        case 'special':
-            if (skillName === '狂気の再編') {
-                performMadnessReorganization(player);
-            } else if (skillName === '虚空') {
-                performVoid(player, currentEnemies);
-            }
-            break;
-        case 'defend':
-            logMessage(`${player.name}は防御した。`);
-            break;
-    }
-    updatePlayerDisplay();
-    updateEnemyDisplay();
+            resolve();
+        }, 1000); // 1秒待機
+    });
 }
-
-// 敵ターンの処理 (P2Pのため不要)
-// function enemyTurn(enemy) { ... }
 
 // ターゲット選択ロジック（敵）
 function selectEnemyTarget() {
@@ -409,7 +496,7 @@ function performAttack(attacker, target) {
     const damage = calculateDamage(attacker, target, attacker.attackType === 'magic');
     target.status.hp = Math.max(0, target.status.hp - damage);
     updateEnemyDisplay();
-    return damage;
+    return damage; // ダメージ量を返すように変更
 }
 
 // 複数回攻撃アクション
@@ -423,6 +510,12 @@ function performMultiAttack(attacker, target) {
         if (target.status.hp <= 0) break;
     }
     updateEnemyDisplay();
+    // 呪縛の効果判定
+    if (attacker.effects.curse && totalDamage > 0) {
+        const curseDamage = Math.floor(attacker.status.maxHp * 0.05);
+        attacker.status.hp = Math.max(0, attacker.status.hp - curseDamage);
+        logMessage(`${attacker.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+    }
 }
 
 // 全体攻撃アクション
@@ -431,6 +524,12 @@ function performAreaAttack(attacker, targets) {
         if (target.status.hp > 0) {
             const damage = calculateDamage(attacker, target, attacker.attackType === 'magic');
             target.status.hp = Math.max(0, target.status.hp - damage);
+            // 呪縛の効果判定
+            if (attacker.effects.curse && damage > 0) {
+                const curseDamage = Math.floor(attacker.status.maxHp * 0.05);
+                attacker.status.hp = Math.max(0, attacker.status.hp - curseDamage);
+                logMessage(`${attacker.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
+            }
         }
     });
     updateEnemyDisplay();
@@ -446,9 +545,11 @@ function performHeal(healer, target) {
 
 // 「蠱惑の聖歌」の実装
 function performSanctuaryHymn(caster) {
+    // 補助力に応じた回復量
     const healAmount = Math.floor(caster.status.support * 0.5);
     currentPlayerParty.forEach(p => {
         p.status.hp = Math.min(p.status.maxHp, p.status.hp + healAmount);
+        // 補助力に応じたダメージ上昇効果を保存
         p.effects.abyssal_worship = { duration: 5, casterSupport: caster.status.support / 60 };
         logMessage(`${p.name}は「深淵の崇拝」の効果を得た！`, 'status-effect');
     });
@@ -468,7 +569,7 @@ function performAbyssalLogic(caster) {
             logMessage(`${enemy.name}は「深淵の狂気」状態になった！`, 'status-effect');
         } else {
             enemy.effects.abyssian_madness.stacks++;
-            enemy.effects.abyssian_madness.duration = 5;
+            enemy.effects.abyssian_madness.duration = 5; // ターンをリフレッシュ
             logMessage(`${enemy.name}の「深淵の狂気」スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'status-effect');
         }
     });
@@ -476,6 +577,7 @@ function performAbyssalLogic(caster) {
 
 // 「血晶の零滴」の実装
 function performBloodCrystalDrop(caster, target) {
+    // 魔法攻撃力とキャスターIDを保存
     target.effects.blood_crystal_drop = { duration: 3, casterMatk: caster.status.matk, casterId: caster.id };
     logMessage(`${target.name}は「血晶の零滴」状態になった。`, 'status-effect');
 }
@@ -491,13 +593,17 @@ function performMadnessReorganization(caster) {
 
     targets.forEach(target => {
         const stacks = target.effects.abyssian_madness.stacks;
+        // スタック数と自身の魔法攻撃力に応じた大ダメージ
         const baseDamage = Math.floor(caster.status.matk * stacks);
         const damage = Math.max(1, baseDamage - Math.floor(target.status.mdef / 2));
 
         target.status.hp = Math.max(0, target.status.hp - damage);
         logMessage(`${target.name}に「狂気の再編」で${damage}のダメージ！`, 'damage');
 
+        // スタックをリセット
         delete target.effects.abyssian_madness;
+
+        // 「深淵の残響」を付与
         target.effects.abyssal_echo = { stacks: 5, disableChance: 0.5 };
         logMessage(`${target.name}に「深淵の残響」が付与された。`, 'status-effect');
     });
@@ -544,7 +650,7 @@ function performCurse(caster, target) {
 function performVoid(caster, targets) {
     targets.forEach(target => {
         let debuffCount = Object.keys(target.effects).length;
-        if (target.effects.void) debuffCount--;
+        if (target.effects.void) debuffCount--; // 虚空自身はカウントしない
 
         let duration = Math.max(1, debuffCount * 2);
 
@@ -560,28 +666,51 @@ function isBattleOver() {
     return !playersAlive || !enemiesAlive;
 }
 
+// 敵グループ戦闘終了後の処理
+function handleBattleEnd() {
+    const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
+    if (playersAlive) {
+        logMessage('敵グループを撃破しました！');
+        currentGroupIndex++;
+        // プレイヤーのHPとMPを回復
+        currentPlayerParty.forEach(p => {
+            p.status.hp = p.status.maxHp;
+            p.status.mp = p.status.maxMp;
+        });
+        updatePlayerDisplay();
+
+        // 次の戦闘に進むか、全クリか
+        if (currentGroupIndex < enemyGroups.length) {
+            logMessage('次の敵グループに挑みます...');
+            setTimeout(() => {
+                startNextGroup();
+            }, 2000); // 2秒後に次の戦闘開始
+        } else {
+            handleGameWin();
+        }
+    } else {
+        logMessage('全滅しました... ゲームオーバー');
+        handleGameOver();
+    }
+}
+
 // ゲーム勝利処理
 function handleGameWin() {
-    logMessage('相手に勝利しました！');
+    logMessage('すべての敵を倒しました！');
     logMessage('ゲームクリア！おめでとうございます！');
-    dataChannel.send(JSON.stringify({ type: 'game_over', result: 'lose' }));
-    resetGame();
-}
-
-// ゲームオーバー処理
-function handleGameOver() {
-    logMessage('全滅しました... ゲームオーバー');
-    dataChannel.send(JSON.stringify({ type: 'game_over', result: 'win' }));
-    resetGame();
-}
-
-function resetGame() {
     commandAreaEl.innerHTML = '';
     goButton.disabled = false;
     battleScreenEl.classList.add('hidden');
     partyScreen.classList.remove('hidden');
 }
 
+// ゲームオーバー処理
+function handleGameOver() {
+    commandAreaEl.innerHTML = '';
+    goButton.disabled = false;
+    battleScreenEl.classList.add('hidden');
+    partyScreen.classList.remove('hidden');
+}
 
 // コマンドメニューのテンプレートを生成
 function createCommandMenu() {
@@ -598,26 +727,23 @@ function createCommandMenu() {
 
 // 戦闘画面を描画する関数
 function renderBattle() {
-    // 敵パーティー（相手プレイヤー）の描画
+    // 敵パーティーの描画
     enemyPartyEl.innerHTML = '';
-    currentEnemies.forEach(enemy => {
+    currentEnemies.forEach(enemy => { // 変更：currentEnemiesを使用
         const enemyDiv = document.createElement('div');
         enemyDiv.className = 'enemy-character';
-        enemyDiv.dataset.charId = enemy.id;
         enemyDiv.innerHTML = `
             <img src="${enemy.image}" alt="${enemy.name}">
             <p>${enemy.name}</p>
             <div class="hp-bar"><div class="hp-bar-fill" style="width: 100%;"></div></div>
             <p class="hp-text">${enemy.status.hp}/${enemy.status.maxHp}</p>
-            <div class="mp-bar"><div class="mp-bar-fill" style="width: 100%;"></div></div>
-            <p class="mp-text">${enemy.status.mp}/${enemy.status.maxMp}</p>
         `;
         enemyPartyEl.appendChild(enemyDiv);
     });
 
-    // 味方パーティーの描画
+    // 味方パーティーの描画（パーティー編成画面で選んだキャラクターを反映）
     playerPartyEl.innerHTML = '';
-    currentPlayerParty.forEach(player => {
+    currentPlayerParty.forEach(player => { // 変更：currentPlayerPartyを使用
         const playerDiv = document.createElement('div');
         playerDiv.className = 'player-character';
         playerDiv.dataset.charId = player.id;
@@ -632,6 +758,7 @@ function renderBattle() {
         playerPartyEl.appendChild(playerDiv);
     });
 
+    // コマンドエリアを初期化
     commandAreaEl.innerHTML = createCommandMenu();
 }
 
@@ -666,6 +793,7 @@ function updateCommandMenu(player) {
         return `<button class="skill-button">${skill.name}</button>`;
     }).join('');
 
+    // きり（スタイル）の必殺技条件
     if (player.id === 'char06') {
         player.special.condition = (p) => {
             return currentEnemies.some(e => Object.keys(e.effects).length >= 2);
@@ -678,3 +806,7 @@ function updateCommandMenu(player) {
         specialButtonEl.classList.add('hidden');
     }
 }
+
+// グローバルスコープに公開
+window.startBattle = startBattle;
+window.renderBattle = renderBattle;
