@@ -71,19 +71,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // オンライン対戦の場合、パーティーデータを相手に送信
-        if (isOnlineMode && connection && connection.open) {
-            window.sendData({
-                type: 'party_data',
-                party: partyMembers
-            });
-            console.log('パーティーデータを送信しました:', partyMembers);
-        }
-
         partyScreen.classList.add('hidden');
         battleScreen.classList.remove('hidden');
-        
-        window.startBattle(); // 戦闘開始
+
+        // 🔴 パーティーメンバーを直接引数として渡す
+        window.startBattle(partyMembers);
     });
 
     // 「接続」ボタン
@@ -106,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // SKYWAYの初期化
     function initializePeer() {
         connectionStatusEl.textContent = 'SKYWAYを初期化中...';
-        
+
         // SKYWAYを使用してPeerを初期化（APIキーなしで試行）
         try {
             peer = new Peer();
@@ -148,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         connection.on('open', () => {
             connectionStatusEl.textContent = '接続完了！パーティー編成に進んでください。';
             isOnlineMode = true;
-            
+
             // パーティー編成画面に移動するボタンを表示
             const proceedButton = document.createElement('button');
             proceedButton.textContent = 'パーティー編成へ進む';
@@ -172,18 +164,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 onlineScreen.classList.add('hidden');
                 partyScreen.classList.remove('hidden');
             });
-            
+
             // ホバー効果を追加
             proceedButton.addEventListener('mouseenter', () => {
                 proceedButton.style.transform = 'translateY(-3px) scale(1.05)';
                 proceedButton.style.boxShadow = '0 12px 24px rgba(255, 107, 53, 0.4)';
             });
-            
+
             proceedButton.addEventListener('mouseleave', () => {
                 proceedButton.style.transform = 'translateY(0) scale(1)';
                 proceedButton.style.boxShadow = '0 8px 16px rgba(255, 107, 53, 0.3)';
             });
-            
+
             const existingButton = document.querySelector('.online-controls button[style*="margin-top"]');
             if (!existingButton) {
                 document.querySelector('.online-controls').appendChild(proceedButton);
@@ -208,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 受信データの処理
     function handleReceivedData(data) {
         console.log('Received data:', data);
-        
+
         switch (data.type) {
             case 'party_data':
                 // 相手のパーティー情報を受信
@@ -240,11 +232,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.syncGameState(data);
                 }
                 break;
+            case 'start_battle':
+                // ホストからの戦闘開始通知を受信した場合
+                if (window.isOnlineMode() && !window.isHost()) {
+                    window.startBattleClientSide();
+                }
+                break;
+            case 'player_turn':
+                // ホストからのプレイヤーターン開始通知を受信
+                if (window.isOnlineMode() && !window.isHost()) {
+                    // 自分のパーティーのキャラクターのターンであれば、コマンドを表示
+                    if (data.activePlayerId) {
+                        const activePlayer = currentPlayerParty.find(p => p.id === data.activePlayerId);
+                        if (activePlayer) {
+                            window.playerTurnOnline(activePlayer);
+                        }
+                    }
+                }
+                break;
+            case 'battle_end':
+                if (window.handleBattleEnd) {
+                    window.handleBattleEnd();
+                }
+                break;
         }
     }
 
     // データ送信関数をグローバルに公開
-    window.sendData = function(data) {
+    window.sendData = function (data) {
         if (connection && connection.open) {
             // function型のプロパティを除外してシリアライズ
             const serializedData = JSON.parse(JSON.stringify(data, (key, value) => {
@@ -258,12 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // オンラインモード判定をグローバルに公開
-    window.isOnlineMode = function() {
+    window.isOnlineMode = function () {
         return isOnlineMode;
     };
 
     // ホスト判定をグローバルに公開
-    window.isHost = function() {
+    window.isHost = function () {
         return isHost;
     };
 });
