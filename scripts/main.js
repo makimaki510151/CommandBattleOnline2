@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.isOnlineMode() && !window.isHost()) {
                     // 自分のパーティーのキャラクターのターンであれば、コマンドを表示
                     if (data.activePlayerId) {
-                        const activePlayer = currentPlayerParty.find(p => p.id === data.activePlayerId);
+                        const activePlayer = window.currentPlayerParty.find(p => p.id === data.activePlayerId); // 🔴 修正
                         if (activePlayer) {
                             window.playerTurnOnline(activePlayer);
                         }
@@ -256,6 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
         }
+
+        const event = new CustomEvent('data_received', { detail: data });
+        window.dispatchEvent(event);
     }
 
     // データ送信関数をグローバルに公開

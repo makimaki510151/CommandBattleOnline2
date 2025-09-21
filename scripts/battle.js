@@ -175,6 +175,7 @@ async function startBattle(partyMembers) {
 
     // 自分のパーティーデータを設定
     currentPlayerParty = partyMembers;
+    window.currentPlayerParty = partyMembers; // 🔴 追加: グローバルスコープにパーティーデータを設定
     myPartyReady = true;
 
     // プレイヤーに状態管理用オブジェクトを追加
@@ -248,7 +249,7 @@ window.startBattleClientSide = function () {
 };
 
 // オンライン対戦用のプレイヤーターン
-function playerTurnOnline(player) {
+window.playerTurnOnline = function (player) {
     return new Promise(resolve => {
         // currentPlayerPartyの存在確認
         if (!currentPlayerParty || !Array.isArray(currentPlayerParty)) {
@@ -257,15 +258,14 @@ function playerTurnOnline(player) {
             return;
         }
 
-        // 行動するキャラクターを引数から取得
         const activePlayer = player;
         const playerIndex = currentPlayerParty.indexOf(activePlayer);
-        activePlayerIndex = playerIndex; // グローバル変数も更新
+        window.activePlayerIndex = playerIndex; // グローバル変数に設定
 
         logMessage(`${activePlayer.name}のターン！`);
-        selectCommand(activePlayerIndex);
+        // selectCommandは引数を取らずに、グローバルな activePlayerIndex を参照するように変更
+        selectCommand();
 
-        // イベントリスナーを再設定
         const handleCommand = async (event) => {
             const target = event.target;
             let actionTaken = false;
@@ -302,7 +302,6 @@ function playerTurnOnline(player) {
                         return;
                     }
 
-                    // スキルの効果に応じて actionData を生成
                     actionData = await executeSkillOnline(activePlayer, skill);
                     if (actionData) {
                         actionData.turn = currentTurn;
@@ -331,7 +330,6 @@ function playerTurnOnline(player) {
                 actionTaken = true;
             }
 
-            // アクションが完了したら、ホストにデータを送信してPromiseを解決
             if (actionTaken && actionData) {
                 window.sendData(actionData);
                 commandAreaEl.removeEventListener('click', handleCommand);
@@ -340,10 +338,9 @@ function playerTurnOnline(player) {
             }
         };
 
-        // イベントリスナーを追加
         commandAreaEl.addEventListener('click', handleCommand);
     });
-}
+};
 
 // オンライン対戦用の攻撃処理
 function performAttackOnline(attacker, target) {
@@ -400,7 +397,7 @@ async function startNextGroup() {
     renderBattle();
     await battleLoop();
 }
-
+// battle.js の battleLoop 関数の修正
 async function battleLoop() {
     // battleLoopはホストのみが実行します。
     if (window.isOnlineMode() && !window.isHost()) {
@@ -438,14 +435,21 @@ async function battleLoop() {
                 if (isPlayerCharacter) {
                     // ホストは自分のターンであればコマンドを表示
                     if (window.isHost()) {
+                        logMessage('自分のターンです。コマンドを選択してください。');
                         await playerTurnOnline(combatant);
                     } else {
-                        // ホストはクライアントのターンであれば、ターン開始を通知
+                        // クライアントのターンはホストから通知されるので、ここでは何もしない
+                        // ただし、ホストは相手の行動を待機する
+                    }
+                } else {
+                    // 相手（オンライン対戦の相手プレイヤー）のターン
+                    if (window.isHost()) {
+                        // クライアントにターン開始を通知し、クライアントからの行動を待機
                         window.sendData({
                             type: 'player_turn',
                             activePlayerId: combatant.id
                         });
-                        // クライアントからの行動を待機
+                        logMessage('相手の行動を待機中...');
                         await new Promise(resolve => {
                             const handler = (data) => {
                                 if (data.type === 'battle_action' && data.turn === currentTurn) {
@@ -457,9 +461,6 @@ async function battleLoop() {
                             window.addEventListener('data_received', handler);
                         });
                     }
-                } else {
-                    // 敵のターン
-                    await enemyTurnOnline(combatant);
                 }
             } else {
                 // シングルプレイ
@@ -996,30 +997,59 @@ function updateCommandMenu(player) {
     }
 }
 
-// オンライン対戦用のデータ受信処理
+// battle.js の handleBattleAction 関数の修正
 window.handleBattleAction = function (data) {
     console.log('Handling battle action:', data);
 
     const isHost = window.isHost();
-    const actor = isHost ? opponentParty.find(p => p.id === data.actorId) : currentPlayerParty.find(p => p.id === data.actorId);
-    const target = isHost ? currentPlayerParty[data.targetIndex] : opponentParty[data.targetIndex];
+    let actor, target;
 
-    if (!actor || !target) {
-        console.error('Invalid actor or target received.');
+    // 行動者を特定
+    if (isHost) {
+        actor = opponentParty.find(p => p.id === data.actorId);
+    } else {
+        actor = currentPlayerParty.find(p => p.id === data.actorId);
+    }
+
+    // ターゲットを特定
+    if (data.targetIndex !== undefined) {
+        if (isHost) {
+            target = currentPlayerParty[data.targetIndex];
+        } else {
+            target = opponentParty[data.targetIndex];
+        }
+    }
+
+    if (!actor) {
+        console.error('Invalid actor received.');
         return;
     }
 
+    // 行動のタイプに応じて処理を分岐
     switch (data.action) {
         case 'attack':
-            performAttackOnline(actor, target);
+            if (target) {
+                const damage = calculateDamage(actor, target, actor.attackType === 'magic');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+                updatePlayerDisplay();
+                updateEnemyDisplay();
+            }
             break;
         case 'defend':
             logMessage(`${actor.name}は防御した。`);
             actor.isDefending = true;
             break;
         case 'skill':
-            executeSkillOnline(actor, data.skill, data.targetIds);
+            // スキル処理
+            if (data.skill) {
+                executeSkillOnline(actor, data.skill, data.targetIds);
+            }
             break;
+    }
+
+    // クライアント側でターンが終了した後に次のターンに進む
+    if (!isHost) {
+        startOnlineBattle();
     }
 };
 
@@ -1116,6 +1146,19 @@ window.handleBattleAction = function (data) {
         handleBattleEnd();
     }
 };
+
+async function startOnlineBattle() {
+    if (window.isHost()) {
+        // ホストの場合は battleLoop で制御されるため何もしない
+        return;
+    }
+
+    // クライアント側でターンが終了したら、次のホストからの指示を待機
+    if (!isBattleOver()) {
+        logMessage('相手の行動を待機中...');
+        waitingForOpponent = true;
+    }
+}
 
 // 回避判定結果の処理
 window.handleDodgeResult = function (data) {
