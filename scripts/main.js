@@ -250,6 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+            case 'battle_result':
+                // ホストから送信された戦闘結果を処理
+                if (window.handleBattleResult) {
+                    // battle.js に処理を委譲
+                    window.handleBattleResult(data);
+                }
+                break;
             case 'battle_end':
                 if (window.handleBattleEnd) {
                     window.handleBattleEnd();

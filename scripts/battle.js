@@ -19,84 +19,73 @@ let currentTurn = 0; // ターン管理用
 let waitingForOpponent = false; // 相手の行動待ち
 let isBattleOngoing = false; // 修正点: この行を追加
 
+window.currentPlayerParty = currentPlayerParty;
+window.opponentParty = opponentParty;
+
 // ダメージ計算関数
 function calculateDamage(attacker, defender, isMagic = false) {
-    // きり（ゲーム）の「執着」効果判定
+    // 状態異常による回避率の変動
     let actualDodgeRate = defender.status.dodgeRate;
+    let specialEffectLog = '';
+
+    // きり（ゲーム）の「執着」効果判定
     if (attacker.name === 'きり（ゲーム）' && attacker.targetMemory && attacker.targetMemory.lastTargetId === defender.id && attacker.targetMemory.missed) {
         actualDodgeRate /= 2;
-        logMessage(`${attacker.name}の「執着」が発動し、${defender.name}の回避率が半減した！`, 'status-effect');
+        specialEffectLog += `${attacker.name}の「執着」が発動し、${defender.name}の回避率が半減した！`;
     }
 
     // 「滅気」の効果判定
     if (defender.effects.extinguishSpirit && defender.effects.extinguishSpirit.casterId === attacker.id) {
         actualDodgeRate *= 1.5;
-        logMessage(`${attacker.name}の「滅気」効果により、${defender.name}の回避率が上昇した！`, 'status-effect');
+        specialEffectLog += `${attacker.name}の「滅気」効果により、${defender.name}の回避率が上昇した！`;
     }
 
-    // 回避判定（ホストが計算）
-    let dodged = false;
-    if (window.isOnlineMode() && window.isHost()) {
-        dodged = Math.random() < actualDodgeRate;
-        // 結果を相手に送信
-        window.sendData({
-            type: 'dodge_result',
-            dodged: dodged,
-            attackerId: attacker.id,
-            defenderId: defender.id
-        });
-    } else if (!window.isOnlineMode()) {
-        dodged = Math.random() < actualDodgeRate;
-    }
+    // 回避判定
+    const dodged = Math.random() < actualDodgeRate;
 
-    if (dodged) {
-        logMessage(`${defender.name}は攻撃を回避した！`, 'status-effect');
-        // 攻撃が外れた場合、きり（ゲーム）の執着フラグを立てる
-        if (attacker.name === 'きり（ゲーム）') {
-            attacker.targetMemory = { lastTargetId: defender.id, missed: true };
-        }
-        return 0;
-    }
-
-    // 攻撃が当たった場合、執着フラグをリセット
-    if (attacker.name === 'きり（ゲーム）' && attacker.targetMemory) {
-        attacker.targetMemory = { lastTargetId: null, missed: false };
-    }
-
-    let damage;
-    if (isMagic) {
-        damage = Math.max(1, attacker.status.matk - Math.floor(defender.status.mdef / 2));
-    } else {
-        damage = Math.max(1, attacker.status.atk - Math.floor(defender.status.def / 2));
-    }
-
-    // 「深淵の崇拝」の効果判定
-    if (attacker.effects.abyssal_worship && defender.effects.abyssian_madness) {
-        const damageBoost = attacker.effects.abyssal_worship.casterSupport;
-        damage *= damageBoost;
-        logMessage(`${attacker.name}の「深淵の崇拝」が発動し、${damageBoost.toFixed(2)}倍のダメージを与えた！`, 'damage');
-    }
-
-    // 会心判定（ホストが計算）
+    // 攻撃が当たった場合の処理
+    let damage = 0;
     let critical = false;
+    if (!dodged) {
+        if (isMagic) {
+            damage = Math.max(1, attacker.status.matk - Math.floor(defender.status.mdef / 2));
+        } else {
+            damage = Math.max(1, attacker.status.atk - Math.floor(defender.status.def / 2));
+        }
+
+        // 「深淵の崇拝」の効果判定
+        if (attacker.effects.abyssal_worship && defender.effects.abyssian_madness) {
+            const damageBoost = attacker.effects.abyssal_worship.casterSupport;
+            damage *= damageBoost;
+            specialEffectLog += `${attacker.name}の「深淵の崇拝」が発動し、${damageBoost.toFixed(2)}倍のダメージを与えた！`;
+        }
+
+        // 会心判定
+        critical = Math.random() < attacker.status.criticalRate;
+        if (critical) {
+            damage = Math.floor(damage * attacker.status.criticalMultiplier);
+        }
+    }
+
+    // きり（ゲーム）の執着フラグを更新
+    if (attacker.name === 'きり（ゲーム）') {
+        attacker.targetMemory = { lastTargetId: defender.id, missed: dodged };
+    }
+
+    // 以下の部分は、ホストのみが実行し、結果をまとめて送信する
     if (window.isOnlineMode() && window.isHost()) {
-        critical = Math.random() < attacker.status.criticalRate;
-        // 結果を相手に送信
         window.sendData({
-            type: 'critical_result',
+            type: 'battle_result',
+            action: 'attack',
+            attackerId: attacker.id,
+            defenderId: defender.id,
+            damage: damage,
+            dodged: dodged,
             critical: critical,
-            attackerId: attacker.id
+            specialEffectLog: specialEffectLog,
         });
-    } else if (!window.isOnlineMode()) {
-        critical = Math.random() < attacker.status.criticalRate;
     }
 
-    if (critical) {
-        damage = Math.floor(damage * attacker.status.criticalMultiplier);
-        logMessage(`会心の一撃！`, 'special-event');
-    }
-
-    logMessage(`${attacker.name}の攻撃！${defender.name}に${damage}のダメージ！`, 'damage');
     return damage;
 }
 
@@ -1200,4 +1189,41 @@ window.syncGameState = function (data) {
     if (data.currentTurn !== undefined) {
         currentTurn = data.currentTurn;
     }
+};
+
+// グローバルスコープに公開する関数に handleBattleResult を追加
+window.handleBattleResult = function (data) {
+    const isHost = window.isHost();
+
+    // どのパーティーから探すかを決定
+    const playerPartyToSearch = isHost ? window.currentPlayerParty : window.opponentParty;
+    const enemyPartyToSearch = isHost ? window.opponentParty : window.currentPlayerParty;
+
+    // IDに基づいてアタッカーとディフェンダーのオブジェクトを取得
+    let attacker = playerPartyToSearch.find(p => p.id === data.attackerId) || enemyPartyToSearch.find(p => p.id === data.attackerId);
+    let defender = playerPartyToSearch.find(p => p.id === data.defenderId) || enemyPartyToSearch.find(p => p.id === data.defenderId);
+
+    if (!attacker || !defender) {
+        console.error('Attacker or defender not found!', data);
+        return;
+    }
+
+    // ログ表示のロジックを統合
+    if (data.specialEffectLog) {
+        logMessage(data.specialEffectLog, 'status-effect');
+    }
+
+    if (data.dodged) {
+        logMessage(`${defender.name}は攻撃を回避した！`, 'status-effect');
+    } else {
+        if (data.critical) {
+            logMessage(`会心の一撃！`, 'special-event');
+        }
+        logMessage(`${attacker.name}の攻撃！${defender.name}に${data.damage}のダメージ！`, 'damage');
+    }
+
+    // HP更新
+    defender.status.hp = Math.max(0, defender.status.hp - data.damage);
+    updatePlayerDisplay();
+    updateEnemyDisplay();
 };
