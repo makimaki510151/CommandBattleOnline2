@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         copyIdButton.disabled = true;
 
         try {
-            const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
+            const res = await fetch('https://mkonline.netlify.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
 
