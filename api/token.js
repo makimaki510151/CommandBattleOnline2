@@ -7,6 +7,10 @@ const { SkyWayAuthToken, uuidV4 } = require('@skyway-sdk/token');
 const APP_ID = process.env.VITE_SKYWAY_APP_ID;
 const SECRET = process.env.VITE_SKYWAY_SECRET_KEY;
 
+// 以下の行を追加
+console.log('Read SECRET key (first 10 chars):', SECRET ? SECRET.substring(0, 10) : 'not found');
+
+
 module.exports = (req, res) => {
   // 環境変数が設定されているか確認
   if (!APP_ID || !SECRET) {
