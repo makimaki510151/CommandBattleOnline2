@@ -1,6 +1,7 @@
 // api/token.js (using jsonwebtoken)
 
 const jwt = require("jsonwebtoken");
+const { version } = require("mongoose");
 
 // uuidV4を直接実装
 function uuidV4() {
@@ -37,6 +38,7 @@ module.exports = (req, res) => {
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
+            version: 3,
             scope: {
                 appId: APP_ID,
                 turn: true,
