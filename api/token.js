@@ -1,8 +1,8 @@
 // api/token.js
 
 // SkyWay SDK v3のライブラリをインポート
-const { SkyWayAuthToken } = require('@skyway-sdk/token');
-const { uuidV4, nowInSec } = require('@skyway-sdk/common');
+import { SkyWayAuthToken } from '@skyway-sdk/token';
+import { uuidV4, nowInSec } from '@skyway-sdk/common';
 
 // Vercelに設定した環境変数を読み込む
 const APP_ID = process.env.SKYWAY_APP_ID;
@@ -11,7 +11,7 @@ const SECRET = process.env.SKYWAY_SECRET_KEY;
 // ログ出力（開発用）
 console.log('Read SECRET key (first 10 chars):', SECRET ? SECRET.substring(0, 10) : 'not found');
 
-module.exports = (req, res) => {
+export default (req, res) => {
     // 環境変数が設定されているか確認
     if (!APP_ID || !SECRET) {
         console.error("Environment variables for SkyWay are not set.");
