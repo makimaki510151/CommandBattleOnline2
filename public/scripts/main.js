@@ -177,9 +177,19 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
+            console.log("🔑 取得したトークン:", token);
+
             console.log("🔹 SkyWayContext作成開始");
-            context = await SkyWayContext.Create(token);
+
+            // タイムアウトを仕込む
+            const contextPromise = SkyWayContext.Create(token);
+            context = await Promise.race([
+                contextPromise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 10000))
+            ]);
+
             console.log("✅ SkyWayContext作成完了", context);
+
             console.log("🔹 ルーム検索/作成開始");
             const room = await SkyWayRoom.FindOrCreate(context, {
                 type: "p2p",
@@ -195,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = false;
 
-            // v3: onPublicationSubscribed → onStreamPublished / onPublicationSubscribed
             room.onStreamPublished.add(async ({ publication }) => {
                 if (
                     publication.contentType === 'data' &&
@@ -212,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
-            // 既存のパブリケーションに対しても購読
+            // 既存のパブリケーションを購読
             for (const publication of room.publications) {
                 if (
                     publication.contentType === 'data' &&
