@@ -9,7 +9,6 @@ const APP_ID = process.env.SKYWAY_APP_ID;
 const SECRET = process.env.SKYWAY_SECRET_KEY;
 
 // ログ出力（開発用）
-console.log('APP_ID:', APP_ID);
 console.log('Read SECRET key (first 10 chars):', SECRET ? SECRET.substring(0, 10) : 'not found');
 
 module.exports = (req, res) => {
@@ -49,8 +48,9 @@ module.exports = (req, res) => {
 
         // クライアントにトークンとアプリIDをJSON形式で返す
         res.status(200).json({ token: token, appId: APP_ID });
+
     } catch (error) {
-        console.error("Failed to generate or encode SkyWay token:", error);
-        res.status(500).json({ error: "Server error: Failed to generate token." });
+        console.log("Token generation error:", error);
+        res.status(500).json({ error: "Failed to generate token" });
     }
 };
