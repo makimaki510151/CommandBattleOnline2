@@ -1,6 +1,6 @@
-// api/token.js (using jsonwebtoken)
+// api/token.js (ESM version using @skyway-sdk/token)
 
-const jwt = require("jsonwebtoken");
+import { SkyWayAuthToken } from '@skyway-sdk/token';
 
 // uuidV4を直接実装
 function uuidV4() {
@@ -16,7 +16,7 @@ function nowInSec() {
     return Math.floor(Date.now() / 1000);
 }
 
-module.exports = (req, res) => {
+export default async (req, res) => {
     console.log('token.js: Function started.');
 
     const APP_ID = process.env.SKYWAY_APP_ID;
@@ -31,9 +31,9 @@ module.exports = (req, res) => {
     }
 
     try {
-        console.log('token.js: Attempting to generate SkyWay token using jsonwebtoken...');
-
-        const payload = {
+        console.log('token.js: Attempting to create SkyWayAuthToken using SkyWayAuthToken.create...');
+        
+        const token = SkyWayAuthToken.create({
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
@@ -53,9 +53,7 @@ module.exports = (req, res) => {
                     },
                 ],
             },
-        };
-
-        const token = jwt.sign(payload, SECRET, { algorithm: 'HS256' });
+        }, SECRET);
 
         console.log('token.js: SkyWay token generated successfully.');
         return res.status(200).json({ token: token, appId: APP_ID });
@@ -65,4 +63,3 @@ module.exports = (req, res) => {
         return res.status(500).json({ error: "Failed to generate token" });
     }
 };
-
