@@ -36,7 +36,7 @@ export default async (req, res) => {
         const token = new SkyWayAuthToken({
             jti: uuidV4(),
             iat: nowInSec(),
-            exp: nowInSec() + 60 * 60 * 2, // 2時間
+            exp: nowInSec() + 60 * 60 * 24, // 24時間
             version: 3,
             scope: {
                 appId: APP_ID,
@@ -44,11 +44,11 @@ export default async (req, res) => {
                 rooms: [
                     {
                         name: "*",
-                        methods: ["read", "write"],
+                        methods: ["create", "close", "updateMetadata"],
                         members: [
                             {
                                 name: "*",
-                                methods: ["read", "write"],
+                                methods: ["create", "close", "updateMetadata"],
                             },
                         ],
                     },
