@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = 'SkyWayを初期化中...';
         try {
             // 簡易的なJWTトークンを生成（実際のプロダクションでは適切なトークン生成が必要）
-            const token = generateSimpleToken();
+            const token = await generateSimpleToken();
             
             context = await SkyWayContext.Create(token);
             
@@ -123,47 +123,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 簡易的なJWTトークン生成（実際のプロダクションでは適切なトークン生成が必要）
-    function generateSimpleToken() {
+    async function generateSimpleToken() {
         const header = {
             alg: 'HS256',
             typ: 'JWT'
         };
         
         const payload = {
-            jti: generateUniqueId(),
+            jti: generateUuidV4(),
             iat: Math.floor(Date.now() / 1000),
             exp: Math.floor(Date.now() / 1000) + 3600, // 1時間後に期限切れ
+            version: 3,
             scope: {
                 app: {
                     id: APP_ID,
                     turn: true,
-                    actions: ['read'],
+                    actions: ["read"],
                     channels: [
                         {
-                            id: '*',
-                            name: '*',
-                            actions: ['write'],
+                            id: "*",
+                            name: "*",
+                            actions: ["write"],
                             members: [
                                 {
-                                    id: '*',
-                                    name: '*',
-                                    actions: ['write'],
-                                    publication: {
-                                        actions: ['write']
-                                    },
-                                    subscription: {
-                                        actions: ['write']
-                                    }
+                                    id: "*",
+                                    name: "*",
+                                    actions: ["write"]
                                 }
                             ],
                             sfuBots: [
                                 {
-                                    actions: ['write'],
-                                    forwardings: [
-                                        {
-                                            actions: ['write']
-                                        }
-                                    ]
+                                    actions: ["write"]
+                                }
+                            ],
+                            forwardings: [
+                                {
+                                    actions: ["write"]
                                 }
                             ]
                         }
@@ -171,14 +166,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
-        
         // 注意: 実際のプロダクションでは、サーバーサイドで適切な秘密鍵を使用してJWTを生成する必要があります
         // ここでは簡易的な実装のため、クライアントサイドで生成していますが、セキュリティ上推奨されません
-        const encodedHeader = btoa(JSON.stringify(header));
-        const encodedPayload = btoa(JSON.stringify(payload));
-        const signature = 'dummy_signature'; // 実際には適切な署名が必要
+        const encodedHeader = btoa(JSON.stringify(header)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const encodedPayload = btoa(JSON.stringify(payload)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
         
-        return `${encodedHeader}.${encodedPayload}.${signature}`;
+        const text = `${encodedHeader}.${encodedPayload}`;
+        const secret = "0yED9+rwKuxyFkAKmQqGbaOjVQcDucjM3VpBenyU3WM="; // ユーザーから提供された秘密鍵
+        
+        // 秘密鍵をBase64デコード
+        const secretBuffer = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
+
+        // Web Crypto APIを使用してHMAC-SHA256署名を生成
+        const key = await crypto.subtle.importKey(
+            "raw",
+            secretBuffer,
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["sign"]
+        ); const signatureBuffer = await crypto.subtle.sign(
+            "HMAC",
+            key,
+            new TextEncoder().encode(text)
+        );
+        
+        const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        
+        return `${text}.${signature}`;
     }
 
     // ルーム名生成
@@ -455,3 +469,16 @@ document.addEventListener('DOMContentLoaded', () => {
         remoteMember
     };
 });
+
+
+    // UUID v4を生成する関数
+    function generateUuidV4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0,
+                v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+
+
