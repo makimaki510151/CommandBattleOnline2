@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/party.css">
     <link rel="stylesheet" href="styles/battle.css">
+    <!-- Ayame SDK の読み込み (2022.1.0) -->
+    <script src="https://cdn.jsdelivr.net/npm/@open-ayame/ayame-web-sdk@2022.1.0/dist/ayame.min.js"></script>
+
 </head>
 
 <body>
@@ -31,36 +34,27 @@
                 <button id="copy-id-button" disabled>ルーム名をコピー</button>
             </div>
             <div class="connection-controls">
-                <input type="text" id="peer-id-input" placeholder="ルーム名を入力">
-                <button id="connect-button" disabled>参加</button>
+                <input type="text" id="peer-id-input" placeholder="相手のルーム名を入力">
+                <button id="connect-button">接続</button>
             </div>
-            <div class="connection-status">
-                <p id="connection-status">接続待機中...</p>
-            </div>
-            <button id="back-to-title-button">タイトルに戻る</button>
+            <p id="connection-status"></p>
+            <button id="back-to-title-button">タイトルへ戻る</button>
         </div>
     </div>
 
     <div id="party-screen" class="hidden">
-        <header class="party-header">
-            <div class="header-buttons">
-                <button id="back-button" class="action-button">戻る</button>
-            </div>
-            <h2 class="header-title">パーティー編成</h2>
-            <div class="header-buttons">
-                <button id="go-button" class="action-button">出かける</button>
-            </div>
+        <header class="game-header">
+            <h1 class="game-title">パーティー編成</h1>
         </header>
-
         <div class="main-content">
             <div class="character-pane">
-                <h3>キャラクター一覧</h3>
+                <h3>キャラクターリスト</h3>
                 <div id="character-list">
                 </div>
             </div>
             <div class="right-pane">
-                <div id="party-slots-container">
-                    <h3>パーティー</h3>
+                <div class="party-pane">
+                    <h3>パーティーメンバー</h3>
                     <div class="party-slots">
                         <div class="party-slot" data-slot-id="0"></div>
                         <div class="party-slot" data-slot-id="1"></div>
@@ -75,6 +69,10 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="party-controls">
+            <button id="back-button">戻る</button>
+            <button id="go-button">冒険へ</button>
         </div>
     </div>
 
@@ -99,13 +97,12 @@
         </main>
     </div>
 
-    <!-- SkyWay SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room@1.15.2/dist/skyway_room-1.15.2.js"></script>
-    <script src="scripts/main.js"></script>
+    <script type="module" src="scripts/main.js"></script>
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
     <script type="module" src="scripts/battle.js"></script>
+    <script type="module" src="scripts/character_abilities.js"></script>
 </body>
 
 </html>
