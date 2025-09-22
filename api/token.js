@@ -2,7 +2,7 @@
 
 // SkyWay SDK v3のライブラリをインポート
 import { SkyWayAuthToken } from '@skyway-sdk/token';
-import { uuidV4, nowInSec } from '@skyway-sdk/common';
+import * as common from '@skyway-sdk/common';
 
 export default (req, res) => {
     console.log('token.js: Function started.');
@@ -25,8 +25,8 @@ export default (req, res) => {
         console.log('token.js: Attempting to create SkyWayAuthToken...');
         // トークンを生成
         const token = new SkyWayAuthToken({
-            jti: uuidV4(),
-            iat: nowInSec(),
+            jti: common.uuidV4(),
+            iat: common.nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
             scope: {
                 appId: APP_ID,
