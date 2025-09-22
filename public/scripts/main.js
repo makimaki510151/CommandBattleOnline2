@@ -274,19 +274,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cleanupSkyWay() {
-        if (room) {
-            room.close();
-            room = null;
+        console.log("🧹 cleanupSkyWay 実行");
+
+        try {
+            if (localPerson) {
+                await localPerson.leave();
+                localPerson = null;
+            }
+            if (dataStream) {
+                dataStream = null;
+            }
+            if (room) {
+                try {
+                    await room.close(); // ← ここで失敗する
+                } catch (e) {
+                    console.warn("⚠️ room.close() 失敗 (無視してOK):", e);
+                }
+                room = null;
+            }
+            if (context) {
+                context.dispose();
+                context = null;
+            }
+        } catch (err) {
+            console.error("❌ cleanupSkyWay error:", err);
         }
-        if (context) {
-            context.dispose();
-            context = null;
-        }
-        localPerson = null;
-        dataStream = null;
-        isOnlineMode = false;
-        connectionStatusEl.textContent = '未接続';
     }
+
 
     window.sendData = function (data) {
         if (dataStream) {
