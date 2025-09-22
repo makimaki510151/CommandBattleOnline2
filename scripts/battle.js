@@ -908,9 +908,12 @@ function handleGameOver() {
 }
 
 function showBattleResult(isWinner) {
+    console.log('showBattleResult called with isWinner:', isWinner);
+    
     // 既存の結果画面があれば削除
     const existingResult = document.getElementById('battle-result-overlay');
     if (existingResult) {
+        console.log('Removing existing result overlay');
         existingResult.remove();
     }
 
@@ -1094,16 +1097,22 @@ function renderParty(partyEl, partyData, isEnemy) {
             memberEl.dataset.charId = member.originalId; // 後方互換性のため
         }
 
+        const characterImage = member.image ? `<img src="${member.image}" alt="${member.name}" class="character-image">` : '';
         const hpBar = `<div class="hp-bar"><div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div></div>`;
         const mpBar = isEnemy ? '' : `<div class="mp-bar"><div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div></div>`;
-        const mpText = isEnemy ? '' : `<p>MP: <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span></p>`;
+        const mpText = isEnemy ? '' : `<p class="mp-text-line">MP: <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span></p>`;
 
         memberEl.innerHTML = `
-            <h3>${member.name}</h3>
-            <p>HP: <span class="hp-text">${member.status.hp}/${member.status.maxHp}</span></p>
-            ${hpBar}
-            ${mpText}
-            ${mpBar}
+            <div class="character-info">
+                ${characterImage}
+                <div class="character-details">
+                    <h3 class="character-name">${member.name}</h3>
+                    <p class="hp-text-line">HP: <span class="hp-text">${member.status.hp}/${member.status.maxHp}</span></p>
+                    ${hpBar}
+                    ${mpText}
+                    ${mpBar}
+                </div>
+            </div>
         `;
         partyEl.appendChild(memberEl);
     });

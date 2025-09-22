@@ -35,16 +35,48 @@
 
 .enemy-character,
 .player-character {
-    text-align: center;
     transition: transform 0.3s ease;
     width: 20%;
+    min-width: 150px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.enemy-character img,
-.player-character img {
+.character-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.character-image {
     width: 80px;
     height: 80px;
-    object-fit: contain;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #ddd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.character-details {
+    width: 100%;
+    text-align: center;
+}
+
+.character-name {
+    margin: 0 0 5px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #333;
+}
+
+.hp-text-line,
+.mp-text-line {
+    margin: 2px 0;
+    font-size: 0.9em;
+    color: #555;
 }
 
 .hp-bar,
@@ -186,7 +218,6 @@
 .enemy-character.selecting-target:hover {
     transform: scale(1.05);
 }
-
 
 /* 勝利・敗北演出のスタイル */
 .battle-result-overlay {
