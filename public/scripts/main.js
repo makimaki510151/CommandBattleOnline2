@@ -130,7 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             context = await SkyWayContext.Create(token);
 
-            // ★ 修正箇所: ルームの作成をawaitで待ち、エラーハンドリングを追加
+            const roomId = generateUuidV4();
+            
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
                 type: 'sfu',
