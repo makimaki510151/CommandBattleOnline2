@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
-            
+
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
@@ -155,11 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
                     }
                 }
-                // クライアントの入室を検知したら、パーティーデータを送信
-                const partyData = window.getSelectedParty();
-                if (partyData) {
-                    window.sendData({ type: 'party_data', party: partyData });
-                }
             });
 
             // ストリーム公開時のイベントリスナー
@@ -173,7 +168,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localPerson = await room.join();
             dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
+            // ストリームの公開
+            const publication = await localPerson.publish(dataStream);
+
+            // ストリームの公開が完了し、相手が購読を開始した後にデータ送信
+            publication.onSubscriptionStarted.add((e) => {
+                console.log("🟢 ホスト: 自身のデータストリームの購読が開始されました。");
+                const partyData = window.getSelectedParty();
+                if (partyData && partyData.length > 0) {
+                    console.log("🔹 ホスト: パーティーデータを送信します。", partyData);
+                    window.sendData({ type: 'party_data', party: partyData });
+                } else {
+                    console.warn("⚠️ パーティーデータが選択されていないため、送信をスキップします。");
+                }
+            });
+
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
@@ -277,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (onlineScreen && battleScreen) {
                         onlineScreen.classList.add('hidden');
                         battleScreen.classList.remove('hidden');
-                        window.startOnlineBattle(parsedData.party); 
+                        window.startOnlineBattle(parsedData.party);
                     }
                 } else if (parsedData.type === 'start_battle') {
                     window.startBattleClientSide();
