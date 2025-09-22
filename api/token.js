@@ -34,11 +34,12 @@ module.exports = (req, res) => {
 
     try {
         console.log('token.js: Attempting to create SkyWayAuthToken...');
-        
+
         const token = new SkyWayAuthToken({
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
+            version: 3,
             scope: {
                 appId: APP_ID,
                 turn: true,
