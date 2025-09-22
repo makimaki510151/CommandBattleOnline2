@@ -177,13 +177,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
-
+            console.log("🔹 SkyWayContext作成開始");
             context = await SkyWayContext.Create(token);
-
-            room = await SkyWayRoom.Find(context, {
-                type: 'p2p',
-                name: roomId,
+            console.log("✅ SkyWayContext作成完了", context);
+            console.log("🔹 ルーム検索/作成開始");
+            const room = await SkyWayRoom.FindOrCreate(context, {
+                type: "p2p",
+                name: roomId
             });
+            console.log("✅ ルーム取得完了", room);
 
             if (!room) {
                 alert('指定されたルームが見つかりません。');
