@@ -131,10 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
-            room = await SkyWayRoom.FindOrCreate(context, {
-                name: `game_room_${roomId}`,
-                type: 'sfu',
-            });
+            room = await context.createRoom();
 
             isHost = true;
             localPerson = room.localPerson;
