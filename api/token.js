@@ -2,7 +2,7 @@
 
 // SkyWay SDK v3のライブラリをインポート
 import pkg from '@skyway-sdk/token';
-const { SkyWayAuthToken, generateToken } = pkg;
+const SkyWayAuthToken = pkg.SkyWayAuthToken;
 
 // uuidV4を直接実装
 function uuidV4() {
@@ -36,9 +36,9 @@ export default async (req, res) => {
     }
 
     try {
-        console.log('token.js: Attempting to generate SkyWay token...');
+        console.log('token.js: Attempting to create SkyWayAuthToken instance and encode...');
         // トークンを生成
-        const token = generateToken({
+        const authToken = new SkyWayAuthToken({
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
@@ -58,7 +58,8 @@ export default async (req, res) => {
                     },
                 ],
             },
-        }, SECRET);
+        });
+        const token = authToken.encode(SECRET);
 
         console.log('token.js: SkyWay token generated successfully.');
         // クライアントにトークンとアプリIDをJSON形式で返す
@@ -69,4 +70,3 @@ export default async (req, res) => {
         res.status(500).json({ error: "Failed to generate token" });
     }
 };
-
