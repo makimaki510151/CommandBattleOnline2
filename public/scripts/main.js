@@ -197,82 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // クライアントとして既存のルームに参加する
-    async function connectToRoom(roomId) {
-        console.log("🔹 connectToRoom: 接続開始");
-        connectionStatusEl.textContent = '接続中...';
-
-        if (context) {
-            console.log("⚠️ 既存コンテキストを破棄します");
-            await cleanupSkyWay();
-            console.log("✅ 既存コンテキストの破棄が完了しました");
-        }
-
-        try {
-            console.log("🔹 connectToRoom: トークン取得開始");
-            const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
-            const { token } = await res.json();
-            if (!token) throw new Error('トークンの取得に失敗しました。');
-            console.log("✅ connectToRoom: トークン取得完了");
-
-            console.log("🔹 connectToRoom: SkyWayContext作成開始");
-            const contextPromise = SkyWayContext.Create(token);
-            context = await Promise.race([
-                contextPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 15000))
-            ]);
-            console.log("✅ connectToRoom: SkyWayContext作成完了");
-
-            console.log("🔹 connectToRoom: ルーム検索/作成開始");
-            const room = await SkyWayRoom.FindOrCreate(context, {
-                type: "p2p",
-                name: roomId
-            });
-            if (!room) {
-                throw new Error('指定されたルームが見つかりません。');
-            }
-            console.log("✅ connectToRoom: ルーム取得完了");
-
-            isHost = false;
-            localPerson = await room.join();
-            console.log("✅ connectToRoom: ルーム参加完了");
-
-            room.onMemberJoined.add(async ({ member }) => {
-                logMessage('対戦相手が入室しました。');
-                for (const publication of member.publications) {
-                    if (publication.contentType === 'data') {
-                        const subscription = await localPerson.subscribe(publication.id);
-                        handleDataStream(subscription.stream);
-                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-                    }
-                }
-            });
-
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-                }
-            });
-
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
-            console.log("✅ connectToRoom: 自身のデータストリームを公開しました。");
-
-            myPeerIdEl.textContent = room.name;
-            connectionStatusEl.textContent = 'ルームID: ' + room.name;
-            copyIdButton.disabled = false;
-            logMessage('ルームに参加しました。', 'success');
-
-        } catch (error) {
-            console.error('❌ connectToRoom: エラー発生:', error);
-            connectionStatusEl.textContent = 'エラー: ' + (error.message || '接続に失敗しました');
-            logMessage('エラー: 接続に失敗しました。詳細をコンソールで確認してください。', 'error');
-            await cleanupSkyWay();
-        }
-    }
-
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
@@ -355,3 +279,70 @@ document.addEventListener('DOMContentLoaded', () => {
         return isHost;
     };
 });
+
+function connectToRoom() {
+    connection.on('open', () => {
+        connectionStatusEl.textContent = '接続完了！パーティー編成に進んでください。';
+        isOnlineMode = true;
+
+        // パーティー編成画面に移動するボタンを生成
+        const proceedButton = document.createElement('button');
+        proceedButton.textContent = 'パーティー編成へ進む';
+        proceedButton.className = 'proceed-button';
+        proceedButton.style.cssText = `
+            background: linear-gradient(135deg, #ff6b35, #ff8e53);
+            color: white;
+            font-size: 1.8em;
+            font-weight: bold;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 30px;
+            box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
+            transition: all 0.3s ease;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        `;
+
+        // 既存の「冒険開始」ボタンと同じ機能を直接実装
+        proceedButton.addEventListener('click', () => {
+            const onlineScreen = document.getElementById('online-screen');
+            const partyScreen = document.getElementById('party-screen');
+            if (onlineScreen) {
+                onlineScreen.classList.add('hidden');
+            }
+            partyScreen.classList.remove('hidden');
+        });
+
+        // ホバー効果を追加
+        proceedButton.addEventListener('mouseenter', () => {
+            proceedButton.style.transform = 'translateY(-3px) scale(1.05)';
+            proceedButton.style.boxShadow = '0 12px 24px rgba(255, 107, 53, 0.4)';
+        });
+
+        proceedButton.addEventListener('mouseleave', () => {
+            proceedButton.style.transform = 'translateY(0) scale(1)';
+            proceedButton.style.boxShadow = '0 8px 16px rgba(255, 107, 53, 0.3)';
+        });
+
+        const onlineControls = document.querySelector('.online-controls');
+        if (onlineControls && !document.querySelector('.proceed-button')) {
+            onlineControls.appendChild(proceedButton);
+        }
+    });
+
+    connection.on('data', (data) => {
+        handleReceivedData(data);
+    });
+
+    connection.on('close', () => {
+        connectionStatusEl.textContent = '接続が切断されました。';
+        isOnlineMode = false;
+    });
+
+    connection.on('error', (err) => {
+        console.error('Connection Error:', err);
+        connectionStatusEl.textContent = '接続エラーが発生しました。';
+    });
+}
