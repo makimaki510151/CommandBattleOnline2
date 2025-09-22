@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
             
-            context = await SkyWayContext.Create({
+            context = await　new SkyWayContext({
                 appId: appId,
                 token: token
             });
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
             
-            context = await SkyWayContext.Create({
+            context = await new SkyWayContext({
                 appId: appId,
                 token: token
             });
