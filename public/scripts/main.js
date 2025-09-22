@@ -147,18 +147,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // メンバー入室時のイベントリスナー
             room.onMemberJoined.add(async (e) => {
+                console.log("🟢 ホスト: メンバー入室イベントが発火しました！", e.member.id);
                 logMessage('対戦相手が入室しました。');
+
+                // すでに公開されているストリームをすべて購読
                 for (const publication of e.member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
                         handleDataStream(subscription.stream);
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+
+                        // 購読完了後、ホストからパーティーデータを送信
+                        const partyData = window.getSelectedParty();
+                        if (partyData) {
+                            window.sendData({ type: 'party_data', party: partyData });
+                        }
                     }
                 }
             });
 
             // ストリーム公開時のイベントリスナー
             room.onStreamPublished.add(async ({ publication }) => {
+                console.log("🟢 ホスト: ストリーム公開イベントが発火しました！");
                 if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
