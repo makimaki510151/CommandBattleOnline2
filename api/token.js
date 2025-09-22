@@ -5,8 +5,8 @@ const { SkyWayAuthToken } = require('@skyway-sdk/token');
 const { uuidV4, nowInSec } = require('@skyway-sdk/common');
 
 // Vercelに設定した環境変数を読み込む
-const APP_ID = process.env.VITE_SKYWAY_APP_ID;
-const SECRET = process.env.VITE_SKYWAY_SECRET_KEY;
+const APP_ID = process.env.SKYWAY_APP_ID;
+const SECRET = process.env.SKYWAY_SECRET_KEY;
 
 // ログ出力（開発用）
 console.log('APP_ID:', APP_ID);
