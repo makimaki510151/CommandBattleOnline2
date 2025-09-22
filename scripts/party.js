@@ -1,4 +1,4 @@
-// party.js
+// party.js (修正版)
 
 import { characters } from './characters.js';
 
@@ -73,7 +73,6 @@ characterListEl.addEventListener('click', (event) => {
     const card = event.target.closest('.character-card');
     if (!card) return;
 
-    // 選択状態をリセット
     document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
 
@@ -107,8 +106,8 @@ partySlotsEl.addEventListener('click', (event) => {
             slot.dataset.charId = char.id;
             slot.classList.add('filled');
 
-            // 選択されたキャラクターに現在のステータスをコピーしてパーティーに加える
-            const partyChar = { ...char, status: { ...char.status } };
+            // Deep copyでキャラクターをパーティーに追加
+            const partyChar = JSON.parse(JSON.stringify(char));
             partyMembers.push(partyChar);
 
             selectedCharacterId = null;
@@ -119,7 +118,7 @@ partySlotsEl.addEventListener('click', (event) => {
         const charIdToRemove = slot.dataset.charId;
         slot.innerHTML = '';
         slot.classList.remove('filled');
-        slot.dataset.charId = '';
+        delete slot.dataset.charId;
 
         partyMembers = partyMembers.filter(member => member.id !== charIdToRemove);
     }
@@ -133,6 +132,6 @@ function getSelectedParty() {
 // グローバルスコープに公開
 window.getSelectedParty = getSelectedParty;
 
-// 最初の描画
+// 初期描画
 renderCharacterCards();
-
+renderCharacterDetails(null);

@@ -1,4 +1,4 @@
-// main.js
+// main.js (修正版)
 
 let peer = null;
 let connection = null;
@@ -66,15 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 「出かける」ボタン
     startAdventureButton.addEventListener('click', () => {
         const partyMembers = window.getSelectedParty();
-        if (partyMembers.length !== 4) {
-            alert('パーティーは4人で編成してください。');
+        if (partyMembers.length < 1) { // 1人以上で編成可能に変更（テスト用）
+            alert('パーティーは1人以上で編成してください。');
             return;
         }
 
         partyScreen.classList.add('hidden');
         battleScreen.classList.remove('hidden');
 
-        // 🔴 パーティーメンバーを直接引数として渡す
         window.startBattle(partyMembers);
     });
 
@@ -95,17 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // SKYWAYの初期化
+    // PeerJSの初期化
     function initializePeer() {
-        connectionStatusEl.textContent = 'SKYWAYを初期化中...';
-
-        // SKYWAYを使用してPeerを初期化（APIキーなしで試行）
+        connectionStatusEl.textContent = 'PeerJSを初期化中...';
         try {
             peer = new Peer();
         } catch (error) {
-            console.error('SKYWAY initialization failed, falling back to PeerJS:', error);
-            // フォールバック: PeerJSを使用
-            peer = new Peer();
+            console.error('PeerJS initialization failed:', error);
+            alert('PeerJSの初期化に失敗しました。コンソールを確認してください。');
+            return;
         }
 
         peer.on('open', (id) => {
@@ -116,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         peer.on('connection', (conn) => {
+            if (connection) { // 既に接続がある場合は新しい接続を拒否
+                conn.close();
+                return;
+            }
             connection = conn;
             isHost = false; // 接続を受けた側はクライアント
             setupConnection();
@@ -165,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 partyScreen.classList.remove('hidden');
             });
 
-            // ホバー効果を追加
             proceedButton.addEventListener('mouseenter', () => {
                 proceedButton.style.transform = 'translateY(-3px) scale(1.05)';
                 proceedButton.style.boxShadow = '0 12px 24px rgba(255, 107, 53, 0.4)';
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 proceedButton.style.boxShadow = '0 8px 16px rgba(255, 107, 53, 0.3)';
             });
 
-            const existingButton = document.querySelector('.online-controls button[style*="margin-top"]');
+            const existingButton = document.querySelector('.online-controls .proceed-button');
             if (!existingButton) {
                 document.querySelector('.online-controls').appendChild(proceedButton);
             }
@@ -197,9 +197,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 受信データの処理
+    // 受信データの処理（統一化）
     function handleReceivedData(data) {
         console.log('Received data:', data);
+
+        // CustomEventを発行してbattle.jsで処理できるようにする
+        const event = new CustomEvent('data_received', { detail: data });
+        window.dispatchEvent(event);
 
         switch (data.type) {
             case 'party_data':
@@ -208,77 +212,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.handleOpponentParty(data.party);
                 }
                 break;
-            case 'battle_action':
-                // 戦闘中の行動データ
-                if (window.handleBattleAction) {
-                    window.handleBattleAction(data);
-                }
-                break;
-            case 'dodge_result':
-                // 回避判定結果
-                if (window.handleDodgeResult) {
-                    window.handleDodgeResult(data);
-                }
-                break;
-            case 'critical_result':
-                // 会心判定結果
-                if (window.handleCriticalResult) {
-                    window.handleCriticalResult(data);
-                }
-                break;
-            case 'game_state':
-                // ゲーム状態の同期
-                if (window.syncGameState) {
-                    window.syncGameState(data);
-                }
-                break;
+                
             case 'start_battle':
                 // ホストからの戦闘開始通知を受信した場合
                 if (window.isOnlineMode() && !window.isHost()) {
                     window.startBattleClientSide();
                 }
                 break;
-            case 'player_turn':
-                // ホストからのプレイヤーターン開始通知を受信
-                if (window.isOnlineMode() && !window.isHost()) {
-                    // 自分のパーティーのキャラクターのターンであれば、コマンドを表示
-                    if (data.activePlayerId) {
-                        const activePlayer = window.currentPlayerParty.find(p => p.id === data.activePlayerId); // 🔴 修正
-                        if (activePlayer) {
-                            window.playerTurnOnline(activePlayer);
-                        }
-                    }
-                }
-                break;
-            case 'battle_result':
-                // ホストから送信された戦闘結果を処理
-                if (window.handleBattleResult) {
-                    // battle.js に処理を委譲
-                    window.handleBattleResult(data);
-                }
-                break;
+                
+            case 'request_action':
+            case 'execute_action':
+            case 'action_result':
+            case 'sync_game_state':
+            case 'log_message':
             case 'battle_end':
-                if (window.handleBattleEnd) {
-                    window.handleBattleEnd();
+                // 統一されたアクション処理システム
+                if (window.handleBattleAction) {
+                    window.handleBattleAction(data);
                 }
+                break;
+                
+            default:
+                console.log('Unknown data type received:', data.type);
                 break;
         }
-
-        const event = new CustomEvent('data_received', { detail: data });
-        window.dispatchEvent(event);
     }
 
     // データ送信関数をグローバルに公開
     window.sendData = function (data) {
         if (connection && connection.open) {
-            // function型のプロパティを除外してシリアライズ
+            // functionタイプのプロパティを除外してシリアライズ
             const serializedData = JSON.parse(JSON.stringify(data, (key, value) => {
                 if (typeof value === 'function') {
-                    return undefined; // function型は除外
+                    return undefined; // functionタイプは除外
                 }
                 return value;
             }));
             connection.send(serializedData);
+            console.log('Sent data:', serializedData);
+        } else {
+            console.warn('Connection not available for sending data');
         }
     };
 
@@ -292,4 +265,3 @@ document.addEventListener('DOMContentLoaded', () => {
         return isHost;
     };
 });
-
