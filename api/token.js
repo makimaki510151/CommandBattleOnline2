@@ -4,12 +4,13 @@
 import { SkyWayAuthToken } from '@skyway-sdk/token';
 import { uuidV4, nowInSec } from '@skyway-sdk/common';
 
-// Vercelに設定した環境変数を読み込む
-const APP_ID = process.env.SKYWAY_APP_ID;
-const SECRET = process.env.SKYWAY_SECRET_KEY;
-
 export default (req, res) => {
     console.log('token.js: Function started.');
+
+    // Vercelに設定した環境変数を関数内で読み込む
+    const APP_ID = process.env.SKYWAY_APP_ID;
+    const SECRET = process.env.SKYWAY_SECRET_KEY;
+
     console.log('token.js: APP_ID (first 5 chars):', APP_ID ? APP_ID.substring(0, 5) : 'not found');
     console.log('token.js: SECRET (first 5 chars):', SECRET ? SECRET.substring(0, 5) : 'not found');
 
