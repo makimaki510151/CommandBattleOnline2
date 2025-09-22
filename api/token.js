@@ -1,7 +1,8 @@
 // api/token.js
 
 // SkyWay SDK v3のライブラリをインポート
-import { SkyWayAuthToken, generateToken } from '@skyway-sdk/token';
+import pkg from '@skyway-sdk/token';
+const { SkyWayAuthToken, generateToken } = pkg;
 
 // uuidV4を直接実装
 function uuidV4() {
