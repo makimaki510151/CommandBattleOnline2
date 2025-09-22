@@ -120,8 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.error('コピーに失敗しました', err));
     });
 
-    // SkyWayを初期化し、ホストとしてルームを作成する
-    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -129,8 +127,10 @@ document.addEventListener('DOMContentLoaded', () => {
         copyIdButton.disabled = true;
 
         try {
+            // トークンを非同期で取得
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
+            if (!token) throw new Error('トークンの取得に失敗しました。');
 
             context = await SkyWayContext.Create(token);
 
@@ -146,9 +146,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = true;
 
-            // v3では onPersonJoined ではなく onMemberJoined
+            // メンバー入室時のイベントリスナー
             room.onMemberJoined.add(async (e) => {
                 logMessage('対戦相手が入室しました。');
+                // すでに公開されているストリームをすべて購読
+                for (const publication of e.member.publications) {
+                    if (publication.contentType === 'data') {
+                        const subscription = await localPerson.subscribe(publication.id);
+                        handleDataStream(subscription.stream);
+                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+                    }
+                }
+            });
+
+            // ストリーム公開時のイベントリスナー
+            room.onStreamPublished.add(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
+                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+                }
             });
 
             localPerson = await room.join();
@@ -157,19 +174,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
-            logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
+            logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...', 'success');
             copyIdButton.disabled = false;
 
         } catch (error) {
             console.error('Failed to initialize SkyWay:', error);
-            connectionStatusEl.textContent = 'エラー: 初期化に失敗しました';
+            connectionStatusEl.textContent = 'エラー: ' + (error.message || '初期化に失敗しました');
+            logMessage('エラー: 初期化に失敗しました。詳細をコンソールで確認してください。', 'error');
+            await cleanupSkyWay(); // エラー時はリソースをクリーンアップ
         }
     }
 
-
     // クライアントとして既存のルームに参加する
     async function connectToRoom(roomId) {
-        console.log("SkyWayContext:", window.skyway_room?.SkyWayContext);
         if (context) {
             console.log("⚠️ 既存コンテキストがあるので一度破棄します");
             await cleanupSkyWay();
@@ -180,27 +197,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
-            console.log("🔑 取得したトークン:", token);
+            if (!token) throw new Error('トークンの取得に失敗しました。');
 
-            console.log("🔹 SkyWayContext作成開始");
             const contextPromise = SkyWayContext.Create(token);
             context = await Promise.race([
                 contextPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 10000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 15000))
             ]);
-            console.log("✅ SkyWayContext作成完了", context);
 
-            console.log("🔹 ルーム検索/作成開始");
             const room = await SkyWayRoom.FindOrCreate(context, {
                 type: "p2p",
                 name: roomId
             });
-            console.log("✅ ルーム取得完了", room);
 
             if (!room) {
-                alert('指定されたルームが見つかりません。');
-                await cleanupSkyWay();
-                return;
+                throw new Error('指定されたルームが見つかりません。');
             }
 
             isHost = false;
@@ -209,7 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 接続先のメンバーが入室したときのイベントをリッスン
             room.onMemberJoined.add(async ({ member }) => {
                 logMessage('対戦相手が入室しました。');
-                // 入室したメンバーがすでに公開しているストリームをすべて購読
                 for (const publication of member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
@@ -221,11 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 新しいストリームが公開されたときに購読
             room.onStreamPublished.add(async ({ publication }) => {
-                if (
-                    publication.contentType === 'data' &&
-                    localPerson &&
-                    publication.publisher.id !== localPerson.id
-                ) {
+                if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                     logMessage('✅ 相手のデータストリームを購読しました。', 'success');
@@ -235,17 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // 自身のストリームを公開
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
-            logMessage('✅ 自身のデータストリームを公開しました。', 'success');
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             copyIdButton.disabled = false;
-            logMessage('ルームに参加しました。');
+            logMessage('ルームに参加しました。', 'success');
 
         } catch (error) {
             console.error('❌ Failed to connect to room:', error);
-            alert('接続エラー: ' + error.message);
-            connectionStatusEl.textContent = 'エラー: ' + error.message;
+            connectionStatusEl.textContent = 'エラー: ' + (error.message || '接続に失敗しました');
+            logMessage('エラー: 接続に失敗しました。詳細をコンソールで確認してください。', 'error');
+            await cleanupSkyWay(); // エラー時はリソースをクリーンアップ
         }
     }
 
