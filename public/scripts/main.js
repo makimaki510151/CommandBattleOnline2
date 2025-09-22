@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
-            
+
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
@@ -232,6 +232,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
                     }
                 }
+                const partyData = window.getSelectedParty();
+                if (partyData) {
+                    window.sendData({ type: 'party_data', party: partyData });
+                }
             });
 
             room.onStreamPublished.add(async ({ publication }) => {
@@ -267,6 +271,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Received data:', parsedData);
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
+                    // 相手のパーティーデータを受信したら、バトル画面へ遷移
+                    // このロジックはホストとクライアント両方に必要
+                    if (isOnlineMode) {
+                        const onlineScreen = document.getElementById('online-screen');
+                        const battleScreen = document.getElementById('battle-screen');
+                        onlineScreen.classList.add('hidden');
+                        battleScreen.classList.remove('hidden');
+                        // オンラインバトルを開始する関数を呼び出し
+                        window.startOnlineBattle(parsedData.party);
+                    }
                 } else if (parsedData.type === 'start_battle') {
                     window.startBattleClientSide();
                 } else if (parsedData.type === 'log_message') {
