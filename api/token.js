@@ -9,6 +9,7 @@ const APP_ID = process.env.VITE_SKYWAY_APP_ID;
 const SECRET = process.env.VITE_SKYWAY_SECRET_KEY;
 
 // ログ出力（開発用）
+console.log('APP_ID:', APP_ID);
 console.log('Read SECRET key (first 10 chars):', SECRET ? SECRET.substring(0, 10) : 'not found');
 
 module.exports = (req, res) => {
