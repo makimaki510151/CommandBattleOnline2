@@ -96,7 +96,7 @@ function initializeParty(party, partyType = 'player') {
         member.partyType = partyType; // パーティータイプを追加
         member.partyIndex = index; // パーティー内のインデックス
         member.effects = {};
-        
+
         if (member.originalId === 'char06') {
             member.targetMemory = { lastTargetId: null, missed: false };
         }
@@ -137,7 +137,7 @@ function handleOpponentParty(partyData) {
         console.error('Received empty party data.');
         return;
     }
-    
+
     // 相手のパーティーを初期化（相手タイプとして）
     opponentParty = partyData.map((p, index) => {
         const member = deepCopy(p);
@@ -149,13 +149,13 @@ function handleOpponentParty(partyData) {
         member.partyType = window.isHost() ? 'client' : 'host';
         member.partyIndex = index;
         member.effects = member.effects || {};
-        
+
         if (member.originalId === 'char06') {
             member.targetMemory = member.targetMemory || { lastTargetId: null, missed: false };
         }
         return member;
     });
-    
+
     opponentPartyReady = true;
     logMessage('相手のパーティー情報を受信しました！');
 
@@ -228,30 +228,34 @@ async function battleLoop() {
             const actionSkipped = processStatusEffects(combatant);
             if (actionSkipped) continue;
 
-            // パーティータイプで行動者を判定
             const isMyCharacter = combatant.partyType === (window.isHost() ? 'host' : 'client');
 
-            if (window.isOnlineMode()) {
-                if (isMyCharacter) {
-                    await playerTurn(combatant);
-                } else {
+            if (isMyCharacter) {
+                // プレイヤーのターンでは playerTurn 関数内でハイライトを管理
+                await playerTurn(combatant);
+            } else {
+                // 敵や相手のキャラクターのターン
+                resetHighlights();
+                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
+                if (combatantEl) {
+                    combatantEl.classList.add('active');
+                }
+
+                if (window.isOnlineMode()) {
                     window.sendData({ type: 'request_action', actorUniqueId: combatant.uniqueId });
                     logMessage(`${combatant.name}の行動を待っています...`);
                     await waitForAction();
-                }
-            } else {
-                if (isMyCharacter) {
-                    await playerTurn(combatant);
                 } else {
                     await enemyTurn(combatant);
                 }
             }
-            
+
             if (window.isOnlineMode()) {
                 syncGameState();
+            } else {
+                resetHighlights(); // シングルプレイではターンの最後にハイライトをリセット
             }
         }
-
         processEndTurnEffects(aliveCombatants);
         currentTurn++;
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -268,6 +272,15 @@ function waitForAction() {
 // --- Turn Handling ---
 
 async function playerTurn(player) {
+    // プレイヤーのターン開始時に全てのハイライトをリセット
+    resetHighlights();
+
+    // 行動中のキャラクターをハイライト
+    const playerEl = document.querySelector(`[data-unique-id="${player.uniqueId}"]`);
+    if (playerEl) {
+        playerEl.classList.add('active');
+    }
+
     logMessage(`${player.name}のターン！`, 'character-turn');
     commandAreaEl.classList.remove('hidden');
     updateCommandMenu(player);
@@ -281,10 +294,10 @@ async function playerTurn(player) {
                 logMessage('攻撃対象を選んでください。');
                 const targetInfo = await selectTarget();
                 if (targetInfo) {
-                    actionData = { 
-                        action: 'attack', 
-                        actorUniqueId: player.uniqueId, 
-                        targetUniqueId: targetInfo.target.uniqueId 
+                    actionData = {
+                        action: 'attack',
+                        actorUniqueId: player.uniqueId,
+                        targetUniqueId: targetInfo.target.uniqueId
                     };
                 }
             } else if (target.matches('.action-skill')) {
@@ -310,13 +323,13 @@ async function playerTurn(player) {
 
                     player.status.mp -= mpCost;
                     logMessage(`${player.name}は${skill.name}を使った！`);
-                    
+
                     const skillExecuted = await executeSkill(player, skill);
                     if (skillExecuted) {
-                        actionData = { 
-                            action: 'skill', 
-                            actorUniqueId: player.uniqueId, 
-                            skillName: skill.name 
+                        actionData = {
+                            action: 'skill',
+                            actorUniqueId: player.uniqueId,
+                            skillName: skill.name
                         };
                     }
                 }
@@ -329,7 +342,7 @@ async function playerTurn(player) {
             if (actionData) {
                 commandAreaEl.removeEventListener('click', handleCommand);
                 commandAreaEl.classList.add('hidden');
-                
+
                 if (window.isOnlineMode()) {
                     if (window.isHost()) {
                         executeAction(actionData);
@@ -353,10 +366,10 @@ async function enemyTurn(enemy) {
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     if (alivePlayers.length > 0) {
         const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
-        executeAction({ 
-            action: 'attack', 
-            actorUniqueId: enemy.uniqueId, 
-            targetUniqueId: target.uniqueId 
+        executeAction({
+            action: 'attack',
+            actorUniqueId: enemy.uniqueId,
+            targetUniqueId: target.uniqueId
         });
     }
 }
@@ -395,7 +408,7 @@ function executeAction(data) {
 
     updatePlayerDisplay();
     updateEnemyDisplay();
-    
+
     if (window.isOnlineMode() && window.isHost()) {
         syncGameState();
     }
@@ -413,7 +426,7 @@ function performAttack(attacker, defender) {
         logMessage(`${attacker.name}の攻撃！ ${defender.name}に${damage}のダメージ！`, 'damage');
         defender.status.hp = Math.max(0, defender.status.hp - damage);
     }
-    
+
     if (window.isOnlineMode() && window.isHost()) {
         window.sendData({
             type: 'action_result',
@@ -482,22 +495,26 @@ function selectTarget() {
             return;
         }
 
-        enemyPartyEl.classList.add('selecting');
+        // ターゲットにハイライトを適用
+        targets.forEach(target => {
+            const targetEl = document.querySelector(`[data-unique-id="${target.uniqueId}"]`);
+            if (targetEl) {
+                targetEl.classList.add('selecting-target');
+            }
+        });
 
         const handleTargetClick = (event) => {
             const targetEl = event.target.closest('.enemy-character');
             if (!targetEl) return;
-
             const targetUniqueId = targetEl.dataset.uniqueId;
             const target = targets.find(t => t.uniqueId === targetUniqueId);
-
             if (target) {
-                enemyPartyEl.removeEventListener('click', handleTargetClick);
-                enemyPartyEl.classList.remove('selecting');
+                document.removeEventListener('click', handleTargetClick);
+                resetHighlights(); // ハイライトをリセット
                 resolve({ target: target, party: window.isOnlineMode() ? opponentParty : currentEnemies });
             }
         };
-        enemyPartyEl.addEventListener('click', handleTargetClick);
+        document.addEventListener('click', handleTargetClick);
     });
 }
 
@@ -556,23 +573,26 @@ function selectPlayerTarget() {
             return;
         }
 
-        playerPartyEl.classList.add('selecting');
+        // ターゲットにハイライトを適用
+        players.forEach(player => {
+            const playerEl = document.querySelector(`[data-unique-id="${player.uniqueId}"]`);
+            if (playerEl) {
+                playerEl.classList.add('selecting-target');
+            }
+        });
 
         const handlePlayerClick = (event) => {
             const targetEl = event.target.closest('.player-character');
             if (!targetEl) return;
-
             const targetUniqueId = targetEl.dataset.uniqueId;
             const target = currentPlayerParty.find(p => p.uniqueId === targetUniqueId);
-
             if (target && target.status.hp > 0) {
-                playerPartyEl.removeEventListener('click', handlePlayerClick);
-                playerPartyEl.classList.remove('selecting');
+                document.removeEventListener('click', handlePlayerClick);
+                resetHighlights(); // ハイライトをリセット
                 resolve(target);
             }
         };
-
-        playerPartyEl.addEventListener('click', handlePlayerClick);
+        document.addEventListener('click', handlePlayerClick);
     });
 }
 
@@ -793,7 +813,7 @@ function handleBattleAction(data) {
             }
             break;
         case 'action_result':
-             if (!window.isHost()) {
+            if (!window.isHost()) {
                 const { attackerUniqueId, defenderUniqueId, damage, newHp, critical, dodged, specialEffectLog } = data.result;
                 const allCombatants = [...currentPlayerParty, ...opponentParty];
                 const attacker = allCombatants.find(c => c.uniqueId === attackerUniqueId);
@@ -853,7 +873,7 @@ function renderParty(partyEl, partyData, isEnemy) {
     partyData.forEach(member => {
         const memberEl = document.createElement("div");
         memberEl.classList.add("character-card", isEnemy ? "enemy-character" : "player-character");
-        
+
         // ユニークIDをdata属性に設定
         if (isEnemy) {
             memberEl.dataset.uniqueId = member.uniqueId;
@@ -922,6 +942,12 @@ function updateCommandMenu(player) {
     } else if (specialButtonEl) {
         specialButtonEl.classList.add('hidden');
     }
+}
+
+function resetHighlights() {
+    document.querySelectorAll('.player-character.active, .player-character.selecting-target, .enemy-character.selecting-target').forEach(el => {
+        el.classList.remove('active', 'selecting-target');
+    });
 }
 
 // --- Global Exports ---

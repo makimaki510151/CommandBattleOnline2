@@ -170,3 +170,19 @@
     font-weight: bold;
 }
 
+
+.player-character.active {
+    box-shadow: 0 0 15px 5px rgba(255, 230, 0, 0.8);
+    transform: scale(1.1);
+}
+
+.player-character.selecting-target,
+.enemy-character.selecting-target {
+    box-shadow: 0 0 10px 3px rgba(0, 200, 255, 0.8);
+    cursor: pointer;
+}
+
+.player-character.selecting-target:hover,
+.enemy-character.selecting-target:hover {
+    transform: scale(1.05);
+}
