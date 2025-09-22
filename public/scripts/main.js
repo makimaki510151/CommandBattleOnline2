@@ -1,7 +1,10 @@
 // main.js (SkyWay対応版)
 
 // SkyWay SDKはグローバル変数として読み込まれる
-const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
+const { SkyWayContext } = window.skyway_room;
+const { SkyWayRoom, SkyWayRoomType } = window.skyway_room;
+const { SkyWayStreamFactory } = window.skyway_room;
+
 
 let context = null;
 let room = null;
@@ -124,41 +127,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
-            const { token, appId } = await res.json();
+            const { token } = await res.json();
 
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
-                name: `game_room_${roomId}`,
                 type: 'p2p',
+                name: `game_room_${roomId}`,
             });
 
-            // ★修正箇所: roomが有効なオブジェクトであることを確認
-            if (!room || typeof room.onPersonJoined?.add !== 'function') {
-                throw new Error('Failed to create or find room, or room object is invalid.');
+            if (!room) {
+                throw new Error('ルームが作成できませんでした');
             }
 
             isHost = true;
 
-            room.onPersonJoined.add(async ({ person }) => {
+            // v3では onPersonJoined ではなく onMemberJoined
+            room.onMemberJoined.add(async (e) => {
                 logMessage('対戦相手が入室しました。');
-
-                const publication = person.publications.find(pub => pub.contentType === 'data');
-                if (publication) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                }
-            });
-
-            room.onPublicationSubscribed.add(({ publication, stream }) => {
-                if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    handleDataStream(stream);
-                }
             });
 
             localPerson = await room.join();
-
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
@@ -172,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = 'エラー: 初期化に失敗しました';
         }
     }
+
 
     // クライアントとして既存のルームに参加する
     async function connectToRoom(roomId) {
