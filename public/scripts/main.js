@@ -47,8 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
 
-    const myRoomIdEl = document.getElementById('my-room-id');
-    const roomIdInput = document.getElementById('room-id-input');
+    // ★ 修正箇所: index.htmlに合わせてIDを変更
+    const myPeerIdEl = document.getElementById('my-peer-id');
+    const peerIdInput = document.getElementById('peer-id-input');
     const connectionStatusEl = document.getElementById('connection-status');
 
     // 「冒険開始」ボタン（シングルプレイ）
@@ -98,7 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「接続」ボタン
     connectButton.addEventListener('click', () => {
-        const remoteRoomId = roomIdInput.value;
+        // ★ 修正箇所: index.htmlに合わせてIDを変更
+        const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
             connectToRoom(remoteRoomId);
         } else {
@@ -108,7 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「IDをコピー」ボタン
     copyIdButton.addEventListener('click', () => {
-        const roomId = myRoomIdEl.textContent;
+        // ★ 修正箇所: index.htmlに合わせてIDを変更
+        const roomId = myPeerIdEl.textContent;
         navigator.clipboard.writeText(roomId)
             .then(() => alert('IDがクリップボードにコピーされました！'))
             .catch(err => console.error('コピーに失敗しました', err));
@@ -137,7 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = true;
             localPerson = room.localPerson;
-            myRoomIdEl.textContent = room.name; // ルーム名をIDとして表示
+            // ★ 修正箇所: index.htmlに合わせてIDを変更
+            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
             copyIdButton.disabled = false;
@@ -194,7 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = false;
             localPerson = room.localPerson;
-            myRoomIdEl.textContent = room.name; // ルーム名をIDとして表示
+            // ★ 修正箇所: index.htmlに合わせてIDを変更
+            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             copyIdButton.disabled = false;
 
