@@ -282,21 +282,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cleanupSkyWay() {
         console.log("🧹 cleanupSkyWay 実行");
-
         try {
             if (localPerson) {
                 await localPerson.leave();
                 localPerson = null;
             }
-            if (dataStream) {
-                dataStream = null;
-            }
             if (room) {
-                try {
-                    await room.close(); // ← ここで失敗する
-                } catch (e) {
-                    console.warn("⚠️ room.close() 失敗 (無視してOK):", e);
-                }
+                await room.close();
                 room = null;
             }
             if (context) {
@@ -304,8 +296,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 context = null;
             }
         } catch (err) {
-            console.error("❌ cleanupSkyWay error:", err);
+            console.error("❌ cleanupSkyWay error:", err); // エラーをログに出力
         }
+        console.log("✅ cleanupSkyWay 完了"); // 完了ログを追加
     }
 
 
