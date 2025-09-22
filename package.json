@@ -1,0 +1,11 @@
+{
+  "name": "command-battle-online2",
+  "version": "1.0.0",
+  "dependencies": {
+    "@skyway-sdk/room": "1.x.x",
+    "dotenv": "^16.0.0"
+  },
+  "scripts": {
+    "build": "echo 'No build step required for static content'"
+  }
+}

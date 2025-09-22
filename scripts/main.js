@@ -1,7 +1,7 @@
 // main.js (SkyWay対応版)
 
 // SkyWay SDKはグローバル変数として読み込まれる
-const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
+const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory, RoomPublication } = window.skyway_room;
 
 let context = null;
 let room = null;
@@ -11,8 +11,6 @@ let isHost = false;
 let isOnlineMode = false;
 let remoteMember = null;
 
-// アプリケーションID
-const APP_ID = 'd5450488-422b-47bf-93a0-baa8d2d3316c';
 
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('start-button');
@@ -72,374 +70,162 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('パーティーは1人以上で編成してください。');
             return;
         }
-
         partyScreen.classList.add('hidden');
         battleScreen.classList.remove('hidden');
-
         window.startBattle(partyMembers);
     });
 
     // 「接続」ボタン
     connectButton.addEventListener('click', () => {
-        const targetRoomName = peerIdInput.value.trim();
-        if (!targetRoomName) {
-            alert('ルーム名を入力してください。');
-            return;
+        const remotePeerId = peerIdInput.value;
+        if (remotePeerId) {
+            connectToRoom(remotePeerId);
+        } else {
+            alert('接続先のIDを入力してください。');
         }
-        joinRoom(targetRoomName);
     });
 
     // 「IDをコピー」ボタン
     copyIdButton.addEventListener('click', () => {
-        navigator.clipboard.writeText(myPeerIdEl.textContent).then(() => {
-            alert('ルーム名をクリップボードにコピーしました！');
-        });
+        const peerId = myPeerIdEl.textContent;
+        navigator.clipboard.writeText(peerId)
+            .then(() => alert('IDがクリップボードにコピーされました！'))
+            .catch(err => console.error('コピーに失敗しました', err));
     });
 
-    // SkyWayの初期化
+    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
-        connectionStatusEl.textContent = 'SkyWayを初期化中...';
+        if (context) return;
+        isOnlineMode = true;
+        connectionStatusEl.textContent = '初期化中...';
+
         try {
-            // 簡易的なJWTトークンを生成（実際のプロダクションでは適切なトークン生成が必要）
-            const token = await generateSimpleToken();
-            
+            // Vercelのサーバーレス関数からトークンを取得
+            const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
+            const { token } = await res.json();
+
             context = await SkyWayContext.Create(token);
-            
-            // ランダムなルーム名を生成
-            const roomName = generateRoomName();
-            myPeerIdEl.textContent = roomName;
-            
-            connectionStatusEl.textContent = '接続待機中...';
-            connectButton.disabled = false;
-            copyIdButton.disabled = false;
-            
-            // ルームを作成してホストとして待機
-            await createRoom(roomName);
-            
-        } catch (error) {
-            console.error('SkyWay initialization failed:', error);
-            connectionStatusEl.textContent = 'エラーが発生しました: ' + error.message;
-        }
-    }
-
-    // 簡易的なJWTトークン生成（実際のプロダクションでは適切なトークン生成が必要）
-    async function generateSimpleToken() {
-        const header = {
-            alg: 'HS256',
-            typ: 'JWT'
-        };
-        
-        const payload = {
-            jti: generateUuidV4(),
-            iat: Math.floor(Date.now() / 1000),
-            exp: Math.floor(Date.now() / 1000) + 3600, // 1時間後に期限切れ
-            version: 3,
-            scope: {
-                app: {
-                    id: APP_ID,
-                    turn: true,
-                    actions: ["read"],
-                    channels: [
-                        {
-                            id: "*",
-                            name: "*",
-                            actions: ["write"],
-                            members: [
-                                {
-                                    id: "*",
-                                    name: "*",
-                                    actions: ["write"]
-                                }
-                            ],
-                            sfuBots: [
-                                {
-                                    actions: ["write"]
-                                }
-                            ],
-                            forwardings: [
-                                {
-                                    actions: ["write"]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        };
-        // 注意: 実際のプロダクションでは、サーバーサイドで適切な秘密鍵を使用してJWTを生成する必要があります
-        // ここでは簡易的な実装のため、クライアントサイドで生成していますが、セキュリティ上推奨されません
-        const encodedHeader = btoa(JSON.stringify(header)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-        const encodedPayload = btoa(JSON.stringify(payload)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-        
-        const text = `${encodedHeader}.${encodedPayload}`;
-        const secret = "0yED9+rwKuxyFkAKmQqGbaOjVQcDucjM3VpBenyU3WM="; // ユーザーから提供された秘密鍵
-        
-        // 秘密鍵をBase64デコード
-        const secretBuffer = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
-
-        // Web Crypto APIを使用してHMAC-SHA256署名を生成
-        const key = await crypto.subtle.importKey(
-            "raw",
-            secretBuffer,
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"]
-        ); const signatureBuffer = await crypto.subtle.sign(
-            "HMAC",
-            key,
-            new TextEncoder().encode(text)
-        );
-        
-        const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-        
-        return `${text}.${signature}`;
-    }
-
-    // ルーム名生成
-    function generateRoomName() {
-        return 'battle-room-' + Math.random().toString(36).substr(2, 9);
-    }
-
-    // ユニークID生成
-    function generateUniqueId() {
-        return 'user-' + Math.random().toString(36).substr(2, 9);
-    }
-
-    // ルーム作成（ホスト）
-    async function createRoom(roomName) {
-        try {
+            const uuid = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
-                type: 'p2p',
-                name: roomName
+                name: `game_room_${uuid}`,
+                type: 'sfu',
             });
 
-            localMember = await room.join();
             isHost = true;
+            localMember = room.localPerson;
+            myPeerIdEl.textContent = localMember.id;
+            connectionStatusEl.textContent = 'ルームID: ' + uuid;
+            logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
 
-            // データストリームを作成
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localMember.publish(dataStream);
+            // データストリームのパブリッシュ
+            const dataStream = await SkyWayStreamFactory.createDataStream();
+            await room.publish(dataStream);
 
-            // メンバー参加イベントを監視
-            room.onMemberJoined.add(handleMemberJoined);
-            room.onMemberLeft.add(handleMemberLeft);
-
-            connectionStatusEl.textContent = 'ルーム作成完了！相手の参加を待機中...';
-
-        } catch (error) {
-            console.error('Room creation failed:', error);
-            connectionStatusEl.textContent = 'ルーム作成に失敗しました: ' + error.message;
-        }
-    }
-
-    // ルーム参加（クライアント）
-    async function joinRoom(roomName) {
-        try {
-            connectionStatusEl.textContent = 'ルームに参加中...';
-
-            room = await SkyWayRoom.Find(context, {
-                name: roomName
+            // 相手の入室を待つ
+            room.onPersonJoined.once(() => {
+                logMessage('対戦相手が入室しました。');
             });
 
-            if (!room) {
-                throw new Error('指定されたルームが見つかりません');
-            }
+            // 相手がデータを送ってきたら受け取る
+            room.onStreamPublished.add(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localMember.id) {
+                    const { stream } = await localMember.subscribe(publication);
+                    handleDataStream(stream);
+                }
+            });
 
-            localMember = await room.join();
+        } catch (error) {
+            console.error('Failed to initialize SkyWay:', error);
+            connectionStatusEl.textContent = 'エラー: 初期化に失敗しました';
+        }
+    }
+
+    // クライアントとして既存のルームに参加する
+    async function connectToRoom(uuid) {
+        if (context) return;
+        isOnlineMode = true;
+        connectionStatusEl.textContent = '接続中...';
+        try {
+            // Vercelのサーバーレス関数からトークンを取得
+            const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
+            const { token } = await res.json();
+
+            context = await SkyWayContext.Create(token);
+            room = await SkyWayRoom.FindOrCreate(context, {
+                name: `game_room_${uuid}`,
+                type: 'sfu',
+            });
+
             isHost = false;
+            localMember = room.localPerson;
+            myPeerIdEl.textContent = localMember.id;
+            connectionStatusEl.textContent = '接続済み';
+            logMessage('ホストのルームに参加しました。');
 
-            // データストリームを作成
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localMember.publish(dataStream);
+            // データストリームのパブリッシュ
+            const dataStream = await SkyWayStreamFactory.createDataStream();
+            await room.publish(dataStream);
 
-            // 既存のメンバーのストリームを購読
-            const members = room.members;
-            for (const member of members) {
-                if (member.id !== localMember.id) {
-                    await subscribeToMember(member);
+            // 相手がデータを送ってきたら受け取る
+            room.onStreamPublished.add(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localMember.id) {
+                    const { stream } = await localMember.subscribe(publication);
+                    handleDataStream(stream);
                 }
-            }
+            });
 
-            // メンバー参加・退出イベントを監視
-            room.onMemberJoined.add(handleMemberJoined);
-            room.onMemberLeft.add(handleMemberLeft);
-
-            connectionStatusEl.textContent = 'ルーム参加完了！';
-            isOnlineMode = true;
-
-            showProceedButton();
+            // ホストのパーティーデータが届くのを待つ
+            logMessage('ホストのパーティー情報を待機中...');
 
         } catch (error) {
-            console.error('Room join failed:', error);
-            connectionStatusEl.textContent = 'ルーム参加に失敗しました: ' + error.message;
+            console.error('Failed to connect to room:', error);
+            connectionStatusEl.textContent = 'エラー: 接続に失敗しました';
         }
     }
 
-    // メンバー参加時の処理
-    async function handleMemberJoined(event) {
-        const { member } = event;
-        console.log('Member joined:', member.id);
-
-        if (member.id !== localMember.id) {
-            await subscribeToMember(member);
-            
-            if (isHost) {
-                connectionStatusEl.textContent = '相手が参加しました！';
-                isOnlineMode = true;
-                showProceedButton();
+    // データストリームの受信処理
+    function handleDataStream(stream) {
+        dataStream = stream;
+        dataStream.onData.add(({ data }) => {
+            const parsedData = JSON.parse(data);
+            console.log('Received data:', parsedData);
+            if (parsedData.type === 'party_data') {
+                window.handleOpponentParty(parsedData.party);
             }
-        }
-    }
-
-    // メンバー退出時の処理
-    function handleMemberLeft(event) {
-        const { member } = event;
-        console.log('Member left:', member.id);
-        
-        if (member.id === remoteMember?.id) {
-            remoteMember = null;
-            connectionStatusEl.textContent = '相手が退出しました。';
-            isOnlineMode = false;
-        }
-    }
-
-    // メンバーのストリームを購読
-    async function subscribeToMember(member) {
-        try {
-            const publications = member.publications;
-            
-            for (const publication of publications) {
-                if (publication.contentType === 'data') {
-                    const { stream } = await localMember.subscribe(publication.id);
-                    
-                    // データ受信イベントを設定
-                    stream.onData.add((data) => {
-                        handleReceivedData(data);
-                    });
-                    
-                    remoteMember = member;
-                    break;
-                }
+            if (parsedData.type === 'start_battle') {
+                window.startBattleClientSide();
             }
-        } catch (error) {
-            console.error('Failed to subscribe to member:', error);
-        }
+            if (parsedData.type === 'game_state_update') {
+                window.handleGameStateUpdate(parsedData.data);
+            }
+            if (parsedData.type === 'log_message') {
+                window.logMessage(parsedData.message, parsedData.messageType);
+            }
+        });
     }
 
-    // パーティー編成画面への進行ボタンを表示
-    function showProceedButton() {
-        const existingButton = document.querySelector('.online-controls .proceed-button');
-        if (existingButton) return;
-
-        const proceedButton = document.createElement('button');
-        proceedButton.textContent = 'パーティー編成へ進む';
-        proceedButton.className = 'proceed-button';
-        proceedButton.style.cssText = `
-            background: linear-gradient(135deg, #ff6b35, #ff8e53);
-            color: white;
-            font-size: 1.8em;
-            font-weight: bold;
-            padding: 20px 40px;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            margin-top: 30px;
-            box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
-            transition: all 0.3s ease;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-            animation: pulse 2s infinite;
-        `;
-        
-        proceedButton.addEventListener('click', () => {
-            onlineScreen.classList.add('hidden');
-            partyScreen.classList.remove('hidden');
-        });
-
-        proceedButton.addEventListener('mouseenter', () => {
-            proceedButton.style.transform = 'translateY(-3px) scale(1.05)';
-            proceedButton.style.boxShadow = '0 12px 24px rgba(255, 107, 53, 0.4)';
-        });
-
-        proceedButton.addEventListener('mouseleave', () => {
-            proceedButton.style.transform = 'translateY(0) scale(1)';
-            proceedButton.style.boxShadow = '0 8px 16px rgba(255, 107, 53, 0.3)';
-        });
-
-        document.querySelector('.online-controls').appendChild(proceedButton);
-    }
-
-    // SkyWayのクリーンアップ
+    // SkyWayのリソースをクリーンアップ
     async function cleanupSkyWay() {
-        try {
-            if (localMember) {
-                await localMember.leave();
-                localMember = null;
-            }
-            if (room) {
-                await room.dispose();
-                room = null;
-            }
-            if (context) {
-                await context.dispose();
-                context = null;
-            }
-            dataStream = null;
-            remoteMember = null;
-        } catch (error) {
-            console.error('Cleanup failed:', error);
+        if (room) {
+            await room.close();
+            room = null;
         }
-    }
-
-    // 受信データの処理
-    function handleReceivedData(data) {
-        console.log('Received data:', data);
-
-        // CustomEventを発行してbattle.jsで処理できるようにする
-        const event = new CustomEvent('data_received', { detail: data });
-        window.dispatchEvent(event);
-
-        switch (data.type) {
-            case 'party_data':
-                if (window.handleOpponentParty) {
-                    window.handleOpponentParty(data.party);
-                }
-                break;
-                
-            case 'start_battle':
-                if (window.isOnlineMode() && !window.isHost()) {
-                    window.startBattleClientSide();
-                }
-                break;
-                
-            case 'request_action':
-            case 'execute_action':
-            case 'action_result':
-            case 'sync_game_state':
-            case 'log_message':
-            case 'battle_end':
-                if (window.handleBattleAction) {
-                    window.handleBattleAction(data);
-                }
-                break;
-                
-            default:
-                console.log('Unknown data type received:', data.type);
-                break;
+        if (context) {
+            await context.dispose();
+            context = null;
         }
+        localMember = null;
+        dataStream = null;
+        remoteMember = null;
+        isOnlineMode = false;
+        connectionStatusEl.textContent = '未接続';
     }
 
     // データ送信関数をグローバルに公開
     window.sendData = function (data) {
-        if (dataStream && remoteMember) {
+        if (dataStream) {
             try {
-                // functionタイプのプロパティを除外してシリアライズ
-                const serializedData = JSON.parse(JSON.stringify(data, (key, value) => {
-                    if (typeof value === 'function') {
-                        return undefined;
-                    }
-                    return value;
-                }));
-                
+                const serializedData = JSON.stringify(data);
                 dataStream.write(serializedData);
                 console.log('Sent data:', serializedData);
             } catch (error) {
@@ -460,25 +246,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return isHost;
     };
 
-    // SkyWayオブジェクトをグローバルに公開（デバッグ用）
-    window.skyway = {
-        context,
-        room,
-        localMember,
-        dataStream,
-        remoteMember
+    // `battle.js`から呼び出せるようにする
+    window.logMessage = (message, type) => {
+        const p = document.createElement('p');
+        p.textContent = message;
+        if (type) {
+            p.classList.add('log-message', type);
+        }
+        document.getElementById('message-log').appendChild(p);
+        document.getElementById('message-log').scrollTop = document.getElementById('message-log').scrollHeight;
     };
 });
 
 
-    // UUID v4を生成する関数
-    function generateUuidV4() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0,
-                v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-
-
+// UUID v4を生成する関数
+function generateUuidV4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
