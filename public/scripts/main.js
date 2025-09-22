@@ -11,6 +11,9 @@ let isHost = false;
 let isOnlineMode = false;
 let remoteMember = null;
 
+// ハードコードされたAPP_IDは不要になるため削除します
+// const APP_ID = 'd5450488-422b-47bf-93a0-baa8d2d3316c';
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('start-button');
@@ -100,11 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = '初期化中...';
 
         try {
-            // Vercelのサーバーレス関数からトークンを取得
+            // 修正箇所: サーバーレス関数からトークンとアプリIDを同時に取得します
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
-            const { token } = await res.json();
+            const { token, appId } = await res.json();
+            
+            // 修正箇所: 取得したappIdをSkyWayContext.Createの第2引数に渡します
+            context = await SkyWayContext.Create(token, appId);
 
-            context = await SkyWayContext.Create(token);
             const uuid = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${uuid}`,
@@ -146,11 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isOnlineMode = true;
         connectionStatusEl.textContent = '接続中...';
         try {
-            // Vercelのサーバーレス関数からトークンを取得
+            // 修正箇所: サーバーレス関数からトークンとアプリIDを同時に取得します
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
-            const { token } = await res.json();
+            const { token, appId } = await res.json();
 
-            context = await SkyWayContext.Create(token);
+            // 修正箇所: 取得したappIdをSkyWayContext.Createの第2引数に渡します
+            context = await SkyWayContext.Create(token, appId);
+            
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${uuid}`,
                 type: 'sfu',
