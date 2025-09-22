@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // SkyWayを初期化し、ホストとしてルームを作成する
+    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -124,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
-            
+
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
@@ -133,22 +134,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'p2p',
             });
 
+            // ★修正箇所: roomが有効なオブジェクトであることを確認
             if (!room) {
                 throw new Error('Failed to create or find room.');
             }
+
             isHost = true;
-            
-            // ★修正箇所: roomが正常に作成された後でイベントリスナーを追加
+
             room.onPersonJoined.add(async ({ person }) => {
                 logMessage('対戦相手が入室しました。');
-                
+
                 const publication = person.publications.find(pub => pub.contentType === 'data');
                 if (publication) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                 }
             });
-            
+
             room.onPublicationSubscribed.add(({ publication, stream }) => {
                 if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     handleDataStream(stream);
@@ -156,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             localPerson = await room.join();
-            
+
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
@@ -180,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
-            
+
             context = await SkyWayContext.Create(token);
 
             room = await SkyWayRoom.Find(context, {
@@ -195,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             isHost = false;
-            
+
             room.onPublicationSubscribed.add(({ publication, stream }) => {
                 if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     handleDataStream(stream);
@@ -203,10 +205,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             localPerson = await room.join();
-            
+
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
-            
+
             room.publications.forEach(async (publication) => {
                 if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
