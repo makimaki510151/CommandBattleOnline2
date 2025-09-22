@@ -1,6 +1,7 @@
 // main.js (SkyWay対応版)
 
-import { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } from '@skyway-sdk/room';
+// SkyWay SDKはグローバル変数として読み込まれる
+const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
 
 let context = null;
 let room = null;
