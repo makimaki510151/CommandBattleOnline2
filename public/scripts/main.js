@@ -183,14 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("🔑 取得したトークン:", token);
 
             console.log("🔹 SkyWayContext作成開始");
-
-            // タイムアウトを仕込む
             const contextPromise = SkyWayContext.Create(token);
             context = await Promise.race([
                 contextPromise,
                 new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 10000))
             ]);
-
             console.log("✅ SkyWayContext作成完了", context);
 
             console.log("🔹 ルーム検索/作成開始");
@@ -207,23 +204,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             isHost = false;
-
             localPerson = await room.join();
 
-            // 新しいメンバーが参加したときにストリームを購読
+            // 接続先のメンバーが入室したときのイベントをリッスン
             room.onMemberJoined.add(async ({ member }) => {
                 logMessage('対戦相手が入室しました。');
-                // 入室したメンバーのストリームをすべて購読
+                // 入室したメンバーがすでに公開しているストリームをすべて購読
                 for (const publication of member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
                         handleDataStream(subscription.stream);
+                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
                     }
                 }
             });
 
             // 新しいストリームが公開されたときに購読
-            // このイベントは、onMemberJoinedの後にストリームが追加公開された場合に備える
             room.onStreamPublished.add(async ({ publication }) => {
                 if (
                     publication.contentType === 'data' &&
@@ -232,22 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 ) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
+                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
                 }
             });
 
             // 自身のストリームを公開
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
-
-            for (const publication of room.publications) {
-                if (publication.contentType === 'data') {
-                    // publication.publisher.id が localPerson.id ではないことを確認
-                    if (publication.publisher.id !== localPerson.id) {
-                        const subscription = await localPerson.subscribe(publication.id);
-                        handleDataStream(subscription.stream);
-                    }
-                }
-            }
+            logMessage('✅ 自身のデータストリームを公開しました。', 'success');
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
