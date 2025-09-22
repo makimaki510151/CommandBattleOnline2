@@ -130,15 +130,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             context = await SkyWayContext.Create(token);
 
-            const roomId = generateUuidV4();
+            // ★ 修正箇所: ルームの作成をawaitで待ち、エラーハンドリングを追加
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
                 type: 'sfu',
             });
 
+            if (!room) {
+                throw new Error('Failed to create or find room.');
+            }
+
             isHost = true;
 
-            // ★ 修正箇所: ルーム参加後のイベントを待つ
+            // ★ 修正箇所: ルームが有効になってからイベントリスナーを設定
             room.onPersonJoined.add(async ({ person }) => {
                 if (person.id === room.localPerson.id) {
                     // 自分自身の参加を検出したら localPerson を設定
@@ -157,8 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 } else {
                     logMessage('対戦相手が入室しました。');
-                    remoteMember = person; // 相手のメンバー情報を保存
-
                     // 相手のストリームを購読
                     const subscription = await localPerson.subscribe(person.publications[0].id);
                     handleDataStream(subscription.stream);
@@ -166,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // ルーム入室完了の表示
-            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
+            myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
             copyIdButton.disabled = false;
