@@ -36,9 +36,9 @@ export default async (req, res) => {
     }
 
     try {
-        console.log('token.js: Attempting to create SkyWayAuthToken instance and encode...');
+        console.log('token.js: Attempting to create SkyWayAuthToken using SkyWayAuthToken.create...');
         // トークンを生成
-        const authToken = new SkyWayAuthToken({
+        const token = SkyWayAuthToken.create({
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
@@ -58,8 +58,7 @@ export default async (req, res) => {
                     },
                 ],
             },
-        });
-        const token = authToken.encode(SECRET);
+        }, SECRET);
 
         console.log('token.js: SkyWay token generated successfully.');
         // クライアントにトークンとアプリIDをJSON形式で返す
