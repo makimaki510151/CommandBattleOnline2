@@ -94,7 +94,9 @@
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway_room-latest.js"></script>
+    <script type="module">
+        import { SkyWayRoom, SkyWayAuthToken, uuidV4, nowInSec, SkyWayChannel, SkyWayPeerRoom, LocalPerson, DataStream } from '@skyway-sdk/room';
+    </script>
     <script type="module" src="/scripts/main.js"></script>
     <script type="module" src="/scripts/characters.js"></script>
     <script type="module" src="/scripts/enemies.js"></script>

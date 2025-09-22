@@ -2,8 +2,9 @@
   "name": "command-battle-online2",
   "version": "1.0.0",
   "dependencies": {
-    "@skyway-sdk/room": "1.x.x",
-    "@skyway-sdk/token": "1.x.x",
+    "@skyway-sdk/room": "^3.0.0",
+    "@skyway-sdk/token": "^3.0.0",
+    "@skyway-sdk/common": "^3.0.0",
     "dotenv": "^16.0.0"
   },
   "scripts": {
