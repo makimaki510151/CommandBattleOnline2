@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             isHost = true;
             
-            // ★修正箇所: ルームが作成された後にイベントリスナーを登録
+            // ★修正箇所: roomが正常に作成された後でイベントリスナーを追加
             room.onPersonJoined.add(async ({ person }) => {
                 logMessage('対戦相手が入室しました。');
                 
@@ -155,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // ★修正箇所: イベントリスナー登録後にroom.join()を実行
             localPerson = await room.join();
             
             dataStream = await SkyWayStreamFactory.createDataStream();
@@ -197,14 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = false;
             
-            // ★修正箇所: ルームが作成された後にイベントリスナーを登録
             room.onPublicationSubscribed.add(({ publication, stream }) => {
                 if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     handleDataStream(stream);
                 }
             });
 
-            // ★修正箇所: イベントリスナー登録後にroom.join()を実行
             localPerson = await room.join();
             
             dataStream = await SkyWayStreamFactory.createDataStream();
