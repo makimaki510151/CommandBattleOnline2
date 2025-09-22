@@ -1,7 +1,7 @@
 // main.js (SkyWay対応版)
 
 // SkyWay SDKはグローバル変数として読み込まれる
-const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
+const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory, SkyWayAuthToken } = window.skyway_room;
 
 let context = null;
 let room = null;
@@ -131,45 +131,39 @@ document.addEventListener('DOMContentLoaded', () => {
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
-
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
                 type: 'sfu',
             });
 
-            if (!room) {
-                throw new Error('Failed to create or find room.');
-            }
-
             isHost = true;
 
+            // ★修正箇所: v4のAPIに合わせてlocalPersonを取得
+            localPerson = await room.join();
+
+            // データストリームのパブリッシュ
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            await localPerson.publish(dataStream);
+
+            // ★修正箇所: v4のAPIに合わせてイベントリスナーを登録
             room.onPersonJoined.add(async ({ person }) => {
-                // ★修正箇所: localPersonが有効であることを確認してから処理
-                if (person.id === room.localPerson.id) {
-                    localPerson = person;
+                logMessage('対戦相手が入室しました。');
 
-                    dataStream = await SkyWayStreamFactory.createDataStream();
-                    await localPerson.publish(dataStream);
-                    logMessage('データストリームをパブリッシュしました。');
+                const publication = person.publications.find(pub => pub.contentType === 'data');
+                if (publication) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
+                }
+            });
 
-                    // ★修正箇所: ここでイベントリスナーを追加
-                    room.onPublicationSubscribed.add(({ publication, stream }) => {
-                        if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                            handleDataStream(stream);
-                        }
-                    });
-                } else {
-                    logMessage('対戦相手が入室しました。');
-                    // localPersonが設定されるのを待ってから購読
-                    if (localPerson) {
-                        const subscription = await localPerson.subscribe(person.publications[0].id);
-                        handleDataStream(subscription.stream);
-                    }
+            room.onPublicationSubscribed.add(({ publication, stream }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    handleDataStream(stream);
                 }
             });
 
             // ルーム入室完了の表示
-            myPeerIdEl.textContent = room.name;
+            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
             copyIdButton.disabled = false;
@@ -203,13 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             isHost = false;
-            localPerson = room.localPerson;
-            // ★ 修正箇所: index.htmlに合わせてIDを変更
-            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
-            connectionStatusEl.textContent = 'ルームID: ' + room.name;
-            copyIdButton.disabled = false;
 
-            logMessage('ルームに参加しました。');
+            // ★修正箇所: v4のAPIに合わせてlocalPersonを取得
+            localPerson = await room.join();
 
             // データストリームのパブリッシュ
             dataStream = await SkyWayStreamFactory.createDataStream();
@@ -229,6 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     handleDataStream(stream);
                 }
             });
+
+            // ルーム入室完了の表示
+            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
+            connectionStatusEl.textContent = 'ルームID: ' + room.name;
+            copyIdButton.disabled = false;
+            logMessage('ルームに参加しました。');
 
         } catch (error) {
             console.error('Failed to connect to room:', error);
