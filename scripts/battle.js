@@ -1,6 +1,7 @@
-// battle.js (最終修正版 - ユニークID対応)
+// battle.js
 
 import { enemyData, enemyGroups } from './enemies.js';
+import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
 
 // DOM Elements
 const enemyPartyEl = document.getElementById('enemy-party');
@@ -97,6 +98,7 @@ function initializeParty(party, partyType = 'player') {
         member.partyIndex = index; // パーティー内のインデックス
         member.effects = {};
 
+        // キャラクター固有の初期化
         if (member.originalId === 'char06') {
             member.targetMemory = { lastTargetId: null, missed: false };
         }
@@ -213,6 +215,10 @@ async function battleLoop() {
             : [...currentPlayerParty, ...currentEnemies];
 
         const aliveCombatants = combatants.filter(c => c.status.hp > 0);
+
+        // パッシブ能力の適用（ターン開始時）
+        applyPassiveAbilities(aliveCombatants);
+
         aliveCombatants.sort((a, b) => b.status.spd - a.status.spd || Math.random() - 0.5);
 
         const actionOrder = aliveCombatants.map(c => c.name).join(' → ');
@@ -256,7 +262,11 @@ async function battleLoop() {
                 resetHighlights(); // シングルプレイではターンの最後にハイライトをリセット
             }
         }
+        
+        // ターン終了時の効果処理
         processEndTurnEffects(aliveCombatants);
+        applyEndTurnPassiveAbilities(aliveCombatants);
+        
         currentTurn++;
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -266,6 +276,34 @@ let resolveActionPromise;
 function waitForAction() {
     return new Promise(resolve => {
         resolveActionPromise = resolve;
+    });
+}
+
+// --- Passive Abilities ---
+
+function applyPassiveAbilities(combatants) {
+    const playerCombatants = combatants.filter(c => c.partyType !== 'enemy');
+    const enemyCombatants = combatants.filter(c => c.partyType === 'enemy');
+
+    combatants.forEach(combatant => {
+        const passiveFunc = passiveAbilities[combatant.originalId];
+        if (passiveFunc) {
+            const allies = combatant.partyType === 'enemy' ? enemyCombatants : playerCombatants;
+            const enemies = combatant.partyType === 'enemy' ? playerCombatants : enemyCombatants;
+            passiveFunc(combatant, allies, enemies);
+        }
+    });
+}
+
+function applyEndTurnPassiveAbilities(combatants) {
+    combatants.forEach(combatant => {
+        const endTurnPassiveFunc = endTurnPassiveAbilities[combatant.originalId];
+        if (endTurnPassiveFunc) {
+            const message = endTurnPassiveFunc(combatant);
+            if (message) {
+                logMessage(message, 'heal');
+            }
+        }
     });
 }
 
@@ -311,6 +349,8 @@ async function playerTurn(player) {
                 const skill = player.active.find(s => s.name === skillName);
                 if (skill) {
                     let mpCost = skill.mp;
+                    
+                    // 状態異常によるMP消費増加の処理
                     if (player.effects.curse) {
                         mpCost = Math.floor(mpCost * 1.5);
                         logMessage(`${player.name}の「呪縛」により、MP消費が${mpCost}に増加した。`);
@@ -330,6 +370,28 @@ async function playerTurn(player) {
                             action: 'skill',
                             actorUniqueId: player.uniqueId,
                             skillName: skill.name
+                        };
+                    }
+                }
+            } else if (target.matches('.action-special')) {
+                const special = player.special;
+                if (special) {
+                    let mpCost = special.mp;
+                    
+                    if (player.status.mp < mpCost) {
+                        logMessage(`MPが足りません！`);
+                        return;
+                    }
+
+                    player.status.mp -= mpCost;
+                    logMessage(`${player.name}は${special.name}を使った！`);
+
+                    const specialExecuted = await executeSpecial(player, special);
+                    if (specialExecuted) {
+                        actionData = {
+                            action: 'special',
+                            actorUniqueId: player.uniqueId,
+                            specialName: special.name
                         };
                     }
                 }
@@ -404,6 +466,9 @@ function executeAction(data) {
         case 'skill':
             logMessage(`${actor.name}は${data.skillName}を使った！`);
             break;
+        case 'special':
+            logMessage(`${actor.name}は${data.specialName}を使った！`);
+            break;
     }
 
     updatePlayerDisplay();
@@ -443,18 +508,37 @@ function performAttack(attacker, defender) {
     }
 }
 
-function calculateDamage(attacker, defender, isMagic = false) {
-    let actualDodgeRate = defender.status.dodgeRate;
-    let specialEffectLog = '';
-
-    if (attacker.originalId === 'char06' && attacker.targetMemory && attacker.targetMemory.lastTargetId === defender.uniqueId && attacker.targetMemory.missed) {
-        actualDodgeRate /= 2;
-        specialEffectLog += `${attacker.name}の「執着」が発動し、${defender.name}の回避率が半減した！`;
+function calculateDamage(attacker, defender, isMagic = false, multiplier = 1.0) {
+    // 攻撃タイプの自動判定
+    if (attacker.attackType === 'magic') {
+        isMagic = true;
+    } else if (attacker.attackType === 'hybrid') {
+        // ハイブリッドタイプの場合、攻撃力と魔法攻撃力の高い方を使用
+        isMagic = attacker.status.matk > attacker.status.atk;
     }
 
-    if (defender.effects.extinguishSpirit && defender.effects.extinguishSpirit.casterId === attacker.uniqueId) {
-        actualDodgeRate *= 1.5;
-        specialEffectLog += `${attacker.name}の「滅気」効果により、${defender.name}の回避率が上昇した！`;
+    let actualDodgeRate = defender.status.dodgeRate;
+    let actualCriticalRate = attacker.status.criticalRate;
+    let specialEffectLog = '';
+
+    // 状態異常による回避率の変更
+    if (defender.effects.dodgeDebuff) {
+        actualDodgeRate *= defender.effects.dodgeDebuff.value;
+    }
+    if (defender.effects.accuracyDebuff) {
+        actualDodgeRate *= (2 - defender.effects.accuracyDebuff.value); // 命中率低下は回避率上昇として扱う
+    }
+
+    // パッシブ能力によるクリティカル率の変更
+    const criticalPassiveFunc = criticalPassiveEffects[attacker.originalId];
+    if (criticalPassiveFunc) {
+        actualCriticalRate = criticalPassiveFunc(attacker, defender, actualCriticalRate);
+    }
+
+    // 防御状態の処理
+    if (defender.isDefending) {
+        actualDodgeRate *= 1.5; // 防御時は回避率1.5倍
+        defender.isDefending = false; // 防御状態をリセット
     }
 
     const dodged = Math.random() < actualDodgeRate;
@@ -462,22 +546,47 @@ function calculateDamage(attacker, defender, isMagic = false) {
     let critical = false;
 
     if (!dodged) {
-        damage = isMagic
-            ? Math.max(1, attacker.status.matk - Math.floor(defender.status.mdef / 2))
-            : Math.max(1, attacker.status.atk - Math.floor(defender.status.def / 2));
-
-        if (attacker.effects.abyssal_worship && defender.effects.abyssian_madness) {
-            const damageBoost = attacker.effects.abyssal_worship.casterSupport;
-            damage *= damageBoost;
-            specialEffectLog += `${attacker.name}の「深淵の崇拝」が発動し、${damageBoost.toFixed(2)}倍のダメージを与えた！`;
+        // 基本ダメージ計算
+        const attackPower = isMagic ? attacker.status.matk : attacker.status.atk;
+        const defense = isMagic ? defender.status.mdef : defender.status.def;
+        
+        // バフ・デバフの適用
+        let finalAttackPower = attackPower;
+        let finalDefense = defense;
+        
+        if (attacker.effects.atkBuff) {
+            finalAttackPower *= attacker.effects.atkBuff.value;
+        }
+        if (attacker.effects.atkDebuff) {
+            finalAttackPower *= attacker.effects.atkDebuff.value;
+        }
+        
+        if (defender.effects.defBuff) {
+            finalDefense *= defender.effects.defBuff.value;
+        }
+        if (defender.effects.defDebuff) {
+            finalDefense *= defender.effects.defDebuff.value;
+        }
+        if (defender.effects.mdefBuff && isMagic) {
+            finalDefense *= defender.effects.mdefBuff.value;
         }
 
-        critical = Math.random() < attacker.status.criticalRate;
+        damage = Math.max(1, Math.floor(finalAttackPower * multiplier) - Math.floor(finalDefense / 2));
+
+        // パッシブ能力によるダメージ修正
+        const damagePassiveFunc = damagePassiveEffects[attacker.originalId];
+        if (damagePassiveFunc) {
+            damage = damagePassiveFunc(attacker, defender, damage, !isMagic);
+        }
+
+        // クリティカル判定
+        critical = Math.random() < actualCriticalRate;
         if (critical) {
             damage = Math.floor(damage * attacker.status.criticalMultiplier);
         }
     }
 
+    // キャラクター固有の記憶処理（ゼノス）
     if (attacker.originalId === 'char06') {
         attacker.targetMemory = { lastTargetId: defender.uniqueId, missed: dodged };
     }
@@ -518,53 +627,6 @@ function selectTarget() {
     });
 }
 
-// --- Skill Execution ---
-
-async function executeSkill(player, skill) {
-    switch (skill.name) {
-        case 'ヒールライト':
-            logMessage('回復する味方を選択してください。');
-            const targetPlayer = await selectPlayerTarget();
-            if (targetPlayer) {
-                performHeal(player, targetPlayer);
-                return true;
-            }
-            break;
-        case '連撃':
-            logMessage('攻撃する敵を選択してください。');
-            const targetInfo = await selectTarget();
-            if (targetInfo) {
-                performMultiAttack(player, targetInfo.target);
-                return true;
-            }
-            break;
-        case 'なぎ払い':
-        case 'ブリザード':
-            const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-            performAreaAttack(player, targets);
-            return true;
-        case '蠱惑の聖歌':
-            performSanctuaryHymn(player);
-            return true;
-        case '深淵の理路':
-            performAbyssalLogic(player);
-            return true;
-        case '血晶の零滴':
-            logMessage('攻撃する敵を選択してください。');
-            const dropTargetInfo = await selectTarget();
-            if (dropTargetInfo) {
-                performBloodCrystalDrop(player, dropTargetInfo.target);
-                return true;
-            }
-            break;
-        default:
-            logMessage('このスキルはまだ実装されていません。');
-            player.status.mp += skill.mp;
-            break;
-    }
-    return false;
-}
-
 function selectPlayerTarget() {
     return new Promise(resolve => {
         const players = currentPlayerParty.filter(p => p.status.hp > 0);
@@ -596,106 +658,138 @@ function selectPlayerTarget() {
     });
 }
 
-// --- Skill Effects ---
+// --- Skill Execution ---
 
-function performHeal(healer, target) {
-    const healAmount = healer.status.support * 2;
-    logMessage(`${healer.name}は${target.name}を${healAmount}回復した。`, 'heal');
-    target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
-    updatePlayerDisplay();
-}
+async function executeSkill(player, skill) {
+    const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
+    const aliveEnemies = (window.isOnlineMode() ? opponentParty : currentEnemies).filter(e => e.status.hp > 0);
 
-function performMultiAttack(attacker, target) {
-    const attacks = 3;
-    let totalDamage = 0;
-    for (let i = 0; i < attacks; i++) {
-        const { damage } = calculateDamage(attacker, target, attacker.attackType === 'magic');
-        target.status.hp = Math.max(0, target.status.hp - damage);
-        totalDamage += damage;
-        if (target.status.hp <= 0) break;
-    }
-    updateEnemyDisplay();
+    let targets = [];
 
-    if (attacker.effects.curse && totalDamage > 0) {
-        const curseDamage = Math.floor(attacker.status.maxHp * 0.05);
-        attacker.status.hp = Math.max(0, attacker.status.hp - curseDamage);
-        logMessage(`${attacker.name}は「呪縛」で${curseDamage}のダメージを受けた！`, 'damage');
-    }
-}
+    // スキルの対象を決定
+    const healingSkills = ['ガイアヒーリング', 'メディックウェーブ', 'リフレッシュ'];
+    const supportSkills = ['プロテクション'];
+    const enemyAllSkills = ['イリュージョンスモーク', 'アローレイン', 'フロストスプライト', 'カオスブレイク', 'グラビティフィールド'];
+    const allyAllSkills = ['メディックウェーブ'];
 
-function performAreaAttack(attacker, targets) {
-    if (targets) {
-        targets.forEach(target => {
-            if (target.status.hp > 0) {
-                const { damage } = calculateDamage(attacker, target, attacker.attackType === 'magic');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-            }
-        });
-        updateEnemyDisplay();
-    }
-}
-
-function performSanctuaryHymn(caster) {
-    const healAmount = Math.floor(caster.status.support * 0.5);
-    if (currentPlayerParty) {
-        currentPlayerParty.forEach(p => {
-            p.status.hp = Math.min(p.status.maxHp, p.status.hp + healAmount);
-            p.effects.abyssal_worship = { duration: 5, casterSupport: caster.status.support / 60 };
-            logMessage(`${p.name}は「深淵の崇拝」の効果を得た！`, 'status-effect');
-        });
-        updatePlayerDisplay();
-    }
-}
-
-function performAbyssalLogic(caster) {
-    const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-    if (targets) {
-        targets.forEach(enemy => {
-            if (enemy.effects.abyssal_echo) {
-                logMessage(`${enemy.name}には「深淵の残響」が付与されているため、「深淵の狂気」を付与できません。`);
-                return;
-            }
-
-            if (!enemy.effects.abyssian_madness) {
-                enemy.effects.abyssian_madness = { stacks: 1, duration: 5 };
-                logMessage(`${enemy.name}は「深淵の狂気」状態になった！`, 'status-effect');
+    if (healingSkills.includes(skill.name) || supportSkills.includes(skill.name)) {
+        if (allyAllSkills.includes(skill.name)) {
+            targets = alivePlayers;
+        } else {
+            logMessage('味方を選択してください。');
+            const playerTarget = await selectPlayerTarget();
+            if (playerTarget) {
+                targets = [playerTarget];
             } else {
-                enemy.effects.abyssian_madness.stacks++;
-                enemy.effects.abyssian_madness.duration = 5;
-                logMessage(`${enemy.name}の「深淵の狂気」スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'status-effect');
+                return false;
             }
-        });
+        }
+    } else if (enemyAllSkills.includes(skill.name)) {
+        targets = aliveEnemies;
+    } else {
+        logMessage('敵を選択してください。');
+        const enemyTargetInfo = await selectTarget();
+        if (enemyTargetInfo) {
+            targets = [enemyTargetInfo.target];
+        } else {
+            return false;
+        }
     }
+
+    const skillFunc = skillEffects[skill.name];
+    if (skillFunc) {
+        skillFunc(player, targets, calculateDamage, logMessage);
+        return true;
+    }
+
+    logMessage('このスキルはまだ実装されていません。');
+    player.status.mp += skill.mp; // 消費したMPを戻す
+    return false;
 }
 
-function performBloodCrystalDrop(caster, target) {
-    target.effects.blood_crystal_drop = { duration: 3, casterMatk: caster.status.matk, casterId: caster.uniqueId };
-    logMessage(`${target.name}は「血晶の零滴」状態になった。`, 'status-effect');
+async function executeSpecial(player, special) {
+    const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
+    const aliveEnemies = (window.isOnlineMode() ? opponentParty : currentEnemies).filter(e => e.status.hp > 0);
+    const deadPlayers = currentPlayerParty.filter(p => p.status.hp <= 0);
+
+    let targets = [];
+
+    // 必殺技の対象を決定
+    const enemyAllSpecials = ['ホーリーランス', 'シャドウバースト', 'アストラルゲート'];
+    const selfBuffSpecials = ['オーバードライブ'];
+    const reviveSpecials = ['天国の扉'];
+
+    if (enemyAllSpecials.includes(special.name)) {
+        targets = aliveEnemies;
+    } else if (selfBuffSpecials.includes(special.name)) {
+        targets = [player];
+    } else if (reviveSpecials.includes(special.name)) {
+        targets = deadPlayers;
+    } else {
+        logMessage('敵を選択してください。');
+        const enemyTargetInfo = await selectTarget();
+        if (enemyTargetInfo) {
+            targets = [enemyTargetInfo.target];
+        } else {
+            return false;
+        }
+    }
+
+    const specialFunc = skillEffects[special.name];
+    if (specialFunc) {
+        specialFunc(player, targets, calculateDamage, logMessage);
+        return true;
+    }
+
+    logMessage('この必殺技はまだ実装されていません。');
+    player.status.mp += special.mp; // 消費したMPを戻す
+    return false;
 }
 
 // --- Status Effects ---
 
 function processStatusEffects(combatant) {
-    if (combatant.effects.abyssian_madness) {
-        const madnessEffect = combatant.effects.abyssian_madness;
-        const disableChance = 0.1 * madnessEffect.stacks;
-        if (Math.random() < disableChance) {
-            logMessage(`${combatant.name}は深淵の狂気に陥り、行動不能になった！`, 'status-effect');
+    // スタン状態のチェック
+    if (combatant.effects.stun) {
+        logMessage(`${combatant.name}はスタン状態で行動できない！`, 'status-effect');
+        combatant.effects.stun.duration--;
+        if (combatant.effects.stun.duration <= 0) {
+            delete combatant.effects.stun;
+            logMessage(`${combatant.name}のスタン状態が回復した。`, 'status-effect');
+        }
+        return true;
+    }
+
+    // 凍結状態のチェック
+    if (combatant.effects.freeze) {
+        logMessage(`${combatant.name}は凍結状態で行動できない！`, 'status-effect');
+        combatant.effects.freeze.duration--;
+        if (combatant.effects.freeze.duration <= 0) {
+            delete combatant.effects.freeze;
+            logMessage(`${combatant.name}の凍結状態が回復した。`, 'status-effect');
+        }
+        return true;
+    }
+
+    // 混乱状態のチェック
+    if (combatant.effects.confusion) {
+        if (Math.random() < 0.5) {
+            logMessage(`${combatant.name}は混乱して行動できない！`, 'status-effect');
+            combatant.effects.confusion.duration--;
+            if (combatant.effects.confusion.duration <= 0) {
+                delete combatant.effects.confusion;
+                logMessage(`${combatant.name}の混乱状態が回復した。`, 'status-effect');
+            }
             return true;
         }
     }
 
-    if (combatant.originalId === 'char05' && currentPlayerParty && currentPlayerParty.includes(combatant)) {
-        const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
-        if (enemies) {
-            enemies.forEach(enemy => {
-                if (enemy.effects.abyssian_madness) {
-                    if (Math.random() < 0.5) {
-                        enemy.effects.abyssian_madness.stacks++;
-                        logMessage(`零唯の「妖艶なる書架」が発動！${enemy.name}の狂気スタックが${enemy.effects.abyssian_madness.stacks}になった。`, 'special-event');
-                    }
-                }
-            });
+    // 沈黙状態のチェック（魔法使用不可）
+    if (combatant.effects.silence) {
+        combatant.effects.silence.duration--;
+        if (combatant.effects.silence.duration <= 0) {
+            delete combatant.effects.silence;
+            logMessage(`${combatant.name}の沈黙状態が回復した。`, 'status-effect');
         }
     }
 
@@ -704,31 +798,33 @@ function processStatusEffects(combatant) {
 
 function processEndTurnEffects(combatants) {
     combatants.forEach(combatant => {
-        if (combatant.effects.blood_crystal_drop) {
-            const dropEffect = combatant.effects.blood_crystal_drop;
-            if (dropEffect.duration > 0) {
-                const baseDamage = Math.floor(dropEffect.casterMatk * 0.3);
-                const damage = Math.max(1, baseDamage - Math.floor(combatant.status.mdef / 2));
-                combatant.status.hp = Math.max(0, combatant.status.hp - damage);
-                logMessage(`${combatant.name}は「血晶の零滴」で${damage}のダメージを受けた！`, 'damage');
-
-                if (currentPlayerParty) {
-                    const caster = currentPlayerParty.find(p => p.uniqueId === dropEffect.casterId);
-                    if (caster) {
-                        const mpRecovery = Math.floor(damage * 0.5);
-                        caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + mpRecovery);
-                        updatePlayerDisplay();
-                        logMessage(`${caster.name}はMPを${mpRecovery}回復した。`, 'heal');
-                    }
-                }
-                dropEffect.duration--;
-            } else {
-                delete combatant.effects.blood_crystal_drop;
-                logMessage(`${combatant.name}の「血晶の零滴」効果が切れた。`, 'status-effect');
+        // 毒ダメージ
+        if (combatant.effects.poison) {
+            const poisonDamage = combatant.effects.poison.damage;
+            combatant.status.hp = Math.max(0, combatant.status.hp - poisonDamage);
+            logMessage(`${combatant.name}は毒で${poisonDamage}のダメージを受けた！`, 'damage');
+            combatant.effects.poison.duration--;
+            if (combatant.effects.poison.duration <= 0) {
+                delete combatant.effects.poison;
+                logMessage(`${combatant.name}の毒状態が回復した。`, 'status-effect');
             }
         }
 
-        ['fadingBody', 'curse', 'extinguishSpirit', 'void'].forEach(effectName => {
+        // 出血ダメージ
+        if (combatant.effects.bleed) {
+            const bleedDamage = combatant.effects.bleed.damage;
+            combatant.status.hp = Math.max(0, combatant.status.hp - bleedDamage);
+            logMessage(`${combatant.name}は出血で${bleedDamage}のダメージを受けた！`, 'damage');
+            combatant.effects.bleed.duration--;
+            if (combatant.effects.bleed.duration <= 0) {
+                delete combatant.effects.bleed;
+                logMessage(`${combatant.name}の出血状態が回復した。`, 'status-effect');
+            }
+        }
+
+        // バフ・デバフの持続時間減少
+        const effects = ['atkBuff', 'defBuff', 'mdefBuff', 'spdBuff', 'atkDebuff', 'defDebuff', 'spdDebuff', 'dodgeDebuff', 'accuracyDebuff'];
+        effects.forEach(effectName => {
             if (combatant.effects[effectName]) {
                 combatant.effects[effectName].duration--;
                 if (combatant.effects[effectName].duration <= 0) {
@@ -930,14 +1026,11 @@ function updateCommandMenu(player) {
         }).join('');
     }
 
-    if (player.originalId === 'char06') {
-        const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
-        player.special.condition = (p) => {
-            return enemies && enemies.some(e => Object.keys(e.effects || {}).length >= 2);
-        };
-    }
+    const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
+    const allies = currentPlayerParty.filter(p => p.status.hp > 0);
+    const specialConditionFunc = specialAbilityConditions[player.originalId];
 
-    if (specialButtonEl && player.special.condition && player.special.condition(player)) {
+    if (specialButtonEl && specialConditionFunc && specialConditionFunc(player, allies)) {
         specialButtonEl.classList.remove('hidden');
     } else if (specialButtonEl) {
         specialButtonEl.classList.add('hidden');
