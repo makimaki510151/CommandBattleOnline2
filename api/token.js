@@ -1,7 +1,6 @@
-// api/token.js (CommonJS version)
+// api/token.js (using jsonwebtoken)
 
-// SkyWay SDKのライブラリをrequireで読み込む
-const SkyWayAuthToken = require("@skyway-sdk/token");
+const jwt = require("jsonwebtoken");
 
 // uuidV4を直接実装
 function uuidV4() {
@@ -20,7 +19,6 @@ function nowInSec() {
 module.exports = (req, res) => {
     console.log('token.js: Function started.');
 
-    // 環境変数を読み込む
     const APP_ID = process.env.SKYWAY_APP_ID;
     const SECRET = process.env.SKYWAY_SECRET_KEY;
 
@@ -33,13 +31,12 @@ module.exports = (req, res) => {
     }
 
     try {
-        console.log('token.js: Attempting to create SkyWayAuthToken...');
+        console.log('token.js: Attempting to generate SkyWay token using jsonwebtoken...');
 
-        const token = new SkyWayAuthToken({
+        const payload = {
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
-            version: 3,
             scope: {
                 appId: APP_ID,
                 turn: true,
@@ -56,7 +53,9 @@ module.exports = (req, res) => {
                     },
                 ],
             },
-        }).encode(SECRET);
+        };
+
+        const token = jwt.sign(payload, SECRET, { algorithm: 'HS256' });
 
         console.log('token.js: SkyWay token generated successfully.');
         return res.status(200).json({ token: token, appId: APP_ID });
@@ -66,3 +65,4 @@ module.exports = (req, res) => {
         return res.status(500).json({ error: "Failed to generate token" });
     }
 };
+

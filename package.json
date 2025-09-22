@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "@skyway-sdk/common": "^1.2.0",
-    "@skyway-sdk/token": "^1.2.0"
+    "@skyway-sdk/token": "^1.2.0",
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
     "vercel": "^32.0.0"
