@@ -6,7 +6,7 @@ let isHost = false;
 let isOnlineMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const startButton = document.getElementById('start-button');
+    //const startButton = document.getElementById('start-button');
     const onlineButton = document.getElementById('online-button');
     const backButton = document.getElementById('back-button');
     const startAdventureButton = document.getElementById('go-button');
@@ -24,11 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectionStatusEl = document.getElementById('connection-status');
 
     // 「冒険開始」ボタン（シングルプレイ）
-    startButton.addEventListener('click', () => {
-        isOnlineMode = false;
-        titleScreen.classList.add('hidden');
-        partyScreen.classList.remove('hidden');
-    });
+    // startButton.addEventListener('click', () => {
+        // isOnlineMode = false;
+        // titleScreen.classList.add('hidden');
+        // partyScreen.classList.remove('hidden');
+    // });
 
     // 「オンライン対戦」ボタン
     onlineButton.addEventListener('click', () => {
