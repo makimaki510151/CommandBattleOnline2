@@ -210,11 +210,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localPerson = await room.join();
 
+            // 新しいメンバーが参加したときにストリームを購読
             room.onMemberJoined.add(async ({ member }) => {
                 logMessage('対戦相手が入室しました。');
-                // 入室したメンバーのストリームを購読
-                const publications = member.publications;
-                for (const publication of publications) {
+                // 入室したメンバーのストリームをすべて購読
+                for (const publication of member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
                         handleDataStream(subscription.stream);
@@ -222,16 +222,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            // 新しいストリームが公開されたときに購読
+            // このイベントは、onMemberJoinedの後にストリームが追加公開された場合に備える
             room.onStreamPublished.add(async ({ publication }) => {
                 if (
                     publication.contentType === 'data' &&
-                    localPerson && // localPersonが存在するかチェック
+                    localPerson &&
                     publication.publisher.id !== localPerson.id
                 ) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                 }
             });
+
+            // 自身のストリームを公開
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            await localPerson.publish(dataStream);
 
             for (const publication of room.publications) {
                 if (publication.contentType === 'data') {
@@ -242,10 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
-            // 自身のストリームを公開
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
