@@ -1,14 +1,11 @@
-// main.js (SkyWay対応版)
+// main.js (統合版 - シングルプレイとオンライン対戦対応)
 
-// SkyWay SDKはグローバル変数として読み込まれる
-const { SkyWayContext } = window.skyway_room;
-const { SkyWayRoom, SkyWayRoomType } = window.skyway_room;
-const { SkyWayStreamFactory } = window.skyway_room;
-
+// SkyWay SDKはグローバル変数として読み込まれることを想定
+const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
 
 let context = null;
 let room = null;
-let localPerson = null; // v3ではlocalPersonに名称変更
+let localPerson = null;
 let dataStream = null;
 let isHost = false;
 let isOnlineMode = false;
@@ -37,6 +34,7 @@ window.logMessage = (message, type) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ボタンと画面要素の取得
     const startButton = document.getElementById('start-button');
     const onlineButton = document.getElementById('online-button');
     const backButton = document.getElementById('back-button');
@@ -61,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         partyScreen.classList.remove('hidden');
     });
 
-    // 「オンライン対戦」ボタン
+    // 「オンライン対戦」ボタン（ホストとしてルーム作成）
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
@@ -87,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isOnlineMode = false;
     });
 
-    // 「出かける」ボタン
+    // 「出かける」ボタン（シングルプレイ開始）
     startAdventureButton.addEventListener('click', () => {
         const partyMembers = window.getSelectedParty();
         if (partyMembers.length < 1) {
@@ -99,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.startBattle(partyMembers);
     });
 
-    // 「接続」ボタン
+    // 「接続」ボタン（クライアントとしてルーム参加）
     connectButton.addEventListener('click', () => {
         console.log("✅ 接続ボタン押された");
         const remoteRoomId = peerIdInput.value;
@@ -111,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
     // 「IDをコピー」ボタン
     copyIdButton.addEventListener('click', () => {
         const roomId = myPeerIdEl.textContent;
@@ -120,6 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.error('コピーに失敗しました', err));
     });
 
+    // === SkyWay関連のロジック ===
+
+    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -127,11 +127,10 @@ document.addEventListener('DOMContentLoaded', () => {
         copyIdButton.disabled = true;
 
         try {
-            // トークンを非同期で取得
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
-
+            
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
@@ -149,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // メンバー入室時のイベントリスナー
             room.onMemberJoined.add(async (e) => {
                 logMessage('対戦相手が入室しました。');
-                // すでに公開されているストリームをすべて購読
                 for (const publication of e.member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
@@ -181,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to initialize SkyWay:', error);
             connectionStatusEl.textContent = 'エラー: ' + (error.message || '初期化に失敗しました');
             logMessage('エラー: 初期化に失敗しました。詳細をコンソールで確認してください。', 'error');
-            await cleanupSkyWay(); // エラー時はリソースをクリーンアップ
+            await cleanupSkyWay();
         }
     }
 
@@ -190,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("🔹 connectToRoom: 接続開始");
         connectionStatusEl.textContent = '接続中...';
 
-        // 既存のコンテキストがある場合は必ずクリーンアップ
         if (context) {
             console.log("⚠️ 既存コンテキストを破棄します");
             await cleanupSkyWay();
@@ -226,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localPerson = await room.join();
             console.log("✅ connectToRoom: ルーム参加完了");
 
-            // 接続先のメンバーが入室したときのイベントをリッスン
             room.onMemberJoined.add(async ({ member }) => {
                 logMessage('対戦相手が入室しました。');
                 for (const publication of member.publications) {
@@ -238,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 新しいストリームが公開されたときに購読
             room.onStreamPublished.add(async ({ publication }) => {
                 if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
@@ -247,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 自身のストリームを公開
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
             console.log("✅ connectToRoom: 自身のデータストリームを公開しました。");
@@ -261,11 +255,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('❌ connectToRoom: エラー発生:', error);
             connectionStatusEl.textContent = 'エラー: ' + (error.message || '接続に失敗しました');
             logMessage('エラー: 接続に失敗しました。詳細をコンソールで確認してください。', 'error');
-            await cleanupSkyWay(); // エラー時はクリーンアップ
+            await cleanupSkyWay();
         }
     }
 
-
+    // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
             try {
@@ -290,12 +284,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // SkyWayリソースのクリーンアップ
     async function cleanupSkyWay() {
         console.log("🧹 cleanupSkyWay 実行");
         try {
             if (localPerson) {
                 await localPerson.leave();
                 localPerson = null;
+            }
+            if (dataStream) {
+                dataStream = null;
             }
             if (room) {
                 await room.close();
@@ -306,12 +304,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 context = null;
             }
         } catch (err) {
-            console.error("❌ cleanupSkyWay error:", err); // エラーをログに出力
+            console.warn("⚠️ cleanupSkyWay エラー (無視してOK):", err);
         }
-        console.log("✅ cleanupSkyWay 完了"); // 完了ログを追加
+        console.log("✅ cleanupSkyWay 完了");
     }
 
-
+    // データ送信関数をグローバルに公開
     window.sendData = function (data) {
         if (dataStream) {
             try {
@@ -326,10 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // オンラインモードかどうかの状態を返す関数
     window.isOnlineMode = function () {
         return isOnlineMode;
     };
 
+    // ホストかどうかを返す関数
     window.isHost = function () {
         return isHost;
     };
