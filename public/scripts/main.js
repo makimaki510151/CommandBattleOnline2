@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // SkyWayを初期化し、ホストとしてルームを作成する
+    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -130,8 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             context = await SkyWayContext.Create(token);
 
+            // ★修正箇所: roomが有効なオブジェクトであることを確認してから処理を進める
+            if (!context) {
+                throw new Error('Failed to create SkyWay context.');
+            }
+
             const roomId = generateUuidV4();
-            
+
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
                 type: 'sfu',
@@ -143,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = true;
 
-            // ★ 修正箇所: ルームが有効になってからイベントリスナーを設定
+            // ★修正箇所: roomが正常に作成された後でイベントリスナーを追加
             room.onPersonJoined.add(async ({ person }) => {
                 if (person.id === room.localPerson.id) {
                     // 自分自身の参加を検出したら localPerson を設定
