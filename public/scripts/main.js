@@ -118,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // SkyWayを初期化し、ホストとしてルームを作成する
-    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -130,11 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const { token, appId } = await res.json();
 
             context = await SkyWayContext.Create(token);
-
-            // ★修正箇所: roomが有効なオブジェクトであることを確認してから処理を進める
-            if (!context) {
-                throw new Error('Failed to create SkyWay context.');
-            }
 
             const roomId = generateUuidV4();
 
@@ -149,18 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = true;
 
-            // ★修正箇所: roomが正常に作成された後でイベントリスナーを追加
             room.onPersonJoined.add(async ({ person }) => {
+                // ★修正箇所: localPersonが有効であることを確認してから処理
                 if (person.id === room.localPerson.id) {
-                    // 自分自身の参加を検出したら localPerson を設定
                     localPerson = person;
 
-                    // データストリームのパブリッシュ
                     dataStream = await SkyWayStreamFactory.createDataStream();
                     await localPerson.publish(dataStream);
                     logMessage('データストリームをパブリッシュしました。');
 
-                    // 相手がデータをパブリッシュしたら購読
+                    // ★修正箇所: ここでイベントリスナーを追加
                     room.onPublicationSubscribed.add(({ publication, stream }) => {
                         if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                             handleDataStream(stream);
@@ -168,9 +160,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 } else {
                     logMessage('対戦相手が入室しました。');
-                    // 相手のストリームを購読
-                    const subscription = await localPerson.subscribe(person.publications[0].id);
-                    handleDataStream(subscription.stream);
+                    // localPersonが設定されるのを待ってから購読
+                    if (localPerson) {
+                        const subscription = await localPerson.subscribe(person.publications[0].id);
+                        handleDataStream(subscription.stream);
+                    }
                 }
             });
 
