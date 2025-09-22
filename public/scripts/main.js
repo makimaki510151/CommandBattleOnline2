@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // SkyWayを初期化し、ホストとしてルームを作成する
+    // SkyWayを初期化し、ホストとしてルームを作成する
     async function initializeSkyWay() {
         if (context) return;
         isOnlineMode = true;
@@ -150,13 +151,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // ...残りのコードはそのまま...
+            room.onPublicationSubscribed.add(({ publication, stream }) => {
+                if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    handleDataStream(stream);
+                }
+            });
+
+            localPerson = await room.join();
+
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            await localPerson.publish(dataStream);
+
+            myPeerIdEl.textContent = room.name;
+            connectionStatusEl.textContent = 'ルームID: ' + room.name;
+            logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
+            copyIdButton.disabled = false;
+
         } catch (error) {
             console.error('Failed to initialize SkyWay:', error);
             connectionStatusEl.textContent = 'エラー: 初期化に失敗しました';
         }
     }
- 
+
     // クライアントとして既存のルームに参加する
     async function connectToRoom(roomId) {
         if (context) return;
