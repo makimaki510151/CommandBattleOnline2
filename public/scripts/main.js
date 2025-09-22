@@ -1,7 +1,7 @@
 // main.js (SkyWay対応版)
 
 // SkyWay SDKはグローバル変数として読み込まれる
-const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory, SkyWayAuthToken } = window.skyway_room;
+const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
 
 let context = null;
 let room = null;
@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
 
-    // ★ 修正箇所: index.htmlに合わせてIDを変更
     const myPeerIdEl = document.getElementById('my-peer-id');
     const peerIdInput = document.getElementById('peer-id-input');
     const connectionStatusEl = document.getElementById('connection-status');
@@ -99,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「接続」ボタン
     connectButton.addEventListener('click', () => {
-        // ★ 修正箇所: index.htmlに合わせてIDを変更
         const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
             connectToRoom(remoteRoomId);
@@ -110,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「IDをコピー」ボタン
     copyIdButton.addEventListener('click', () => {
-        // ★ 修正箇所: index.htmlに合わせてIDを変更
         const roomId = myPeerIdEl.textContent;
         navigator.clipboard.writeText(roomId)
             .then(() => alert('IDがクリップボードにコピーされました！'))
@@ -133,19 +130,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const roomId = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
-                type: 'sfu',
+                type: 'p2p', // ★修正箇所: P2Pに変更
             });
 
             isHost = true;
 
-            // ★修正箇所: v4のAPIに合わせてlocalPersonを取得
             localPerson = await room.join();
 
-            // データストリームのパブリッシュ
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
-            // ★修正箇所: v4のAPIに合わせてイベントリスナーを登録
             room.onPersonJoined.add(async ({ person }) => {
                 logMessage('対戦相手が入室しました。');
 
@@ -162,8 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // ルーム入室完了の表示
-            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
+            myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...');
             copyIdButton.disabled = false;
@@ -188,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             room = await SkyWayRoom.Find(context, {
                 name: roomId,
+                type: 'p2p', // ★修正箇所: P2Pに変更
             });
 
             if (!room) {
@@ -198,14 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isHost = false;
 
-            // ★修正箇所: v4のAPIに合わせてlocalPersonを取得
             localPerson = await room.join();
 
-            // データストリームのパブリッシュ
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
-            // 相手がパブリッシュしたストリームを購読
             room.publications.forEach(async (publication) => {
                 if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
@@ -213,15 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 相手がデータをパブリッシュしたら購読
             room.onPublicationSubscribed.add(({ publication, stream }) => {
                 if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     handleDataStream(stream);
                 }
             });
 
-            // ルーム入室完了の表示
-            myPeerIdEl.textContent = room.name; // ルーム名をIDとして表示
+            myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             copyIdButton.disabled = false;
             logMessage('ルームに参加しました。');
@@ -237,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
-                // battle.js で定義された関数を呼び出す
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
                 } else if (parsedData.type === 'start_battle') {
@@ -272,7 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = '未接続';
     }
 
-    // データ送信関数をグローバルに公開
     window.sendData = function (data) {
         if (dataStream) {
             try {
@@ -287,12 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // オンラインモード判定をグローバルに公開
     window.isOnlineMode = function () {
         return isOnlineMode;
     };
 
-    // ホスト判定をグローバルに公開
     window.isHost = function () {
         return isHost;
     };
