@@ -186,3 +186,110 @@
 .enemy-character.selecting-target:hover {
     transform: scale(1.05);
 }
+
+
+/* 勝利・敗北演出のスタイル */
+.battle-result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.battle-result-overlay.show {
+    opacity: 1;
+}
+
+.battle-result-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 60px 40px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transform: scale(0.8);
+    animation: resultAppear 0.6s ease-out forwards;
+    max-width: 500px;
+    width: 90%;
+}
+
+@keyframes resultAppear {
+    0% {
+        transform: scale(0.8) translateY(50px);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+.battle-result-title {
+    font-size: 4em;
+    font-weight: bold;
+    margin: 0 0 20px 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    animation: titlePulse 2s ease-in-out infinite;
+}
+
+.battle-result-container .battle-result-title {
+    color: #fff;
+}
+
+@keyframes titlePulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.battle-result-message {
+    font-size: 1.4em;
+    color: #f0f0f0;
+    margin: 0 0 40px 0;
+    line-height: 1.6;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.battle-result-button {
+    background: linear-gradient(135deg, #ff6b35, #ff8e53);
+    color: white;
+    font-size: 1.4em;
+    font-weight: bold;
+    padding: 15px 40px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
+    transition: all 0.3s ease;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.battle-result-button:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 24px rgba(255, 107, 53, 0.4);
+    background: linear-gradient(135deg, #ff8e53, #ff6b35);
+}
+
+.battle-result-button:active {
+    transform: translateY(-1px) scale(1.02);
+}
+
+/* 勝利時の特別なスタイル */
+.battle-result-overlay .battle-result-container:has(.battle-result-title:contains("勝利")) {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+}
+
+/* 敗北時の特別なスタイル */
+.battle-result-overlay .battle-result-container:has(.battle-result-title:contains("敗北")) {
+    background: linear-gradient(135deg, #c94b4b 0%, #4b134f 100%);
+}

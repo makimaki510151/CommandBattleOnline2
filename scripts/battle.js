@@ -267,6 +267,12 @@ async function battleLoop() {
         processEndTurnEffects(aliveCombatants);
         applyEndTurnPassiveAbilities(aliveCombatants);
         
+        // ターン終了後に再度勝敗判定（自己修復などで状況が変わる可能性があるため）
+        if (isBattleOver()) {
+            handleBattleEnd();
+            break;
+        }
+        
         currentTurn++;
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -297,11 +303,14 @@ function applyPassiveAbilities(combatants) {
 
 function applyEndTurnPassiveAbilities(combatants) {
     combatants.forEach(combatant => {
-        const endTurnPassiveFunc = endTurnPassiveAbilities[combatant.originalId];
-        if (endTurnPassiveFunc) {
-            const message = endTurnPassiveFunc(combatant);
-            if (message) {
-                logMessage(message, 'heal');
+        // 生存しているキャラクターのみにターン終了時パッシブを適用
+        if (combatant.status.hp > 0) {
+            const endTurnPassiveFunc = endTurnPassiveAbilities[combatant.originalId];
+            if (endTurnPassiveFunc) {
+                const message = endTurnPassiveFunc(combatant);
+                if (message) {
+                    logMessage(message, 'heal');
+                }
             }
         }
     });
@@ -842,18 +851,36 @@ function isBattleOver() {
     const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
     const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
     const enemiesAlive = enemies ? enemies.some(e => e.status.hp > 0) : false;
+    
+    // デバッグ用ログ
+    console.log('Battle status check:', {
+        playersAlive,
+        enemiesAlive,
+        playerParty: currentPlayerParty.map(p => ({ name: p.name, hp: p.status.hp })),
+        enemies: enemies ? enemies.map(e => ({ name: e.name, hp: e.status.hp })) : []
+    });
+    
     return !playersAlive || !enemiesAlive;
 }
 
 function handleBattleEnd() {
+    console.log('handleBattleEnd called');
     isBattleOngoing = false;
     const playersAlive = currentPlayerParty.some(p => p.status.hp > 0);
 
     if (window.isOnlineMode()) {
-        logMessage(playersAlive ? '勝利しました！' : '敗北しました...');
+        const isWinner = playersAlive;
+        console.log('Online battle end:', { isWinner, playersAlive });
+        logMessage(isWinner ? '勝利しました！' : '敗北しました...');
+        
         if (window.isHost()) {
-            window.sendData({ type: 'battle_end', result: playersAlive ? 'win' : 'lose' });
+            console.log('Host sending battle_end message');
+            window.sendData({ type: 'battle_end', result: isWinner ? 'win' : 'lose' });
         }
+        
+        // 勝利・敗北演出を表示
+        console.log('Showing battle result');
+        showBattleResult(isWinner);
     } else {
         if (playersAlive) {
             logMessage('敵グループを撃破しました！');
@@ -878,6 +905,93 @@ function handleGameWin() {
 
 function handleGameOver() {
     setTimeout(resetToPartyScreen, 3000);
+}
+
+function showBattleResult(isWinner) {
+    // 既存の結果画面があれば削除
+    const existingResult = document.getElementById('battle-result-overlay');
+    if (existingResult) {
+        existingResult.remove();
+    }
+
+    // 結果画面のオーバーレイを作成
+    const overlay = document.createElement('div');
+    overlay.id = 'battle-result-overlay';
+    overlay.className = 'battle-result-overlay';
+    
+    const resultContainer = document.createElement('div');
+    resultContainer.className = 'battle-result-container';
+    
+    const resultTitle = document.createElement('h1');
+    resultTitle.className = 'battle-result-title';
+    resultTitle.textContent = isWinner ? '勝利！' : '敗北...';
+    
+    const resultMessage = document.createElement('p');
+    resultMessage.className = 'battle-result-message';
+    resultMessage.textContent = isWinner ? 
+        'おめでとうございます！見事勝利を収めました！' : 
+        '残念ながら敗北してしまいました...';
+    
+    const returnButton = document.createElement('button');
+    returnButton.className = 'battle-result-button';
+    returnButton.textContent = 'タイトルに戻る';
+    returnButton.addEventListener('click', () => {
+        overlay.remove();
+        returnToTitle();
+    });
+    
+    resultContainer.appendChild(resultTitle);
+    resultContainer.appendChild(resultMessage);
+    resultContainer.appendChild(returnButton);
+    overlay.appendChild(resultContainer);
+    
+    // バトル画面に追加
+    battleScreenEl.appendChild(overlay);
+    
+    // アニメーション効果
+    setTimeout(() => {
+        overlay.classList.add('show');
+    }, 100);
+    
+    // 5秒後に自動でタイトルに戻る
+    setTimeout(() => {
+        if (document.getElementById('battle-result-overlay')) {
+            overlay.remove();
+            returnToTitle();
+        }
+    }, 5000);
+}
+
+function returnToTitle() {
+    // 画面を切り替え
+    battleScreenEl.classList.add('hidden');
+    
+    // オンラインモードの場合はオンライン画面に戻る
+    if (window.isOnlineMode()) {
+        const onlineScreen = document.getElementById('online-screen');
+        const titleScreen = document.getElementById('title-screen');
+        
+        onlineScreen.classList.add('hidden');
+        titleScreen.classList.remove('hidden');
+        
+        // 接続をクリーンアップ
+        if (window.peer) {
+            window.peer.destroy();
+        }
+    } else {
+        const titleScreen = document.getElementById('title-screen');
+        titleScreen.classList.remove('hidden');
+    }
+    
+    // 状態をリセット
+    goButton.disabled = false;
+    myPartyReady = false;
+    opponentPartyReady = false;
+    isBattleOngoing = false;
+    currentTurn = 0;
+    
+    // メッセージログをクリア
+    messageLogEl.innerHTML = '';
 }
 
 function resetToPartyScreen() {
@@ -943,8 +1057,9 @@ function handleBattleAction(data) {
             break;
         case 'battle_end':
             isBattleOngoing = false;
-            logMessage(data.result === 'win' ? '勝利しました！' : '敗北しました...');
-            handleGameOver();
+            const isWinner = data.result === 'lose'; // ホストの結果と逆になる
+            logMessage(isWinner ? '勝利しました！' : '敗北しました...');
+            showBattleResult(isWinner);
             break;
     }
 }

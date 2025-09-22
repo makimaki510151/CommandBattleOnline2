@@ -73,6 +73,10 @@ export const passiveAbilities = {
 export const endTurnPassiveAbilities = {
     'char06': (character) => {
         // 自己修復プログラム: ターン終了時、自身のHPをわずかに回復する。
+        // ただし、HPが0以下の場合は発動しない
+        if (character.status.hp <= 0) {
+            return null;
+        }
         const healAmount = Math.floor(character.status.maxHp * 0.03); // 最大HPの3%回復
         character.status.hp = Math.min(character.status.maxHp, character.status.hp + healAmount);
         return `${character.name}は自己修復で${healAmount}回復した。`;
