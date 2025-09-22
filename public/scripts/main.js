@@ -124,37 +124,42 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
-
+            
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
                 name: `game_room_${roomId}`,
-                type: 'p2p', // ★修正箇所: P2Pに変更
+                type: 'p2p',
             });
 
+            if (!room) {
+                throw new Error('Failed to create or find room.');
+            }
             isHost = true;
-
-            localPerson = await room.join();
-
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
-
+            
+            // ★修正箇所: ルームが作成された後にイベントリスナーを登録
             room.onPersonJoined.add(async ({ person }) => {
                 logMessage('対戦相手が入室しました。');
-
+                
                 const publication = person.publications.find(pub => pub.contentType === 'data');
                 if (publication) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                 }
             });
-
+            
             room.onPublicationSubscribed.add(({ publication, stream }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     handleDataStream(stream);
                 }
             });
+
+            // ★修正箇所: イベントリスナー登録後にroom.join()を実行
+            localPerson = await room.join();
+            
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            await localPerson.publish(dataStream);
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
@@ -176,12 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token, appId } = await res.json();
-
+            
             context = await SkyWayContext.Create(token);
 
             room = await SkyWayRoom.Find(context, {
                 name: roomId,
-                type: 'p2p', // ★修正箇所: P2Pに変更
+                type: 'p2p',
             });
 
             if (!room) {
@@ -191,22 +196,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             isHost = false;
-
-            localPerson = await room.join();
-
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
-
-            room.publications.forEach(async (publication) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
+            
+            // ★修正箇所: ルームが作成された後にイベントリスナーを登録
+            room.onPublicationSubscribed.add(({ publication, stream }) => {
+                if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    handleDataStream(stream);
                 }
             });
 
-            room.onPublicationSubscribed.add(({ publication, stream }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    handleDataStream(stream);
+            // ★修正箇所: イベントリスナー登録後にroom.join()を実行
+            localPerson = await room.join();
+            
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            await localPerson.publish(dataStream);
+            
+            room.publications.forEach(async (publication) => {
+                if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
                 }
             });
 
