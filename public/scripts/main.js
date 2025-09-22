@@ -178,7 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = '接続中...';
 
         try {
-            // ...
+            const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
+            const { token } = await res.json();
+            console.log("🔑 取得したトークン:", token);
+
+            console.log("🔹 SkyWayContext作成開始");
+
+            // タイムアウトを仕込む
+            const contextPromise = SkyWayContext.Create(token);
             context = await Promise.race([
                 contextPromise,
                 new Promise((_, reject) => setTimeout(() => reject(new Error("SkyWayContext.Create がタイムアウト")), 10000))
@@ -200,13 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             isHost = false;
+
             localPerson = await room.join();
 
-            // 相手のストリームが公開された時に購読するイベントリスナー
             room.onStreamPublished.add(async ({ publication }) => {
                 if (
                     publication.contentType === 'data' &&
-                    localPerson &&
                     publication.publisher.id !== localPerson.id
                 ) {
                     const subscription = await localPerson.subscribe(publication.id);
@@ -214,15 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 既存のパブリケーションを購読
             for (const publication of room.publications) {
-                if (
-                    publication.contentType === 'data' &&
-                    localPerson &&
-                    publication.publisher.id !== localPerson.id
-                ) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
+                if (publication.contentType === 'data') {
+                    // publication.publisher.id が localPerson.id ではないことを確認
+                    if (publication.publisher.id !== localPerson.id) {
+                        const subscription = await localPerson.subscribe(publication.id);
+                        handleDataStream(subscription.stream);
+                    }
                 }
             }
 
@@ -230,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
-            // ... 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             copyIdButton.disabled = false;
