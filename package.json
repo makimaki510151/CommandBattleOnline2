@@ -2,6 +2,7 @@
   "name": "command-battle-online2",
   "version": "1.0.0",
   "description": "Online command battle game",
+  "type": "module",
   "main": "api/token.js",
   "scripts": {
     "start": "vercel dev"
@@ -14,3 +15,4 @@
     "vercel": "^32.0.0"
   }
 }
+
