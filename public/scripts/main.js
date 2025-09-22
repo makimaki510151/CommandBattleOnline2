@@ -210,9 +210,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localPerson = await room.join();
 
+            room.onMemberJoined.add(async ({ member }) => {
+                logMessage('対戦相手が入室しました。');
+                // 入室したメンバーのストリームを購読
+                const publications = member.publications;
+                for (const publication of publications) {
+                    if (publication.contentType === 'data') {
+                        const subscription = await localPerson.subscribe(publication.id);
+                        handleDataStream(subscription.stream);
+                    }
+                }
+            });
+
             room.onStreamPublished.add(async ({ publication }) => {
                 if (
                     publication.contentType === 'data' &&
+                    localPerson && // localPersonが存在するかチェック
                     publication.publisher.id !== localPerson.id
                 ) {
                     const subscription = await localPerson.subscribe(publication.id);
