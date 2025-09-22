@@ -3,7 +3,20 @@
 // SkyWay SDK v3のライブラリをインポート
 import { SkyWayAuthToken } from '@skyway-sdk/token';
 
-// Vercelに設定した環境変数を読み込む
+// uuidV4を直接実装
+function uuidV4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
+// nowInSecを直接実装
+function nowInSec() {
+    return Math.floor(Date.now() / 1000);
+}
+
 export default async (req, res) => {
     console.log('token.js: Function started.');
 
@@ -22,12 +35,6 @@ export default async (req, res) => {
     }
 
     try {
-        console.log('token.js: Attempting to dynamically import @skyway-sdk/common...');
-        // @skyway-sdk/common を動的にインポート
-        const common = await import('@skyway-sdk/common');
-        const { uuidV4, nowInSec } = common;
-
-        console.log('token.js: Dynamically imported @skyway-sdk/common successfully.');
         console.log('token.js: Attempting to create SkyWayAuthToken...');
         // トークンを生成
         const token = new SkyWayAuthToken({
