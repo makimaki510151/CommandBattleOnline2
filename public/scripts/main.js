@@ -172,26 +172,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
-            const { token, appId } = await res.json();
+            const { token } = await res.json();
 
             context = await SkyWayContext.Create(token);
 
             room = await SkyWayRoom.Find(context, {
-                name: roomId,
                 type: 'p2p',
+                name: roomId,
             });
 
             if (!room) {
                 alert('指定されたルームが見つかりません。');
-                cleanupSkyWay();
+                await cleanupSkyWay();
                 return;
             }
 
             isHost = false;
 
-            room.onPublicationSubscribed.add(({ publication, stream }) => {
-                if (localPerson && publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    handleDataStream(stream);
+            // v3: onPublicationSubscribed → onStreamPublished / onPublicationSubscribed
+            room.onStreamPublished.add(async ({ publication }) => {
+                if (
+                    publication.contentType === 'data' &&
+                    localPerson &&
+                    publication.publisher.id !== localPerson.id
+                ) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
                 }
             });
 
@@ -200,12 +206,17 @@ document.addEventListener('DOMContentLoaded', () => {
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
-            room.publications.forEach(async (publication) => {
-                if (publication.contentType === 'data' && localPerson && publication.publisher.id !== localPerson.id) {
+            // 既存のパブリケーションに対しても購読
+            for (const publication of room.publications) {
+                if (
+                    publication.contentType === 'data' &&
+                    localPerson &&
+                    publication.publisher.id !== localPerson.id
+                ) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                 }
-            });
+            }
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
@@ -217,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = 'エラー: 接続に失敗しました';
         }
     }
+
 
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
