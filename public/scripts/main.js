@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('https://command-battle-online2-3p3l.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
-
+            
             context = await SkyWayContext.Create(token);
 
             const roomId = generateUuidV4();
@@ -147,28 +147,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // メンバー入室時のイベントリスナー
             room.onMemberJoined.add(async (e) => {
-                console.log("🟢 ホスト: メンバー入室イベントが発火しました！", e.member.id);
                 logMessage('対戦相手が入室しました。');
-
-                // すでに公開されているストリームをすべて購読
                 for (const publication of e.member.publications) {
                     if (publication.contentType === 'data') {
                         const subscription = await localPerson.subscribe(publication.id);
                         handleDataStream(subscription.stream);
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-
-                        // 購読完了後、ホストからパーティーデータを送信
-                        const partyData = window.getSelectedParty();
-                        if (partyData) {
-                            window.sendData({ type: 'party_data', party: partyData });
-                        }
                     }
+                }
+                // クライアントの入室を検知したら、パーティーデータを送信
+                const partyData = window.getSelectedParty();
+                if (partyData) {
+                    window.sendData({ type: 'party_data', party: partyData });
                 }
             });
 
             // ストリーム公開時のイベントリスナー
             room.onStreamPublished.add(async ({ publication }) => {
-                console.log("🟢 ホスト: ストリーム公開イベントが発火しました！");
                 if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
@@ -242,10 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
                     }
                 }
-                const partyData = window.getSelectedParty();
-                if (partyData) {
-                    window.sendData({ type: 'party_data', party: partyData });
-                }
             });
 
             room.onStreamPublished.add(async ({ publication }) => {
@@ -281,15 +272,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Received data:', parsedData);
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
-                    // 相手のパーティーデータを受信したら、バトル画面へ遷移
-                    // このロジックはホストとクライアント両方に必要
-                    if (isOnlineMode) {
-                        const onlineScreen = document.getElementById('online-screen');
-                        const battleScreen = document.getElementById('battle-screen');
+                    const onlineScreen = document.getElementById('online-screen');
+                    const battleScreen = document.getElementById('battle-screen');
+                    if (onlineScreen && battleScreen) {
                         onlineScreen.classList.add('hidden');
                         battleScreen.classList.remove('hidden');
-                        // オンラインバトルを開始する関数を呼び出し
-                        window.startOnlineBattle(parsedData.party);
+                        window.startOnlineBattle(parsedData.party); 
                     }
                 } else if (parsedData.type === 'start_battle') {
                     window.startBattleClientSide();
