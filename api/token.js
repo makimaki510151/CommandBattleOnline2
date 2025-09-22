@@ -33,7 +33,7 @@ export default async (req, res) => {
     try {
         console.log('token.js: Attempting to create SkyWayAuthToken using SkyWayAuthToken.create...');
 
-        const token = SkyWayAuthToken.create({
+        const token = new SkyWayAuthToken({
             jti: uuidV4(),
             iat: nowInSec(),
             exp: nowInSec() + 60 * 60 * 2, // 2時間
