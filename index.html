@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>コマンドオンラインj</title>
+    <title>冒険の始まり</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/party.css">
     <link rel="stylesheet" href="styles/battle.css">
@@ -12,8 +12,9 @@
 
 <body>
     <div id="title-screen">
-        <h1 class="game-title">コマンドオンライン</h1>
+        <h1 class="game-title">コマンドローグライク</h1>
         <div class="controls">
+            <button id="start-button">冒険開始</button>
             <button id="online-button">オンライン対戦</button>
             <div class="volume-control">
                 <span>音量</span>
@@ -26,12 +27,12 @@
         <h2>オンライン対戦</h2>
         <div class="online-controls">
             <div class="peer-info">
-                <p>あなたのID: <span id="my-peer-id">接続中...</span></p>
-                <button id="copy-id-button" disabled>IDをコピー</button>
+                <p>ルーム名: <span id="my-peer-id">接続中...</span></p>
+                <button id="copy-id-button" disabled>ルーム名をコピー</button>
             </div>
             <div class="connection-controls">
-                <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
-                <button id="connect-button" disabled>接続</button>
+                <input type="text" id="peer-id-input" placeholder="ルーム名を入力">
+                <button id="connect-button" disabled>参加</button>
             </div>
             <div class="connection-status">
                 <p id="connection-status">接続待機中...</p>
@@ -98,8 +99,9 @@
         </main>
     </div>
 
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="scripts/main.js"></script>
+    <!-- SkyWay SDK -->
+    <script src="https://cdn.skyway.ntt.com/room-sdk/latest/skyway_room-latest.js"></script>
+    <script type="module" src="scripts/main.js"></script>
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
     <script type="module" src="scripts/party.js"></script>
