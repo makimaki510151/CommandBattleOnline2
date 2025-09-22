@@ -170,8 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // クライアントとして既存のルームに参加する
     async function connectToRoom(roomId) {
         console.log("SkyWayContext:", window.skyway_room?.SkyWayContext);
-        console.log("context:", context)
-        if (context) return;
+        if (context) {
+            console.log("⚠️ 既存コンテキストがあるので一度破棄します");
+            await cleanupSkyWay();
+        }
         isOnlineMode = true;
         connectionStatusEl.textContent = '接続中...';
 
