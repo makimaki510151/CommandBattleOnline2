@@ -101,13 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「接続」ボタン
     connectButton.addEventListener('click', () => {
+        console.log("✅ 接続ボタン押された");
         const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
+            console.log("入力されたルームID:", remoteRoomId);
             connectToRoom(remoteRoomId);
         } else {
             alert('接続先のIDを入力してください。');
         }
     });
+
 
     // 「IDをコピー」ボタン
     copyIdButton.addEventListener('click', () => {
@@ -166,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // クライアントとして既存のルームに参加する
     async function connectToRoom(roomId) {
+        console.log("SkyWayContext:", window.skyway_room?.SkyWayContext);
         if (context) return;
         isOnlineMode = true;
         connectionStatusEl.textContent = '接続中...';
@@ -224,8 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
             logMessage('ルームに参加しました。');
 
         } catch (error) {
-            console.error('Failed to connect to room:', error);
-            connectionStatusEl.textContent = 'エラー: 接続に失敗しました';
+            console.error('❌ Failed to connect to room:', error);
+            alert('接続エラー: ' + error.message);
+            connectionStatusEl.textContent = 'エラー: ' + error.message;
         }
     }
 
