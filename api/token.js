@@ -15,40 +15,45 @@ module.exports = (req, res) => {
     res.status(500).json({ error: "Server configuration error: missing credentials." });
     return;
   }
-
-  // トークンを生成
-  const token = new SkyWayAuthToken({
-    jti: uuidV4(),
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 2, // 2 hours
-    scope: {
-      app: {
-        id: APP_ID,
-        turn: true,
-        actions: ["read"],
-        channels: [
-          {
-            id: "*",
-            name: "*",
-            actions: ["write"],
-            members: [
+  
+  try {
+      // トークンを生成
+      const token = new SkyWayAuthToken({
+        jti: uuidV4(),
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 2, // 2 hours
+        scope: {
+          app: {
+            id: APP_ID,
+            turn: true,
+            actions: ["read"],
+            channels: [
               {
                 id: "*",
                 name: "*",
                 actions: ["write"],
-              },
-            ],
-            sfuBots: [
-              {
-                actions: ["write"],
+                members: [
+                  {
+                    id: "*",
+                    name: "*",
+                    actions: ["write"],
+                  },
+                ],
+                sfuBots: [
+                  {
+                    actions: ["write"],
+                  },
+                ],
               },
             ],
           },
-        ],
-      },
-    },
-  }).encode(SECRET);
+        },
+      }).encode(SECRET);
 
-  // クライアントにトークンとアプリIDをJSON形式で返す
-  res.status(200).json({ token: token, appId: APP_ID });
+      // クライアントにトークンとアプリIDをJSON形式で返す
+      res.status(200).json({ token: token, appId: APP_ID });
+  } catch (error) {
+      console.error("Failed to generate or encode SkyWay token:", error);
+      res.status(500).json({ error: "Server error: Failed to generate token." });
+  }
 };
