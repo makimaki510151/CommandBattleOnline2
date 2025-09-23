@@ -221,8 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // SkyWayルームにクライアントとして接続する
     async function connectToRoom(remoteRoomId) {
         if (context) {
-            console.log("⚠️ 接続が既に確立しているため、スキップします。");
-            return;
+            logMessage('既存の接続をリセットします...', 'info');
+            await cleanupSkyWay(); // 既存の接続をクリーンアップ
         }
         isOnlineMode = true;
         connectionStatusEl.textContent = '初期化中...';
