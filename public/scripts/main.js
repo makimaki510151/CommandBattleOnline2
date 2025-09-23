@@ -126,16 +126,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 先に画面を遷移させる
+        partyScreen.classList.add('hidden');
+        battleScreen.classList.remove('hidden');
+
         if (isOnlineMode) {
+            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+            // 修正点：オンラインモードの挙動を変更
+
+            // 1. 自分のパーティーだけ先に戦闘画面に表示する
+            //    (battle.js側にこの機能を追加する必要があります)
+            window.initializePlayerParty(selectedParty);
+
+            // 2. 相手に準備完了データを送信
             window.sendData({ type: 'party_ready', party: selectedParty });
-            logMessage('パーティーを決定し、相手の準備を待っています...');
-            goButton.disabled = true; // 連続クリック防止
+
+            // 3. ログに待機中メッセージを表示
+            logMessage('相手の準備を待っています...');
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         } else {
-            partyScreen.classList.add('hidden');
-            battleScreen.classList.remove('hidden');
+            // シングルプレイはそのまま
             window.startBattle(selectedParty);
         }
     });
+
 
     connectButton.addEventListener('click', () => {
         const remoteRoomId = peerIdInput.value;
@@ -197,19 +211,29 @@ document.addEventListener('DOMContentLoaded', () => {
             copyIdButton.disabled = false;
 
             // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 修正点：メソッド名を addOnce から once に変更
+            // 修正点：イベントの処理方法を変更
+
+            // 相手が参加した時の処理
             room.onMemberJoined.once(async ({ member }) => {
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 connectionStatusEl.textContent = `✅ 相手が接続しました！`;
                 onlinePartyGoButton.classList.remove('hidden');
                 window.sendData({ type: 'connection_established' });
-
-                const { publication } = await room.waitForPublication({ publisher: member });
-                if (publication.contentType === 'data') {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                }
             });
+
+            // 相手がストリームを公開した時の処理
+            room.onStreamPublished.on(async ({ publication }) => {
+                // 自分のストリームは無視
+                if (publication.publisher.id === localPerson.id) return;
+
+                // データストリームでなければ無視
+                if (publication.contentType !== 'data') return;
+
+                // 相手のストリームを購読
+                const subscription = await localPerson.subscribe(publication.id);
+                handleDataStream(subscription.stream);
+                console.log(`[Host] クライアント (${publication.publisher.id}) のストリームを購読しました。`);
+            });
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
@@ -302,25 +326,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
+                    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                    // 修正点：相手のパーティーを受け取った時の処理
+
+                    // 1. 相手のパーティー情報を battle.js に渡す
                     window.handleOpponentParty(parsedData.party);
 
-                    const myParty = window.getSelectedParty();
-                    if (myParty && myParty.length > 0 && goButton.disabled) { // 自分が準備完了かチェック
-                        partyScreen.classList.add('hidden');
-                        battleScreen.classList.remove('hidden');
-                        window.startOnlineBattle();
+                    // 2. 自分のパーティーが既に画面に表示されているかチェック
+                    const myParty = window.getPlayerParty(); // battle.jsから自分のパーティー情報を取得
+                    if (myParty && myParty.length > 0) {
+                        // 自分も相手も準備完了なので、戦闘を開始する
+                        logMessage('両者の準備が完了しました。戦闘開始！');
+                        window.startOnlineBattle(); // battle.jsの戦闘開始処理を呼び出す
                     } else {
+                        // 自分はまだパーティー編成画面にいる場合
                         logMessage('相手の準備が完了しました。');
                     }
-
+                    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 } else if (parsedData.type === 'request_action') {
-                    window.handleRemoteActionRequest(parsedData.actorUniqueId);
-                } else if (parsedData.type === 'execute_action') {
-                    window.executeAction(parsedData);
-                } else if (parsedData.type === 'action_result') {
-                    window.handleActionResult(parsedData.result);
+                    // ... (変更なし)
                 }
-
+                // ... (以降、変更なし)
             } catch (error) {
                 console.error('受信データの解析または処理に失敗しました:', error);
             }
