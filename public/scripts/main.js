@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyIdButton = document.getElementById('copy-id-button');
     const partyGoButton = document.getElementById('go-button');
     const battleScreen = document.getElementById('battle-screen');
+    const onlinePartyGoButton = document.getElementById('online-party-go-button');
 
     // 「冒険開始」ボタン（シングルプレイ）
     startButton.addEventListener('click', () => {
@@ -159,8 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await localPerson.publish(dataStream);
 
             // 相手がルームに参加した際のイベント
-            room.onPersonJoined.add(({ publication }) => {
-                logMessage('対戦相手がルームに参加しました。', 'success');
+            room.onPersonJoined.addOnce(() => {
+                logMessage('相手がルームに参加しました。');
+                onlinePartyGoButton.classList.remove('hidden'); // ★ 追加
             });
 
             // 相手がデータストリームを公開した際のイベント
@@ -191,10 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // SkyWayルームにクライアントとして接続する
-    async function connectToRoom(remoteRoomId) {
-        if (context) return;
-        isOnlineMode = true;
-        connectionStatusEl.textContent = '接続中...';
+    async function connectToRoom() {
+        const remoteRoomId = remoteRoomIdInput.value;
+        if (!remoteRoomId) {
+            logMessage('ルームIDを入力してください。', 'error');
+            return;
+        }
+
+        logMessage('ルームに接続中...', 'info');
         connectToRoomButton.disabled = true;
 
         try {
@@ -210,7 +216,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('ルームへの参加に失敗しました');
             }
 
-            showProceedButton();
+            // 接続成功時に「パーティー編成へ行く」ボタンを表示
+            onlinePartyGoButton.classList.remove('hidden'); // ★ この行を追加
             logMessage('🎉 ルームへの接続が完了しました！', 'success');
             connectToRoomButton.disabled = false;
 
@@ -232,12 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cleanupSkyWay();
             });
 
-        } catch (error) {
-            console.error('接続エラー:', error);
-            connectionStatusEl.textContent = '接続エラー';
-            logMessage('接続エラーが発生しました。IDを確認してください。', 'error');
+        } catch (err) {
+            logMessage(`接続エラー: ${err.message}`, 'error');
+            console.error(err);
             connectToRoomButton.disabled = false;
-            cleanupSkyWay();
         }
     }
 
@@ -319,6 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         console.log("✅ cleanupSkyWay 完了");
     }
+
+    onlinePartyGoButton.addEventListener('click', () => {
+        onlineScreen.classList.add('hidden');
+        partyScreen.classList.remove('hidden');
+        logMessage('パーティーを編成してください。');
+    });
 
     // データ送信関数をグローバルに公開
     window.sendData = function (data) {
