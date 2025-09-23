@@ -69,10 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
         partyScreen.classList.remove('hidden');
     });
 
-    onlineButton.addEventListener('click', () => {
+    onlineButton.addEventListener('click', async () => {
+        isOnlineMode = true;
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-        initializeSkyWay();
+        await initializeSkyWay();
+        isHost = true;
+        const roomId = generateUuidV4();
+        await joinSkyWayRoom(roomId);
+        myPeerIdEl.textContent = roomId;
+        copyIdButton.disabled = false;
+        peerIdInput.disabled = true;
+        connectButton.disabled = true;
+        connectionStatusEl.textContent = '相手の参加を待っています...';
     });
 
     backButton.addEventListener('click', () => {
@@ -111,8 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
     connectButton.addEventListener('click', async () => {
         const roomId = peerIdInput.value;
         if (roomId) {
+            isHost = false;
             connectButton.disabled = true;
             peerIdInput.disabled = true;
+            await initializeSkyWay();
             await joinSkyWayRoom(roomId);
             onlinePartyGoButton.classList.remove('hidden');
         } else {
@@ -141,32 +152,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === SkyWay関連の関数 (新版から移植) ===
     async function initializeSkyWay() {
-        isOnlineMode = true;
+        if (context) return;
         connectionStatusEl.textContent = '接続中...';
-        myPeerIdEl.textContent = '生成中...';
-        peerIdInput.disabled = false;
-        connectButton.disabled = false;
-        copyIdButton.disabled = true;
-        
         try {
             // トークン取得
             const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             const { token } = await res.json();
             context = await SkyWayContext.Create(token);
-            
-            // ルームIDを生成し、ホストとして参加を試みる
-            const roomId = generateUuidV4();
-            await joinSkyWayRoom(roomId);
-            
-            isHost = true;
-            myPeerIdEl.textContent = roomId;
-            copyIdButton.disabled = false;
-            connectionStatusEl.textContent = '相手の参加を待っています...';
-
+            connectionStatusEl.textContent = 'SkyWayサーバーに接続しました。';
+            console.log("SkyWay Context created.");
         } catch (error) {
             connectionStatusEl.textContent = '接続に失敗しました。ページを再読み込みしてください。';
             console.error('SkyWay接続エラー:', error);
-            cleanupSkyWay();
+            throw error;
         }
     }
 
