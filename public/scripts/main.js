@@ -48,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectButton = document.getElementById('connect-button');
     const copyIdButton = document.getElementById('copy-id-button');
     const backToTitleButton = document.getElementById('back-to-title-button');
-    const showHostUiButton = document.getElementById('show-host-ui-button');
-    const showClientUiButton = document.getElementById('show-client-ui-button');
     const onlinePartyGoButton = document.getElementById('online-party-go-button');
 
 
@@ -57,9 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const onlineScreen = document.getElementById('online-screen');
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
-    const modeSelection = document.getElementById('mode-selection');
-    const hostUi = document.getElementById('host-ui');
-    const clientUi = document.getElementById('client-ui');
 
     const myPeerIdEl = document.getElementById('my-peer-id');
     const peerIdInput = document.getElementById('peer-id-input');
@@ -77,11 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-        modeSelection.classList.remove('hidden');
-        hostUi.classList.add('hidden');
-        clientUi.classList.add('hidden');
-        connectionStatusEl.textContent = 'モードを選択してください';
-        cleanupSkyWay(); // 新しい通信方式では、オンライン画面を開くときに前の接続をクリーンアップ
+        initializeSkyWay();
     });
 
     backButton.addEventListener('click', () => {
@@ -117,23 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 新しいオンラインモードのUI操作
-    showHostUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        hostUi.classList.remove('hidden');
-        initializeAsHost();
-    });
-
-    showClientUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        clientUi.classList.remove('hidden');
-        initializeAsClient();
-    });
-
     connectButton.addEventListener('click', async () => {
         const roomId = peerIdInput.value;
         if (roomId) {
-            await connectSkyWay();
+            connectButton.disabled = true;
+            peerIdInput.disabled = true;
             await joinSkyWayRoom(roomId);
             onlinePartyGoButton.classList.remove('hidden');
         } else {
@@ -161,21 +140,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // === SkyWay関連の関数 (新版から移植) ===
-
-    async function connectSkyWay() {
-        if (context) return;
+    async function initializeSkyWay() {
+        isOnlineMode = true;
         connectionStatusEl.textContent = '接続中...';
+        myPeerIdEl.textContent = '生成中...';
+        peerIdInput.disabled = false;
+        connectButton.disabled = false;
+        copyIdButton.disabled = true;
+        
         try {
             // トークン取得
             const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             const { token } = await res.json();
             context = await SkyWayContext.Create(token);
-            connectionStatusEl.textContent = 'SkyWayサーバーに接続しました。';
-            console.log("SkyWay Context created.");
+            
+            // ルームIDを生成し、ホストとして参加を試みる
+            const roomId = generateUuidV4();
+            await joinSkyWayRoom(roomId);
+            
+            isHost = true;
+            myPeerIdEl.textContent = roomId;
+            copyIdButton.disabled = false;
+            connectionStatusEl.textContent = '相手の参加を待っています...';
+
         } catch (error) {
             connectionStatusEl.textContent = '接続に失敗しました。ページを再読み込みしてください。';
             console.error('SkyWay接続エラー:', error);
-            throw error;
+            cleanupSkyWay();
         }
     }
 
@@ -230,26 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function initializeAsHost() {
-        isOnlineMode = true;
-        isHost = true;
-        await connectSkyWay();
-        const roomId = generateUuidV4();
-        await joinSkyWayRoom(roomId);
-        myPeerIdEl.textContent = roomId;
-        copyIdButton.disabled = false;
-        connectionStatusEl.textContent = '相手の参加を待っています...';
-    }
-
-    async function initializeAsClient() {
-        isOnlineMode = true;
-        isHost = false;
-        await connectSkyWay();
-        myPeerIdEl.textContent = "クライアント";
-        connectButton.disabled = false;
-        connectionStatusEl.textContent = '相手のIDを入力してください。';
-    }
-
     window.cleanupSkyWay = function() {
         try {
             if (localPerson) localPerson.leave();
@@ -264,7 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
             myPeerIdEl.textContent = '';
             connectionStatusEl.textContent = '';
             peerIdInput.value = '';
-            startAdventureButton.disabled = false;
+            connectButton.disabled = false;
+            peerIdInput.disabled = false;
+            copyIdButton.disabled = true;
             
             // Promiseをリセット
             resolveDataStreamReady = null;

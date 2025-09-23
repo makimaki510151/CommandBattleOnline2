@@ -26,26 +26,15 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <div id="mode-selection" class="hidden">
-                <button id="show-host-ui-button">ホストとしてルームを作成</button>
-                <p>または</p>
-                <button id="show-client-ui-button">既存のルームに参加</button>
-            </div>
-
-            <div id="host-ui" class="hidden">
+            <div class="peer-info">
                 <p>あなたのID: <span id="my-peer-id">接続中...</span></p>
                 <button id="copy-id-button" disabled>IDをコピー</button>
-                <p>このIDを相手に伝えてください。</p>
             </div>
-
-            <div id="client-ui" class="hidden">
-                <p>相手のIDを入力して接続します。</p>
+            <div class="connection-controls">
                 <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
                 <button id="connect-button" disabled>接続</button>
             </div>
-
             <p id="connection-status"></p>
-
             <button id="online-party-go-button" class="proceed-button hidden">パーティー編成へ</button>
             <button id="back-to-title-button">タイトルに戻る</button>
         </div>
