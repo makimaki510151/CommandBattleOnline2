@@ -36,27 +36,35 @@ window.logMessage = (message, type) => {
 document.addEventListener('DOMContentLoaded', () => {
     // === UI要素の取得 ===
     const startButton = document.getElementById('start-button');
-    const onlineButton = document.getElementById('online-button');
     const backButton = document.getElementById('back-button');
     const goButton = document.getElementById('go-button');
-    const connectButton = document.getElementById('connect-button');
-    const copyIdButton = document.getElementById('copy-id-button');
-    const backToTitleButton = document.getElementById('back-to-title-button');
 
     const titleScreen = document.getElementById('title-screen');
-    const onlineScreen = document.getElementById('online-screen');
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
-
-    const myPeerIdEl = document.getElementById('my-peer-id');
-    const peerIdInput = document.getElementById('peer-id-input');
-    const connectionStatusEl = document.getElementById('connection-status');
-
     // 「パーティー編成へ」ボタンをオンライン画面に動的に追加
     const onlinePartyGoButton = document.createElement('button');
     onlinePartyGoButton.id = 'online-party-go-button';
     onlinePartyGoButton.textContent = 'パーティー編成へ';
     onlinePartyGoButton.className = 'proceed-button hidden'; // 最初は隠しておく
+    const onlineButton = document.getElementById('online-button');
+    const onlineScreen = document.getElementById('online-screen');
+    const backToTitleButton = document.getElementById('back-to-title-button');
+
+    // --- オンライン画面内の新UI要素 ---
+    const modeSelection = document.getElementById('mode-selection');
+    const showHostUiButton = document.getElementById('show-host-ui-button');
+    const showClientUiButton = document.getElementById('show-client-ui-button');
+
+    const hostUi = document.getElementById('host-ui');
+    const clientUi = document.getElementById('client-ui');
+
+    const myPeerIdEl = document.getElementById('my-peer-id');
+    const copyIdButton = document.getElementById('copy-id-button');
+    const peerIdInput = document.getElementById('peer-id-input');
+    const connectButton = document.getElementById('connect-button');
+    const connectionStatusEl = document.getElementById('connection-status');
+
     document.querySelector('.online-controls').appendChild(onlinePartyGoButton);
 
 
@@ -67,11 +75,18 @@ document.addEventListener('DOMContentLoaded', () => {
         titleScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
     });
-
+    // 「オンライン対戦」ボタン -> モード選択画面を表示
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-        initializeAsHost();
+
+        // UIを初期状態に戻す
+        modeSelection.classList.remove('hidden');
+        hostUi.classList.add('hidden');
+        clientUi.classList.add('hidden');
+        connectionStatusEl.textContent = 'モードを選択してください';
+        // 以前の接続情報が残らないように必ずクリーンアップ
+        cleanupSkyWay();
     });
 
     backButton.addEventListener('click', () => {
@@ -83,10 +98,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 「ホストとして～」ボタン -> ホストUI表示 & 初期化
+    showHostUiButton.addEventListener('click', () => {
+        modeSelection.classList.add('hidden');
+        hostUi.classList.remove('hidden');
+        initializeAsHost();
+    });
+
+    // 「既存のルームに～」ボタン -> クライアントUI表示
+    showClientUiButton.addEventListener('click', () => {
+        modeSelection.classList.add('hidden');
+        clientUi.classList.remove('hidden');
+        connectionStatusEl.textContent = '相手のルームIDを入力してください';
+    });
+
+    // 「タイトルに戻る」ボタン
     backToTitleButton.addEventListener('click', async () => {
         onlineScreen.classList.add('hidden');
         titleScreen.classList.remove('hidden');
-        await cleanupSkyWay();
+        await cleanupSkyWay(); // 画面を離れる際に必ずクリーンアップ
     });
 
     goButton.addEventListener('click', () => {
@@ -115,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('接続先のIDを入力してください。');
         }
     });
+
 
     copyIdButton.addEventListener('click', () => {
         const roomId = myPeerIdEl.textContent;
