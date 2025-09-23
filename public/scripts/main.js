@@ -384,12 +384,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
 
-                if (parsedData.type === 'connection_established') {
-                    onlinePartyGoButton.classList.remove('hidden');
-                } else if (parsedData.type === 'party_ready') {
-                    // 相手のパーティー情報を battle.js に渡し、相手の準備完了を通知
-                    window.handleOpponentParty(parsedData.party);
-                    window.setOpponentPartyReady(); // battle.jsに相手の準備完了を通知する関数を呼び出す
+                if (data.type === 'connection_established') {
+                    console.log(`[${isHost ? 'Host' : 'Client'}] 接続が確立されました！`);
+                } else if (data.type === 'party_ready') {
+                    logMessage('対戦相手のパーティー情報を受信しました。準備完了！');
+                    // battle.jsの関数を呼び出して相手のパーティーをセットし、準備完了フラグを立てる
+                    window.handleOpponentParty(data.party);
+                    window.setOpponentPartyReady(true);
+
+                } else if (data.type === 'battle_action') {
+                    window.handleBattleAction(data.action);
                 } else if (parsedData.type === 'log_message') {
                     window.logMessage(parsedData.message, parsedData.messageType);
                 } else if (parsedData.type === 'execute_action') {
