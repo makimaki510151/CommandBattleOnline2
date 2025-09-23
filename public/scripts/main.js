@@ -337,6 +337,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleDataStream(stream) {
         stream.onData.add(async ({ data }) => {
             try {
+                // データがundefinedでないか、空でないかを確認
+                if (!data || data === 'undefined') {
+                    console.error('無効なデータが受信されました: ', data);
+                    return;
+                }
+
+                // データが有効なJSON形式かを確認
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
 
@@ -362,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
 
     // SkyWayリソースのクリーンアップ
     async function cleanupSkyWay() {
@@ -393,26 +401,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // データ送信関数
     window.sendData = async function (data) {
+        // データが無効でないかを確認
+        if (data === undefined || data === null) {
+            console.warn('送信するデータが無効です:', data);
+            return;
+        }
+
         // データストリームが準備できるまで待機
         if (!dataStream) {
             console.warn('データストリームがまだ準備できていません。準備を待機します...');
             await dataStreamReadyPromise;
         }
 
-        // ★★★ ここを修正 ★★★
-        // dataが有効なオブジェクトかつ、nullでないことを確認
-        if (dataStream && data !== null && typeof data === 'object') {
-            try {
-                const serializedData = JSON.stringify(data);
-                dataStream.write(serializedData);
-                console.log('Sent data:', serializedData);
-            } catch (error) {
-                console.error('データ送信に失敗しました:', error);
-            }
-        } else {
-            console.warn('⚠️ データストリームが利用不可、または送信データが無効です。', data);
+        try {
+            const serializedData = JSON.stringify(data);
+            dataStream.write(serializedData);
+            console.log('Sent data:', serializedData);
+        } catch (error) {
+            console.error('データ送信に失敗しました:', error);
         }
     };
+
 
     window.isOnlineMode = () => isOnlineMode;
     window.isHost = () => isHost;
