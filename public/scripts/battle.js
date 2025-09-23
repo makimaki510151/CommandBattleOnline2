@@ -144,8 +144,8 @@ window.handleOpponentParty = (partyData) => {
 };
 
 // オンラインプレイ用：相手の準備完了を通知
-window.setOpponentPartyReady = () => {
-    opponentPartyReady = true;
+window.setOpponentPartyReady = (isReady) => { // ★★★ ここを修正 ★★★
+    opponentPartyReady = isReady;
     checkBothPartiesReady();
 };
 
