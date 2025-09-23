@@ -213,7 +213,7 @@ async function startOnlineBattle() {
     isBattleOngoing = true;
     currentTurn = 0;
 
-    logMessage('戦闘開始！');
+    logMessage("戦闘開始！"); // ホストは既にcheckBothPartiesReadyでstart_battleを送信済み
 
     // 戦闘ループを開始
     await battleLoop();
@@ -227,6 +227,9 @@ function startBattleClientSide() {
     // 画面遷移は既にmain.jsで実行済みなので、戦闘フラグのみ設定
     isBattleOngoing = true;
     currentTurn = 0;
+
+    // クライアント側も戦闘ループを開始
+    battleLoop();
 }
 
 // シングルプレイ用：次の敵グループとの戦闘を開始
@@ -245,9 +248,9 @@ async function startNextGroup() {
 // --- Core Battle Logic ---
 
 async function battleLoop() {
-    // オンラインモードでクライアントの場合は処理を行わない
+    // オンラインモードでクライアントの場合は、ホストからの同期を待つため、ここでは何もしない
     if (window.isOnlineMode() && !window.isHost()) {
-        logMessage("ホストの処理を待っています...");
+        logMessage("ホストからの行動を待っています...");
         return;
     }
 
@@ -287,27 +290,30 @@ async function battleLoop() {
             const actionSkipped = processStatusEffects(combatant);
             if (actionSkipped) continue;
 
-            const isMyCharacter = combatant.partyType === (window.isHost() ? 'host' : 'client');
+        const isMyCharacter = (window.isHost() && combatant.partyType === 'host') || (!window.isHost() && combatant.partyType === 'client');
 
-            if (isMyCharacter) {
-                // プレイヤーのターンでは playerTurn 関数内でハイライトを管理
-                await playerTurn(combatant);
-            } else {
-                // 敵や相手のキャラクターのターン
-                resetHighlights();
-                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-                if (combatantEl) {
-                    combatantEl.classList.add('active');
-                }
-
-                if (window.isOnlineMode()) {
-                    window.sendData({ type: 'request_action', actorUniqueId: combatant.uniqueId });
-                    logMessage(`${combatant.name}の行動を待っています...`);
-                    await waitForAction();
-                } else {
-                    await enemyTurn(combatant);
-                }
+        if (isMyCharacter) {
+            // 自分のキャラクターのターン
+            await playerTurn(combatant);
+        } else if (window.isOnlineMode()) {
+            // オンラインモードで相手のキャラクターのターン
+            resetHighlights();
+            const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
+            if (combatantEl) {
+                combatantEl.classList.add('active');
             }
+            logMessage(`${combatant.name}の行動を待っています...`);
+            // ホストは相手の行動を待つ、クライアントはホストからの指示を待つ
+            await waitForAction();
+        } else {
+            // シングルプレイの敵のターン
+            resetHighlights();
+            const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
+            if (combatantEl) {
+                combatantEl.classList.add('active');
+            }
+            await enemyTurn(combatant);
+        }
 
             if (window.isOnlineMode()) {
                 syncGameState();
@@ -540,10 +546,14 @@ function executeAction(data) {
 
     updateAllDisplays();
 
-    // オンラインモードで相手の行動が完了した場合、待機Promiseを解決
+    // オンラインモードで、かつ現在行動しているのが相手のキャラクターの場合のみ、待機Promiseを解決
+    // ホスト側では相手（クライアント）の行動完了時に、クライアント側ではホストの行動完了時に解決する
     if (window.isOnlineMode() && resolveActionPromise) {
-        resolveActionPromise();
-        resolveActionPromise = null;
+        const isMyCharacter = (window.isHost() && actor.partyType === 'host') || (!window.isHost() && actor.partyType === 'client');
+        if (!isMyCharacter) {
+            resolveActionPromise();
+            resolveActionPromise = null;
+        }
     }
 }
 

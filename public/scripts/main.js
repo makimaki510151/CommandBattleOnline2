@@ -325,17 +325,18 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('データストリーム購読開始:', stream);
         stream.onData.add(async ({ data }) => {
             try {
-                if (!data) {
-                    console.error('無効なデータが受信されました: データが空かnullです。', data);
+                if (typeof data !== 'string' || data.trim() === '') {
+                    console.error('無効なデータが受信されました: データが文字列ではないか空です。', data);
                     return;
                 }
-                if (data === 'undefined' || data === '') {
-                    console.error('無効なデータが受信されました: 空文字列または"undefined"です。', data);
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch (e) {
+                    console.error('受信データのJSON解析に失敗しました:', e, 'データ:', data);
                     return;
                 }
-                console.log('生データ受信:', data);
-                const parsedData = JSON.parse(data);
-                console.log('Received data:', parsedData);
+                console.log("Received data:", parsedData);
 
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
@@ -389,8 +390,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.sendData = async function (data) {
-        if (data === undefined || data === null || Object.keys(data).length === 0) {
-            console.warn('送信するデータが無効です (データが空です)。送信を中断します。', data);
+        if (data === undefined || data === null) {
+            console.warn("送信するデータが無効です (undefinedまたはnull)。送信を中断します。", data);
+            return false;
+        }
+        if (typeof data === 'object' && Object.keys(data).length === 0) {
+            console.warn("送信するデータが空のオブジェクトです。送信を中断します。", data);
             return false;
         }
         if (!dataStream) {
@@ -399,6 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const serializedData = JSON.stringify(data);
+            if (serializedData === undefined) {
+                console.warn('送信するデータがundefinedです。送信を中断します。', data);
+                return false;
+            }
             dataStream.write(serializedData);
             console.log('Sent data:', serializedData);
             return true;
