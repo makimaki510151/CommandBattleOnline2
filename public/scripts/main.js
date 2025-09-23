@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // 相手がストリームを公開した時の処理
-            room.onStreamPublished.on(async ({ publication }) => {
+            room.onStreamPublished.add(async ({ publication }) => {
                 // 自分のストリームは無視
                 if (publication.publisher.id === localPerson.id) return;
 
