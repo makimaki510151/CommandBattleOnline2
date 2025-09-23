@@ -1,9 +1,9 @@
 // main.js (最終修正版)
 
 // SkyWay SDKはグローバル変数として読み込まれることを想定
-const SkyWayContext = window.skyway_room?.SkyWayContext;
-const SkyWayRoom = window.skyway_room?.SkyWayRoom;
-const SkyWayStreamFactory = window.skyway_room?.SkyWayStreamFactory;
+let SkyWayContext = null;
+let SkyWayRoom = null;
+let SkyWayStreamFactory = null;
 
 let context = null;
 let room = null;
@@ -74,13 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isOnlineMode = true;
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-
+        
         // ホストとしてのUI設定
         myPeerIdEl.textContent = 'IDを生成中...';
         peerIdInput.disabled = true;
         connectButton.disabled = true;
         copyIdButton.disabled = true;
-
+        
         try {
             await initializeSkyWay();
             isHost = true;
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = '相手のIDを入力してください。';
         }
     });
-
+    
     copyIdButton.addEventListener('click', () => {
         if (myPeerIdEl.textContent) {
             navigator.clipboard.writeText(myPeerIdEl.textContent)
@@ -174,11 +174,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // === SkyWay関連の関数 ===
     async function initializeSkyWay() {
         if (context) return;
-
-        // SkyWay SDKが正しく読み込まれたか確認
-        if (!SkyWayContext || !SkyWayRoom || !SkyWayStreamFactory) {
-            console.error("SkyWay SDKが正しく読み込まれていません。index.htmlの<script>タグを確認してください。");
+        
+        // SkyWay SDKがグローバルに利用可能かを確認
+        if (!window.skyway_room) {
+            console.error("SkyWay SDKがグローバルに読み込まれていません。index.htmlの<script>タグを確認してください。");
             throw new Error("SkyWay SDK is not loaded.");
+        }
+        
+        // 必要なSkyWayオブジェクトを安全に代入
+        SkyWayContext = window.skyway_room.SkyWayContext;
+        SkyWayRoom = window.skyway_room.SkyWayRoom;
+        SkyWayStreamFactory = window.skyway_room.SkyWayStreamFactory;
+        
+        // オブジェクトが実際に存在するかをチェック
+        if (!SkyWayContext || !SkyWayRoom || !SkyWayStreamFactory) {
+            console.error("SkyWay SDKのコンポーネントが不完全です。");
+            throw new Error("SkyWay SDK components are missing.");
         }
 
         try {
@@ -203,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: roomId,
                 type: 'sfu'
             });
-
+            
             // roomオブジェクトが正常に作成されたか確認する
             if (!room) {
                 throw new Error("Failed to create or find SkyWay room.");
@@ -222,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     resolveDataStreamReady();
                 }
             });
-
+            
             room.onPersonJoined?.add((e) => {
                 const isPeerJoined = room.getPersons().length === 2;
                 if (isPeerJoined) {
@@ -244,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.cleanupSkyWay = function () {
+    window.cleanupSkyWay = function() {
         try {
             if (localPerson) localPerson.leave();
             if (room) room.close();
@@ -261,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectButton.disabled = false;
             peerIdInput.disabled = false;
             copyIdButton.disabled = true;
-
+            
             resolveDataStreamReady = null;
             dataStreamReadyPromise = new Promise(resolve => {
                 resolveDataStreamReady = resolve;
