@@ -392,14 +392,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // データ送信関数
-    window.sendData = async function (data) { // asyncを追加
+    window.sendData = async function (data) {
         // データストリームが準備できるまで待機
         if (!dataStream) {
             console.warn('データストリームがまだ準備できていません。準備を待機します...');
             await dataStreamReadyPromise;
         }
 
-        if (dataStream && data !== undefined) {
+        // ★ ここにバリデーションを追加 ★
+        if (!data || typeof data !== 'object') {
+            console.error('無効なデータを送信しようとしました:', data);
+            return; // 無効なデータは送信しない
+        }
+
+        if (dataStream) {
             try {
                 const serializedData = JSON.stringify(data);
                 dataStream.write(serializedData);
@@ -408,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('データ送信に失敗しました:', error);
             }
         } else {
-            console.warn('データストリームが利用不可、またはデータが無効です。');
+            console.warn('データストリームが利用不可です。');
         }
     };
 

@@ -118,7 +118,7 @@ window.initializePlayerParty = (partyData) => {
     // ホストなら 'host'、クライアントなら 'client' のpartyTypeを付与
     playerParty = partyData.map(p => createInitialPartyMember(p, window.isHost() ? 'host' : 'client'));
     renderParty(playerPartyEl, playerParty, false); // 自分のパーティーを描画
-    
+
     // 相手待機中の表示
     enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
 
@@ -157,7 +157,7 @@ function startOnlineBattle() {
     }
     isBattleOngoing = true;
     currentTurn = 0;
-    
+
     // 相手のパーティーが既に描画されていることを確認
     if (enemyPartyEl.querySelector('.waiting-message')) {
         renderParty(enemyPartyEl, opponentParty, true);
@@ -189,9 +189,9 @@ function initializeTurnQueue() {
     const combatants = window.isOnlineMode()
         ? [...playerParty, ...opponentParty]
         : [...playerParty, ...currentEnemies];
-    
+
     const aliveCombatants = combatants.filter(c => c.status.hp > 0);
-    
+
     // パッシブ能力の適用（戦闘開始時のみ）
     if (currentTurn === 0) {
         applyPassiveAbilities(aliveCombatants);
@@ -222,14 +222,14 @@ async function nextTurn() {
             handleBattleEnd();
             return;
         }
-        
+
         currentTurn++;
         const turnStartMessage = `=== ターン ${currentTurn + 1} 開始 ===`;
         logMessage(turnStartMessage, 'turn-start');
         if (window.isOnlineMode()) {
             window.sendData({ type: 'log_message', message: turnStartMessage, messageType: 'turn-start' });
         }
-        
+
         initializeTurnQueue(); // 次のターンの行動順を再計算
         await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待機
         nextTurn(); // 次のターンへ
@@ -349,7 +349,7 @@ async function playerTurn(player) {
                 const skill = player.active.find(s => s.name === skillName);
                 if (skill) {
                     let mpCost = skill.mp;
-                    
+
                     // 状態異常によるMP消費増加の処理
                     if (player.effects.curse) {
                         mpCost = Math.floor(mpCost * 1.5);
@@ -379,7 +379,7 @@ async function playerTurn(player) {
                 const special = player.special;
                 if (special) {
                     let mpCost = special.mp;
-                    
+
                     if (player.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
                         return;
@@ -408,7 +408,7 @@ async function playerTurn(player) {
             if (actionData) {
                 commandAreaEl.removeEventListener('click', handleCommand); // イベントリスナーを削除
                 commandAreaEl.classList.add('hidden'); // コマンドメニューを隠す
-                
+
                 // オンラインモードの場合、相手にアクションを送信
                 if (window.isOnlineMode()) {
                     window.sendData({ type: 'execute_action', ...actionData });
@@ -596,38 +596,48 @@ function selectTarget() {
 
 // --- UI Rendering ---
 
-function renderParty(partyEl, partyData, isEnemyParty) {
-    partyEl.innerHTML = ''; // 既存の表示をクリア
-    if (!partyData || partyData.length === 0) {
-        partyEl.innerHTML = '<p>パーティー情報がありません。</p>';
-        return;
-    }
+function renderParty(partyEl, partyData, isEnemy) {
+    partyEl.innerHTML = "";
+    if (!partyData) return;
 
-    partyData.forEach((member) => {
-        const characterCard = document.createElement('div');
-        characterCard.className = 'character-card';
-        characterCard.dataset.uniqueId = member.uniqueId;
-        characterCard.dataset.originalId = member.originalId;
+    partyData.forEach(member => {
+        const memberEl = document.createElement("div");
+        memberEl.classList.add("character-card", isEnemy ? "enemy-character" : "player-character");
 
-        let characterImage = `assets/images/${member.id}.png`;
-        if (isEnemyParty) {
-            // 敵または相手プレイヤーの画像は反転させる
-            characterCard.classList.add('flipped');
+        // ユニークIDをdata属性に設定
+        memberEl.dataset.uniqueId = member.uniqueId;
+        // 後方互換性のため、元のIDも設定
+        if (isEnemy) {
+            memberEl.dataset.enemyId = member.originalId;
+        } else {
+            memberEl.dataset.charId = member.originalId;
         }
 
-        characterCard.innerHTML = `
-            <img src="${characterImage}" alt="${member.name}">
-            <h3>${member.name}</h3>
-            <div class="hp-bar">
-                <div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div>
-                <span class="hp-text">${member.status.hp}/${member.status.maxHp}</span>
-            </div>
-            <div class="mp-bar">
-                <div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div>
-                <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span>
+        // ★★★ ここから修正 ★★★
+        // 画像パスを修正し、onerror属性で代替画像をロードする処理を追加
+        const characterImagePath = member.image ? `assets/${member.image}` : '';
+        const characterImage = characterImagePath ?
+            `<img src="${characterImagePath}" alt="${member.name}" class="character-image" onerror="this.onerror=null;this.src='assets/images/placeholder.png';">` :
+            '';
+        // ★★★ ここまで修正 ★★★
+
+        const hpBar = `<div class="hp-bar"><div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div></div>`;
+        const mpBar = (isEnemy || member.status.maxMp === 0) ? '' : `<div class="mp-bar"><div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div></div>`;
+        const mpText = (isEnemy || member.status.maxMp === 0) ? '' : `<p class="mp-text-line">MP: <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span></p>`;
+
+        memberEl.innerHTML = `
+            <div class="character-info">
+                ${characterImage}
+                <div class="character-details">
+                    <h3 class="character-name">${member.name}</h3>
+                    <p class="hp-text-line">HP: <span class="hp-text">${member.status.hp}/${member.status.maxHp}</span></p>
+                    ${hpBar}
+                    ${mpText}
+                    ${mpBar}
+                </div>
             </div>
         `;
-        partyEl.appendChild(characterCard);
+        partyEl.appendChild(memberEl);
     });
 }
 
