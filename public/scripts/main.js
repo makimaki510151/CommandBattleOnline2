@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logMessage('データストリームの準備ができました。');
 
             // 3. クリーンなデータを相手に送信する
-            window.sendData({ type: 'party_ready', party: partyToSend });
+            window.sendData({ type: 'party_ready', party: partyDataForSend });
 
             // 4. ログに待機中メッセージを表示
             logMessage('相手の準備を待っています...');
