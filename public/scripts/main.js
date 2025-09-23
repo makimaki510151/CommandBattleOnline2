@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function joinSkyWayRoom(roomId) {
         if (!context) {
             console.error("SkyWay Context is not initialized.");
-            return;
+            throw new Error("SkyWay Context is not initialized.");
         }
 
         try {
@@ -194,6 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: roomId,
                 type: 'sfu'
             });
+
+            // 防御的なチェックを追加
+            if (!room) {
+                console.error("Room object is undefined after FindOrCreate. This indicates a potential API issue or network problem.");
+                throw new Error("Failed to create or find SkyWay Room.");
+            }
 
             room.onStreamSubscribed.add((e) => {
                 if (e.stream.contentType === 'data') {

@@ -1,4 +1,4 @@
-// party.js (修正版)
+// party.js (最終修正版)
 
 import { characters } from './characters.js';
 
@@ -24,7 +24,6 @@ window.initializePartyScreen = function() {
 
 function setupEventListeners() {
     // 古いイベントリスナーを削除してから、新しいイベントリスナーを追加する
-    // これにより、画面遷移のたびにイベントリスナーが重複して登録されるのを防ぐ
     const characterButtons = document.querySelectorAll('.character-button');
     characterButtons.forEach(button => {
         const newButton = button.cloneNode(true);
@@ -56,7 +55,7 @@ function handlePartySlotClick(event) {
     // スロットが空で、かつキャラクターが選択されている場合
     if (!slot.dataset.charId && selectedCharacterId) {
         const char = characters.find(c => c.id === selectedCharacterId);
-        const isAlreadyInParty = partyMembers.some(member => member.id === selectedCharacterId);
+        const isAlreadyInParty = partyMembers.some(member => member && member.id === selectedCharacterId);
         if (isAlreadyInParty) {
             alert('そのキャラクターはすでにパーティーにいます。');
             return;
@@ -79,12 +78,13 @@ function handlePartySlotClick(event) {
     // スロットにキャラクターがいて、それを削除する場合
     } else if (slot.dataset.charId) {
         const charIdToRemove = slot.dataset.charId;
-        slot.innerHTML = '';
+        slot.innerHTML = '+';
+        slot.title = 'メンバーを追加';
         delete slot.dataset.charId;
-        partyMembers = partyMembers.filter(member => member.id !== charIdToRemove);
+        
+        partyMembers[slotIndex] = undefined;
     }
     
-    renderPartySlots();
     renderCharacterList();
     updateGoButton();
 }
