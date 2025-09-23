@@ -25,7 +25,6 @@
 
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
-        <button id="back-to-title-from-online-button">タイトルに戻る</button>
         <div class="online-controls">
             <div class="connection-mode">
                 <button id="online-host-button">ホストとして開始</button>
@@ -36,12 +35,12 @@
                 <input type="text" id="remote-room-id-input" placeholder="ルームID">
                 <button id="connect-button">接続</button>
             </div>
-            <div class="peer-info hidden">
-                <p>あなたのルームID: <span id="my-peer-id"></span></p>
-                <button id="copy-id-button" disabled>ルームIDをコピー</button>
+            <div class="connection-status">
+                <p id="connection-status-text"></p>
             </div>
+            <p id="my-peer-id"></p>
         </div>
-        <button id="online-party-go-button" class="hidden">パーティー編成へ行く</button>
+        <button id="back-to-title-button">タイトルに戻る</button>
     </div>
 
     <div id="party-screen" class="hidden">
