@@ -399,9 +399,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await dataStreamReadyPromise;
         }
 
-        // ★ ここを修正 ★
-        // データが有効なオブジェクトであるかを厳密にチェックする
-        if (dataStream && data && typeof data === 'object') {
+        // ★★★ ここを修正 ★★★
+        // dataが有効なオブジェクトかつ、nullでないことを確認
+        if (dataStream && data !== null && typeof data === 'object') {
             try {
                 const serializedData = JSON.stringify(data);
                 dataStream.write(serializedData);
@@ -410,7 +410,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('データ送信に失敗しました:', error);
             }
         } else {
-            // データが無効な場合に明確なログを出力
             console.warn('⚠️ データストリームが利用不可、または送信データが無効です。', data);
         }
     };

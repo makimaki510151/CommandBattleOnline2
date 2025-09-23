@@ -597,29 +597,18 @@ function selectTarget() {
 // --- UI Rendering ---
 
 function renderParty(partyEl, partyData, isEnemy) {
-    partyEl.innerHTML = "";
+    partyEl.innerHTML = '';
     if (!partyData) return;
 
     partyData.forEach(member => {
-        const memberEl = document.createElement("div");
-        memberEl.classList.add("character-card", isEnemy ? "enemy-character" : "player-character");
+        const memberEl = document.createElement('div');
+        memberEl.classList.add('character-card', isEnemy ? 'enemy-character' : 'player-character');
 
-        // ユニークIDをdata属性に設定
-        memberEl.dataset.uniqueId = member.uniqueId;
-        // 後方互換性のため、元のIDも設定
-        if (isEnemy) {
-            memberEl.dataset.enemyId = member.originalId;
-        } else {
-            memberEl.dataset.charId = member.originalId;
-        }
+        // ... 既存のコード ...
 
-        // ★★★ ここから修正 ★★★
-        // 画像パスを修正し、onerror属性で代替画像をロードする処理を追加
-        const characterImagePath = member.image ? `assets/${member.image}` : '';
-        const characterImage = characterImagePath ?
-            `<img src="${characterImagePath}" alt="${member.name}" class="character-image" onerror="this.onerror=null;this.src='assets/images/placeholder.png';">` :
-            '';
-        // ★★★ ここまで修正 ★★★
+        // ★★★ ここを修正 ★★★
+        // 受信したデータ (images/char01.png) をそのまま使用
+        const characterImage = member.image ? `<img src="${member.image}" alt="${member.name}" class="character-image" onerror="this.onerror=null;this.src='images/placeholder.png';">` : '';
 
         const hpBar = `<div class="hp-bar"><div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div></div>`;
         const mpBar = (isEnemy || member.status.maxMp === 0) ? '' : `<div class="mp-bar"><div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div></div>`;
