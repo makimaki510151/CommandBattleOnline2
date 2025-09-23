@@ -26,68 +26,50 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <!-- ★★★ 新しいオンラインUI ★★★ -->
-            <div id="online-mode-select">
-                <p>オンライン対戦モードを選択してください</p>
-                <button id="host-mode-button">ホストとして開始</button>
-                <button id="join-mode-button">参加者として開始</button>
-            </div>
-            
-            <div id="host-controls" class="hidden">
-                <div class="peer-info">
-                    <p>あなたのID: <span id="my-peer-id">ルーム作成中...</span></p>
-                    <button id="copy-id-button" disabled>IDをコピー</button>
-                </div>
+            <div id="mode-selection" class="hidden">
+                <button id="show-host-ui-button">ホストとしてルームを作成</button>
+                <p>または</p>
+                <button id="show-client-ui-button">既存のルームに参加</button>
             </div>
 
-            <div id="join-controls" class="hidden">
-                <div class="connection-controls">
-                    <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
-                    <button id="connect-button" disabled>接続</button>
-                </div>
+            <div id="host-ui" class="hidden">
+                <p>あなたのID: <span id="my-peer-id">接続中...</span></p>
+                <button id="copy-id-button" disabled>IDをコピー</button>
+                <p>このIDを相手に伝えてください。</p>
             </div>
-            <!-- ★★★ ここまで ★★★ -->
+
+            <div id="client-ui" class="hidden">
+                <p>相手のIDを入力して接続します。</p>
+                <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
+                <button id="connect-button" disabled>接続</button>
+            </div>
 
             <p id="connection-status"></p>
-            <p id="online-battle-go-button-wrapper" class="hidden">
-                <button id="online-battle-go-button" disabled>オンラインバトルへ</button>
-            </p>
-            <p><button id="back-button">タイトルへ戻る</button></p>
+
+            <button id="online-party-go-button" class="proceed-button hidden">パーティー編成へ</button>
+            <button id="back-to-title-button">タイトルに戻る</button>
         </div>
     </div>
 
     <div id="party-screen" class="hidden">
-        <header class="game-header">
-            <button id="back-to-title-button">タイトルへ</button>
-            <h2 class="screen-title">仲間たち</h2>
-            <div class="header-controls">
-                <button id="go-button">冒険へ</button>
+        <div id="character-selection">
+            <h2>パーティー編成</h2>
+            <div class="controls">
+                <div class="party-slot" data-slot-id="0"></div>
+                <div class="party-slot" data-slot-id="1"></div>
+                <div class="party-slot" data-slot-id="2"></div>
+                <div class="party-slot" data-slot-id="3"></div>
             </div>
-        </header>
-        <div class="party-container">
-            <div class="character-selection">
-                <h3>仲間候補</h3>
-                <div id="character-list">
-                    <!-- キャラクターカードがここに動的に追加されます -->
-                </div>
+        </div>
+        <div id="character-details">
+            <h3>詳細情報</h3>
+            <div id="details-content">
+                <p class="placeholder">キャラクターを選択してください</p>
             </div>
-            <div class="party-management">
-                <h3>あなたのパーティ</h3>
-                <div class="party-area">
-                    <div class="party-slots">
-                        <div class="party-slot" data-slot-id="0"></div>
-                        <div class="party-slot" data-slot-id="1"></div>
-                        <div class="party-slot" data-slot-id="2"></div>
-                        <div class="party-slot" data-slot-id="3"></div>
-                    </div>
-                </div>
-                <div id="character-details">
-                    <h3>詳細情報</h3>
-                    <div id="details-content">
-                        <p class="placeholder">キャラクターを選択してください</p>
-                    </div>
-                </div>
-            </div>
+        </div>
+        <div class="action-buttons">
+            <button id="back-button">戻る</button>
+            <button id="go-button">出発！</button>
         </div>
     </div>
 
