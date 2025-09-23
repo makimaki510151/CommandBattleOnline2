@@ -195,13 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: 'sfu'
             });
 
-            // 防御的なチェックを追加
-            if (!room) {
-                console.error("Room object is undefined after FindOrCreate. This indicates a potential API issue or network problem.");
-                throw new Error("Failed to create or find SkyWay Room.");
-            }
-
-            room.onStreamSubscribed.add((e) => {
+            // 修正1: イベントリスナーをjoin()呼び出しの前に設定する
+            room.onStreamSubscribed?.add((e) => {
                 if (e.stream.contentType === 'data') {
                     dataStream = e.stream;
                     dataStream.onData.add((message) => {
@@ -222,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            // 修正2: room.join()の戻り値を変数に代入
             localPerson = await room.join();
 
             const localDataStream = await SkyWayStreamFactory.CreateDataStream();
