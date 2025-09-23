@@ -26,19 +26,24 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <div class="peer-info">
-                <p>ルーム名: <span id="my-peer-id">接続中...</span></p>
-                <button id="copy-id-button" disabled>ルーム名をコピー</button>
+            <div id="host-section" class="online-mode-section">
+                <h3>ホストとしてルームを作成</h3>
+                <p>あなたのルームID: <span id="my-peer-id">接続中...</span></p>
+                <button id="create-room-btn">ルーム作成</button>
             </div>
-            <div class="connection-controls">
-                <input type="text" id="peer-id-input" placeholder="相手のルーム名を入力">
+            <div id="client-section" class="online-mode-section">
+                <h3>相手のルームに参加</h3>
+                <input type="text" id="peer-id-input" placeholder="相手のルームIDを入力">
                 <button id="connect-button">接続</button>
             </div>
-            <p id="connection-status"></p>
+            <div class="connection-status-area">
+                <p id="connection-status"></p>
+                <button id="proceed-to-party-btn" class="hidden">パーティー編成へ進む</button>
+            </div>
             <button id="back-to-title-button">タイトルへ戻る</button>
         </div>
     </div>
-
+    
     <div id="party-screen" class="hidden">
         <header class="game-header">
             <h1 class="game-title">パーティー編成</h1>
@@ -69,10 +74,11 @@
         </div>
         <div class="party-controls">
             <button id="back-button">戻る</button>
+            <button id="confirm-party-btn" class="hidden">このパーティーで決定</button>
             <button id="go-button">冒険へ</button>
         </div>
     </div>
-
+    
     <div id="battle-screen" class="hidden">
         <header class="game-header">
         </header>
