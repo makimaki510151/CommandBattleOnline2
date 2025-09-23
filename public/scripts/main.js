@@ -321,8 +321,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // データストリームの受信ハンドラ
+    // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
+            // データが有効な文字列またはバッファであることを確認
+            if (!data) {
+                console.error('Received empty or invalid data:', data);
+                return;
+            }
+
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
@@ -334,6 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (onlineScreen && battleScreen) {
                         onlineScreen.classList.add('hidden');
                         battleScreen.classList.remove('hidden');
+                        // 修正: 相手のパーティーデータを受け取った後、自分のパーティーデータを送る
+                        const myPartyData = window.getSelectedParty();
+                        window.sendData({ type: 'party_data_response', party: myPartyData });
                         window.startOnlineBattle(parsedData.party);
                     }
                 } else if (parsedData.type === 'start_battle') {
@@ -349,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Failed to parse received data:', error);
+                console.error('Invalid data received:', data);
             }
         });
     }
