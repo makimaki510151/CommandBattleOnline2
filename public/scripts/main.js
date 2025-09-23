@@ -137,52 +137,71 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: `game_room_${roomId}`,
             });
 
+            // roomがnullでないか確認する
             if (!room) {
                 throw new Error('ルームが作成できませんでした');
             }
 
             isHost = true;
 
+            // localPersonがnullでないか確認する
+            localPerson = await room.join();
+            if (!localPerson) {
+                throw new Error('ルームへの参加に失敗しました');
+            }
+
             // メンバー入室時のイベントリスナー
-            room.onMemberJoined.add(async (e) => {
-                logMessage('対戦相手が入室しました。');
-                for (const publication of e.member.publications) {
-                    if (publication.contentType === 'data') {
+            // roomがnull/undefinedでないことを確認してからaddを呼び出す
+            if (room.onMemberJoined) {
+                room.onMemberJoined.add(async (e) => {
+                    logMessage('対戦相手が入室しました。');
+                    for (const publication of e.member.publications) {
+                        if (publication.contentType === 'data') {
+                            const subscription = await localPerson.subscribe(publication.id);
+                            handleDataStream(subscription.stream);
+                            logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+                            isOnlineMode = true;
+                            connectionStatusEl.textContent = '接続完了！';
+                            showProceedButton();
+                        }
+                    }
+                });
+            }
+
+
+            // ストリーム公開時のイベントリスナー
+            // roomがnull/undefinedでないことを確認してからaddを呼び出す
+            if (room.onStreamPublished) {
+                room.onStreamPublished.add(async ({ publication }) => {
+                    if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
                         const subscription = await localPerson.subscribe(publication.id);
                         handleDataStream(subscription.stream);
                         logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-
-                        // 接続完了後の処理
-                        isOnlineMode = true;
-                        connectionStatusEl.textContent = '接続完了！';
-                        showProceedButton();
                     }
-                }
-            });
+                });
+            }
 
-            // ストリーム公開時のイベントリスナー
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-                }
-            });
-
-            localPerson = await room.join();
             dataStream = await SkyWayStreamFactory.createDataStream();
-            const publication = await localPerson.publish(dataStream);
 
-            publication.onSubscriptionStarted.add((e) => {
-                console.log("🟢 ホスト: 自身のデータストリームの購読が開始されました。");
-                const partyData = window.getSelectedParty();
-                if (partyData && partyData.length > 0) {
-                    console.log("🔹 ホスト: パーティーデータを送信します。", partyData);
-                    window.sendData({ type: 'party_data', party: partyData });
-                } else {
-                    console.warn("⚠️ パーティーデータが選択されていないため、送信をスキップします。");
-                }
-            });
+            // publicationがnull/undefinedでないか確認する
+            const publication = await localPerson.publish(dataStream);
+            if (!publication) {
+                throw new Error('ストリームの公開に失敗しました');
+            }
+
+            // publicationがnull/undefinedでないことを確認してからaddを呼び出す
+            if (publication.onSubscriptionStarted) {
+                publication.onSubscriptionStarted.add((e) => {
+                    console.log("🟢 ホスト: 自身のデータストリームの購読が開始されました。");
+                    const partyData = window.getSelectedParty();
+                    if (partyData && partyData.length > 0) {
+                        console.log("🔹 ホスト: パーティーデータを送信します。", partyData);
+                        window.sendData({ type: 'party_data', party: partyData });
+                    } else {
+                        console.warn("⚠️ パーティーデータが選択されていないため、送信をスキップします。");
+                    }
+                });
+            }
 
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
@@ -237,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showProceedButton();
                 }
             });
-            
+
             // 接続完了後の処理
             isOnlineMode = true;
             connectionStatusEl.textContent = '接続完了！';
