@@ -138,22 +138,41 @@ document.addEventListener('DOMContentLoaded', () => {
         battleScreen.classList.remove('hidden');
 
         if (isOnlineMode) {
-            // 1. 自分のパーティーだけ先に戦闘画面に表示する
             window.initializePlayerParty(selectedParty);
 
-            // battle.jsで生成された、送受信に適したクリーンなパーティーデータを取得する
             const partyToSend = window.getPlayerParty();
 
-            // ★★★ ここから修正を追加 ★★★
-            // 送信するデータが有効かチェックするガード節
             if (!partyToSend || !Array.isArray(partyToSend) || partyToSend.length === 0) {
                 console.error('送信するパーティーデータが無効、または空です。送信を中止しました。', partyToSend);
                 logMessage('エラー: パーティーデータの準備に失敗しました。', 'error');
-                // 必要に応じてタイトルに戻るなどの処理を追加
                 return;
             }
+
+            // ★★★ ここから修正を追加 ★★★
+            // 送信データ量を削減するため、戦闘に不要な情報を削除する
+
+            // 1. 元のデータを壊さないように、ディープコピーを作成
+            const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
+
+            // 2. コピーしたデータから不要なプロパティを削除
+            partyDataForSend.forEach(member => {
+                if (member.passive) {
+                    delete member.passive.desc;
+                    delete member.passive.flavor;
+                }
+                if (member.active) {
+                    member.active.forEach(skill => {
+                        delete skill.desc;
+                        delete skill.flavor;
+                    });
+                }
+                if (member.special) {
+                    delete member.special.desc;
+                    delete member.special.flavor;
+                }
+            });
             // ★★★ ここまで修正を追加 ★★★
-            
+
             // 2. データストリームが準備できるまで待機
             logMessage('データストリームの準備を待っています...');
             await dataStreamReadyPromise; // データストリームが確立されるまで待機
