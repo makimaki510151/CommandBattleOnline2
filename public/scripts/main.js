@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // データ送信関数をグローバルに公開
     window.sendData = function (data) {
-        if (dataStream) {
+        if (dataStream && data !== undefined) {
             try {
                 const serializedData = JSON.stringify(data);
                 dataStream.write(serializedData);
@@ -389,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Failed to send data:', error);
             }
         } else {
-            console.warn('Data stream not available for sending data');
+            console.warn('Data stream not available or data is invalid for sending.', { data });
         }
     };
 
