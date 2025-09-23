@@ -128,6 +128,14 @@ window.initializePlayerParty = (partyData) => {
 
 // オンラインプレイ用：相手のパーティー情報を受け取る
 window.handleOpponentParty = (partyData) => {
+    // ★★★ ここから修正を追加 ★★★
+    if (!partyData || !Array.isArray(partyData)) {
+        console.error('受信した相手のパーティーデータが無効です。', partyData);
+        logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
+        return;
+    }
+    // ★★★ ここまで修正を追加 ★★★
+
     // 相手のパーティーを初期化（ホストなら 'client'、クライアントなら 'host' のpartyTypeを付与）
     opponentParty = partyData.map(p => createInitialPartyMember(p, window.isHost() ? 'client' : 'host'));
     logMessage('相手のパーティー情報を受信しました！');

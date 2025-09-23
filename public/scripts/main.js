@@ -141,10 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. 自分のパーティーだけ先に戦闘画面に表示する
             window.initializePlayerParty(selectedParty);
 
-            // ★★★ 修正点 ★★★
             // battle.jsで生成された、送受信に適したクリーンなパーティーデータを取得する
             const partyToSend = window.getPlayerParty();
 
+            // ★★★ ここから修正を追加 ★★★
+            // 送信するデータが有効かチェックするガード節
+            if (!partyToSend || !Array.isArray(partyToSend) || partyToSend.length === 0) {
+                console.error('送信するパーティーデータが無効、または空です。送信を中止しました。', partyToSend);
+                logMessage('エラー: パーティーデータの準備に失敗しました。', 'error');
+                // 必要に応じてタイトルに戻るなどの処理を追加
+                return;
+            }
+            // ★★★ ここまで修正を追加 ★★★
+            
             // 2. データストリームが準備できるまで待機
             logMessage('データストリームの準備を待っています...');
             await dataStreamReadyPromise; // データストリームが確立されるまで待機
