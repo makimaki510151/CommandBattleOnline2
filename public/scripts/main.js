@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     goButton.addEventListener('click', async () => {
-        const selectedParty = getSelectedParty();
+        const selectedParty = window.getSelectedParty();
         if (!selectedParty) {
             logMessage('パーティーメンバーを4人選択してください。', 'error');
             return;
@@ -151,13 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             logMessage('相手にパーティー情報を送信しています...');
+            console.log('送信するパーティーデータ:', partyDataForSend);
 
             // データストリームが準備できるまで待機
             await dataStreamReadyPromise;
 
             // クリーンなデータを相手に送信する
-            window.sendData({ type: 'party_ready', party: partyDataForSend });
-            logMessage('相手の準備を待っています...');
+            const sendResult = await window.sendData({ type: 'party_ready', party: partyDataForSend });
+            console.log('パーティー情報送信完了');
+            logMessage('パーティー情報を送信しました。相手の準備を待っています...');
         } else {
             // シングルプレイの場合は戦闘画面に遷移してから戦闘開始
             partyScreen.classList.add('hidden');
@@ -360,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
+                    console.log('相手のパーティー情報を受信:', parsedData.party);
                     logMessage('対戦相手のパーティー情報を受信しました。');
                     window.handleOpponentParty(parsedData.party);
                 } else if (parsedData.type === 'log_message') {
@@ -414,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // データが無効でないかを確認
         if (data === undefined || data === null) {
             console.warn('送信するデータが無効です:', data);
-            return;
+            return false;
         }
 
         // データストリームが準備できるまで待機
@@ -427,8 +430,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const serializedData = JSON.stringify(data);
             dataStream.write(serializedData);
             console.log('Sent data:', serializedData);
+            return true;
         } catch (error) {
             console.error('データ送信に失敗しました:', error);
+            return false;
         }
     };
 

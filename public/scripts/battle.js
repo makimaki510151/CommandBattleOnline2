@@ -141,11 +141,15 @@ function initializePlayerParty(partyData) {
 
 // オンライン対戦用：相手のパーティー情報を受け取る
 function handleOpponentParty(partyData) {
+    console.log('handleOpponentParty呼び出し:', partyData);
+    
     if (!partyData || !Array.isArray(partyData)) {
         console.error('受信した相手のパーティーデータが無効です。', partyData);
         logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
         return;
     }
+
+    console.log('相手のパーティーデータ処理開始, 要素数:', partyData.length);
 
     // 相手のパーティーを初期化（ホストなら 'client'、クライアントなら 'host' のpartyTypeを付与）
     opponentParty = partyData.map((p, index) => {
@@ -162,30 +166,44 @@ function handleOpponentParty(partyData) {
         if (member.originalId === 'char06') {
             member.targetMemory = member.targetMemory || { lastTargetId: null, missed: false };
         }
+        console.log(`相手パーティーメンバー${index}:`, member.name, member.uniqueId);
         return member;
     });
 
+    console.log('相手のパーティー初期化完了:', opponentParty);
     logMessage('相手のパーティー情報を受信しました！');
+    
+    console.log('相手パーティーの描画開始');
     renderParty(enemyPartyEl, opponentParty, true);
+    console.log('相手パーティーの描画完了');
     
     opponentPartyReady = true;
+    console.log('フラグ状態 - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
     checkBothPartiesReady();
 }
 
 // 両方のパーティーが準備完了かチェックし、戦闘を開始
 function checkBothPartiesReady() {
+    console.log('checkBothPartiesReady呼び出し - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
+    console.log('isHost:', window.isHost());
+    
     if (myPartyReady && opponentPartyReady) {
+        console.log('両者の準備が完了しました');
         logMessage('両者の準備が完了しました。');
         
         if (window.isHost()) {
             // ホストのみが戦闘開始をトリガーする
+            console.log('ホストとして戦闘開始処理を実行');
             logMessage('ホストとして戦闘を開始します。');
             window.sendData({ type: 'start_battle' });
             startOnlineBattle();
         } else {
             // クライアントはホストからの同期を待つ
+            console.log('クライアントとしてホストの戦闘開始を待機');
             logMessage('ホストからの戦闘開始を待っています...');
         }
+    } else {
+        console.log('まだ準備が完了していません');
     }
 }
 
