@@ -1,4 +1,4 @@
-// battle.js (修正版)
+// battle.js
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
@@ -9,11 +9,12 @@ const playerPartyEl = document.getElementById('player-party');
 const messageLogEl = document.getElementById('message-log');
 const commandAreaEl = document.getElementById('command-area');
 const battleScreenEl = document.getElementById('battle-screen');
+const goButton = document.getElementById('go-button'); // main.jsから参照されないが、元のコードにあったため残す
 const partyScreen = document.getElementById('party-screen');
 
 // Game State
 let playerParty = null;     // 自分のパーティー情報
-let opponentParty = null;   // 相手のパーティー情報
+let opponentParty = null;   // 相手のパーティー情報 (オンライン対戦時)
 let currentEnemies = null;  // シングルプレイ時の敵情報
 let turnQueue = [];         // 行動順を管理するキュー
 let currentTurn = 0;
@@ -47,7 +48,6 @@ function deepCopy(obj) {
 
 function updatePartyDisplay(partyEl, partyData) {
     if (!partyData) return;
-    // ユニークIDで要素を検索するように変更
     partyData.forEach((member) => {
         const memberEl = partyEl.querySelector(`[data-unique-id="${member.uniqueId}"]`);
         if (!memberEl) return;
@@ -61,7 +61,6 @@ function updatePartyDisplay(partyEl, partyData) {
         if (hpFill) hpFill.style.width = `${hpPercentage}%`;
         if (hpText) hpText.textContent = `${member.status.hp}/${member.status.maxHp}`;
 
-        // MPバーはmaxMpが0より大きい場合のみ表示・更新
         if (mpFill && member.status.maxMp > 0) {
             const mpPercentage = (member.status.mp / member.status.maxMp) * 100;
             mpFill.style.width = `${mpPercentage}%`;

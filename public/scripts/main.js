@@ -1,4 +1,4 @@
-// main.js (トークン使用版)
+// main.js (修正版)
 
 // SkyWay SDKはグローバル変数として読み込まれることを想定
 const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
@@ -9,6 +9,12 @@ let localPerson = null;
 let dataStream = null;
 let isHost = false;
 let isOnlineMode = false;
+
+// データストリームの準備ができたことを解決するPromise
+let resolveDataStreamReady = null;
+const dataStreamReadyPromise = new Promise(resolve => {
+    resolveDataStreamReady = resolve;
+});
 
 // UUID v4を生成する関数
 function generateUuidV4() {
@@ -119,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await cleanupSkyWay(); // 画面を離れる際に必ずクリーンアップ
     });
 
-    goButton.addEventListener('click', () => {
+    goButton.addEventListener('click', async () => { // asyncを追加
         const selectedParty = window.getSelectedParty();
         if (selectedParty.length < 1) {
             alert('パーティーは1人以上で編成してください。');
@@ -131,19 +137,19 @@ document.addEventListener('DOMContentLoaded', () => {
         battleScreen.classList.remove('hidden');
 
         if (isOnlineMode) {
-            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 修正点：オンラインモードの挙動を変更
-
             // 1. 自分のパーティーだけ先に戦闘画面に表示する
-            //    (battle.js側にこの機能を追加する必要があります)
             window.initializePlayerParty(selectedParty);
 
-            // 2. 相手に準備完了データを送信
+            // 2. データストリームが準備できるまで待機
+            logMessage('データストリームの準備を待っています...');
+            await dataStreamReadyPromise; // データストリームが確立されるまで待機
+            logMessage('データストリームの準備ができました。');
+
+            // 3. 相手に準備完了データを送信
             window.sendData({ type: 'party_ready', party: selectedParty });
 
-            // 3. ログに待機中メッセージを表示
+            // 4. ログに待機中メッセージを表示
             logMessage('相手の準備を待っています...');
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         } else {
             // シングルプレイはそのまま
             window.startBattle(selectedParty);
@@ -210,9 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = '相手の接続を待っています...';
             copyIdButton.disabled = false;
 
-            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 修正点：イベントの処理方法を変更
-
             // 相手が参加した時の処理
             room.onMemberJoined.once(async ({ member }) => {
                 connectionStatusEl.textContent = `✅ 相手が接続しました！`;
@@ -221,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // 相手がストリームを公開した時の処理
-            room.onStreamPublished.add(async ({ publication }) => {
+            room.onStreamPublished.add(async ({ publication }) => { // .on() を .add() に修正
                 // 自分のストリームは無視
                 if (publication.publisher.id === localPerson.id) return;
 
@@ -233,10 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleDataStream(subscription.stream);
                 console.log(`[Host] クライアント (${publication.publisher.id}) のストリームを購読しました。`);
             });
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
+            resolveDataStreamReady(); // データストリームの準備ができたことを通知
 
         } catch (error) {
             console.error('ホスト初期化エラー:', error);
@@ -280,13 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`[Client] ステップ3: ルーム [${remoteRoomId}] に参加します...`);
             connectionStatusEl.textContent = 'ルームに参加中...';
 
-            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 修正点：Find から FindOrCreate に変更
             room = await SkyWayRoom.FindOrCreate(context, {
                 type: 'p2p',
                 name: remoteRoomId
             });
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             console.log("[Client] ステップ3: ルーム参加処理完了。");
 
@@ -295,9 +295,20 @@ document.addEventListener('DOMContentLoaded', () => {
             localPerson = await room.join();
             console.log("[Client] ステップ4: メンバーとしてjoin完了。");
 
-            // ... 以降の処理は変更なし ...
+            // 5. 相手のデータストリームを購読
+            // クライアント側も相手のストリームを購読する必要がある
+            room.onStreamPublished.add(async ({ publication }) => { // .on() を .add() に修正
+                if (publication.publisher.id === localPerson.id) return; // 自分のストリームは無視
+                if (publication.contentType !== 'data') return; // データストリームでなければ無視
 
-            // 7. 完了
+                const subscription = await localPerson.subscribe(publication.id);
+                dataStream = subscription.stream; // クライアント側もdataStreamをセット
+                handleDataStream(dataStream);
+                resolveDataStreamReady(); // データストリームの準備ができたことを通知
+                console.log(`[Client] ホスト (${publication.publisher.id}) のストリームを購読しました。`);
+            });
+
+            // 6. 完了
             console.log("[Client] 全ての接続処理が完了しました。");
             connectionStatusEl.textContent = '✅ 接続完了！';
             onlinePartyGoButton.classList.remove('hidden');
@@ -318,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
-        stream.onData.on(async ({ data }) => {
+        stream.onData.add(async ({ data }) => { // .on() を .add() に修正
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
@@ -326,9 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
-                    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                    // 修正点：相手のパーティーを受け取った時の処理
-
                     // 1. 相手のパーティー情報を battle.js に渡す
                     window.handleOpponentParty(parsedData.party);
 
@@ -342,11 +350,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         // 自分はまだパーティー編成画面にいる場合
                         logMessage('相手の準備が完了しました。');
                     }
-                    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-                } else if (parsedData.type === 'request_action') {
-                    // ... (変更なし)
+                } else if (parsedData.type === 'log_message') {
+                    window.logMessage(parsedData.message, parsedData.messageType);
+                } else if (parsedData.type === 'execute_action') {
+                    window.executeAction(parsedData);
+                } else if (parsedData.type === 'action_result') {
+                    window.handleActionResult(parsedData);
+                } else if (parsedData.type === 'sync_game_state') {
+                    window.handleBattleAction(parsedData); // battle.jsのhandleBattleActionで処理
+                } else if (parsedData.type === 'battle_end') {
+                    window.handleBattleAction(parsedData); // battle.jsのhandleBattleActionで処理
                 }
-                // ... (以降、変更なし)
             } catch (error) {
                 console.error('受信データの解析または処理に失敗しました:', error);
             }
@@ -371,17 +385,25 @@ document.addEventListener('DOMContentLoaded', () => {
             peerIdInput.value = '';
             goButton.disabled = false;
 
-            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 削除：ボタンの状態管理は呼び出し元に任せる
-            // connectButton.disabled = false; 
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+            // dataStreamReadyPromiseをリセット
+            resolveDataStreamReady = null;
+            // 新しいPromiseを作成して次の接続に備える
+            window.dataStreamReadyPromise = new Promise(resolve => {
+                resolveDataStreamReady = resolve;
+            });
 
             console.log("✅ cleanupSkyWay 完了");
         }
     }
 
     // データ送信関数
-    window.sendData = function (data) {
+    window.sendData = async function (data) { // asyncを追加
+        // データストリームが準備できるまで待機
+        if (!dataStream) {
+            console.warn('データストリームがまだ準備できていません。準備を待機します...');
+            await dataStreamReadyPromise;
+        }
+
         if (dataStream && data !== undefined) {
             try {
                 const serializedData = JSON.stringify(data);
@@ -398,3 +420,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.isOnlineMode = () => isOnlineMode;
     window.isHost = () => isHost;
 });
+
+
