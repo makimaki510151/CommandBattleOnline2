@@ -818,6 +818,7 @@ window.initializePlayerParty = initializePlayerParty;
 window.handleOpponentParty = handleOpponentParty;
 window.startOnlineBattle = startOnlineBattle;
 window.executeAction = executeAction;
+window.checkBothPartiesReady = checkBothPartiesReady;
 
 // オンライン同期用のアクションハンドラ
 window.handleBattleAction = (data) => {

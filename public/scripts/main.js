@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         titleScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
     });
-    
+
     // 「オンライン対戦」ボタン -> モード選択画面を表示
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
@@ -138,11 +138,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // オンラインモードの場合は戦闘画面に遷移してから処理
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-            
-            window.initializePlayerParty(selectedParty);
-            const partyToSend = window.getPlayerParty();
 
-            // 不要なプロパティを削除
+            // データストリームが準備できるまで待機
+            await dataStreamReadyPromise;
+
+            // ホストの場合、相手のストリーム購読を待つ
+            if (isHost) {
+                // ホストは相手の参加とストリーム公開を待つ
+                await new Promise(resolve => {
+                    room.onStreamPublished.once(async ({ publication }) => {
+                        // 相手のストリームを購読したら処理を続行
+                        if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                            const subscription = await localPerson.subscribe(publication.id);
+                            handleDataStream(subscription.stream);
+                            resolve();
+                        }
+                    });
+                });
+            }
+
+            // クリーンなデータを相手に送信する
+            const partyToSend = window.getPlayerParty();
             const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
             partyDataForSend.forEach(member => {
                 if (member.passive) delete member.passive.desc;
@@ -152,9 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             logMessage('相手にパーティー情報を送信しています...');
             console.log('送信するパーティーデータ:', partyDataForSend);
-
-            // データストリームが準備できるまで待機
-            await dataStreamReadyPromise;
 
             // クリーンなデータを相手に送信する
             const sendResult = await window.sendData({ type: 'party_ready', party: partyDataForSend });
@@ -343,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         console.log('データストリーム購読開始:', stream);
-        
+
         stream.onData.add(async ({ data }) => {
             try {
                 // データがundefinedでないか、空でないかを確認
@@ -363,7 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (parsedData.type === 'party_ready') {
                     console.log('相手のパーティー情報を受信:', parsedData.party);
                     logMessage('対戦相手のパーティー情報を受信しました。');
+                    // battle.jsの関数を呼び出して相手パーティー情報を処理
                     window.handleOpponentParty(parsedData.party);
+                    // ここでチェック関数を呼び出す
+                    window.checkBothPartiesReady();
                 } else if (parsedData.type === 'log_message') {
                     window.logMessage(parsedData.message, parsedData.messageType);
                 } else if (parsedData.type === 'execute_action') {
