@@ -98,7 +98,7 @@ partySlotsEl.addEventListener('click', (event) => {
         if (char) {
             slot.innerHTML = '';
             const imgEl = document.createElement('img');
-            imgEl.src = char.image;
+            imgEl.src = `assets/${char.image}`;
             imgEl.alt = char.name;
             imgEl.className = 'char-icon';
             slot.appendChild(imgEl);
