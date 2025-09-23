@@ -141,13 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. 自分のパーティーだけ先に戦闘画面に表示する
             window.initializePlayerParty(selectedParty);
 
+            const partyDataWithCorrectPaths = selectedParty.map(member => ({
+                ...member,
+                // image プロパティに 'assets/' を追加
+                image: `assets/${member.image}`
+            }));
+
             // 2. データストリームが準備できるまで待機
             logMessage('データストリームの準備を待っています...');
             await dataStreamReadyPromise; // データストリームが確立されるまで待機
             logMessage('データストリームの準備ができました。');
 
             // 3. 相手に準備完了データを送信
-            window.sendData({ type: 'party_ready', party: selectedParty });
+            window.sendData({ type: 'party_ready', party: partyDataWithCorrectPaths });
 
             // 4. ログに待機中メッセージを表示
             logMessage('相手の準備を待っています...');
@@ -399,13 +405,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await dataStreamReadyPromise;
         }
 
-        // ★ ここにバリデーションを追加 ★
-        if (!data || typeof data !== 'object') {
-            console.error('無効なデータを送信しようとしました:', data);
-            return; // 無効なデータは送信しない
-        }
-
-        if (dataStream) {
+        // ★ ここを修正 ★
+        // データが有効なオブジェクトであるかを厳密にチェックする
+        if (dataStream && data && typeof data === 'object') {
             try {
                 const serializedData = JSON.stringify(data);
                 dataStream.write(serializedData);
@@ -414,7 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('データ送信に失敗しました:', error);
             }
         } else {
-            console.warn('データストリームが利用不可です。');
+            // データが無効な場合に明確なログを出力
+            console.warn('⚠️ データストリームが利用不可、または送信データが無効です。', data);
         }
     };
 
