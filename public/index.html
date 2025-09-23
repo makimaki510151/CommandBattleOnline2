@@ -26,35 +26,29 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <!-- ホスト/クライアント選択 -->
-            <div id="connection-mode-selection">
-                <button id="online-host-button">ホストとしてルームを作成</button>
-                <p>または</p>
-                <button id="online-join-button">既存のルームに参加</button>
+            <!-- ホストとしてルームを作成した後に表示されるエリア -->
+            <div class="peer-info">
+                <p>あなたのルームID:</p>
+                <!-- ↓↓↓ JSがこのIDを探します ↓↓↓ -->
+                <p id="my-peer-id"></p>
+                <button id="copy-id-button" disabled>IDをコピー</button>
             </div>
 
-            <!-- ホスト用UI -->
-            <div id="host-info" class="hidden">
-                <div class="peer-info">
-                    <p>以下のルームIDを相手に伝えてください。</p>
-                    <p id="my-peer-id"></p>
-                    <button id="copy-id-button" disabled>IDをコピー</button>
-                </div>
-                <p id="host-connection-status">対戦相手の参加を待っています...</p>
+            <!-- 接続状態を表示するエリア -->
+            <div class="connection-status">
+                <!-- ↓↓↓ JSがこのIDを探します ↓↓↓ -->
+                <p id="connection-status">ここに接続状態が表示されます</p>
             </div>
 
-            <!-- クライアント用UI -->
-            <div id="client-controls" class="hidden">
-                <div class="connection-controls">
-                    <p>ホストのルームIDを入力してください。</p>
-                    <input type="text" id="remote-room-id-input" placeholder="ルームID">
-                    <button id="connect-button">接続</button>
-                </div>
-                <p id="client-connection-status"></p>
+            <!-- クライアントとして接続するためのエリア -->
+            <div class="connection-controls">
+                <p>相手のルームIDを入力</p>
+                <!-- ↓↓↓ JSがこのIDを探します ↓↓↓ -->
+                <input type="text" id="peer-id-input" placeholder="ルームID">
+                <button id="connect-button">接続</button>
             </div>
 
-            <!-- 接続後に表示 -->
-            <button id="online-party-go-button" class="proceed-button hidden">パーティー編成へ</button>
+            <!-- 「パーティー編成へ」ボタンはJavaScriptによってこの online-controls の末尾に動的に追加されます -->
         </div>
         <button id="back-to-title-button">タイトルに戻る</button>
     </div>
