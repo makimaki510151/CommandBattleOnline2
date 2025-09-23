@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const myPeerIdEl = document.getElementById('my-peer-id');
     const peerIdInput = document.getElementById('peer-id-input');
     const connectionStatusEl = document.getElementById('connection-status');
-    
+
     // 「パーティー編成へ」ボタンをオンライン画面に動的に追加
     const onlinePartyGoButton = document.createElement('button');
     onlinePartyGoButton.id = 'online-party-go-button';
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(err => console.error('コピーに失敗しました', err));
         }
     });
-    
+
     onlinePartyGoButton.addEventListener('click', () => {
         onlineScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // --- トークン取得処理 ---
-            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token' );
+            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             if (!res.ok) throw new Error(`トークンサーバーからの応答が不正です: ${res.status}`);
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             connectionStatusEl.textContent = 'ルームを作成中...';
             context = await SkyWayContext.Create(token);
-            
+
             const roomName = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
                 type: 'p2p',
@@ -160,23 +160,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             localPerson = await room.join();
-            
+
             myPeerIdEl.textContent = room.name;
             connectionStatusEl.textContent = '相手の接続を待っています...';
             copyIdButton.disabled = false;
 
-            room.onPersonJoined.addOnce(async ({ person }) => {
+            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+            // 修正点：イベント名を onPersonJoined から onMemberJoined に変更
+            room.onMemberJoined.addOnce(async ({ member }) => {
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 connectionStatusEl.textContent = `✅ 相手が接続しました！`;
                 onlinePartyGoButton.classList.remove('hidden');
                 window.sendData({ type: 'connection_established' });
 
-                const { publication } = await room.waitForPublication({ publisher: person });
+                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                // 修正点：引数名も person から member に合わせる
+                const { publication } = await room.waitForPublication({ publisher: member });
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 if (publication.contentType === 'data') {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
                 }
             });
-            
+
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
@@ -197,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // --- トークン取得処理 ---
-            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token' );
+            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             if (!res.ok) throw new Error(`トークンサーバーからの応答が不正です: ${res.status}`);
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
@@ -209,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!room) throw new Error('ルームが見つかりません。');
 
             localPerson = await room.join();
-            
+
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
@@ -219,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     handleDataStream(subscription.stream);
                 }
             }
-            
+
             connectionStatusEl.textContent = '✅ 接続完了！';
             connectButton.disabled = false;
             onlinePartyGoButton.classList.remove('hidden');
@@ -243,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
                     window.handleOpponentParty(parsedData.party);
-                    
+
                     const myParty = window.getSelectedParty();
                     if (myParty && myParty.length > 0 && goButton.disabled) { // 自分が準備完了かチェック
                         partyScreen.classList.add('hidden');
