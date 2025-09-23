@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const partyScreen = document.getElementById('party-screen');
     const onlineScreen = document.getElementById('online-screen');
     const onlineHostButton = document.getElementById('online-host-button');
-    const backToTitleFromOnlineButton = document.getElementById('back-to-title-from-online-button');
+    const backToTitleButton = document.getElementById('back-to-title-button');
     const connectToRoomButton = document.getElementById('connect-to-room-button');
     const connectionStatusEl = document.getElementById('connection-status');
     const myPeerIdEl = document.getElementById('my-peer-id');
@@ -96,15 +96,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 「戻る」ボタン
-    if (backToTitleFromOnlineButton) { // nullチェックを追加
-        backToTitleFromOnlineButton.addEventListener('click', () => {
-            cleanupSkyWay();
-            onlineScreen.classList.add('hidden');
-            titleScreen.classList.remove('hidden');
-            onlineHostButton.classList.remove('hidden');
-            connectionControlsEl.classList.remove('hidden');
-        });
-    }
+    backToTitleButton.addEventListener('click', () => {
+        // SkyWayの接続をクリーンアップ
+        cleanupSkyWay();
+
+        // 画面の切り替え
+        onlineScreen.classList.add('hidden');
+        titleScreen.classList.remove('hidden');
+
+        // 関連するUIをリセット
+        onlineHostButton.classList.remove('hidden');
+        connectionControlsEl.classList.remove('hidden');
+    });
 
     // ルームIDをクリップボードにコピー
     copyIdButton.addEventListener('click', () => {
