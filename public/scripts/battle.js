@@ -113,6 +113,7 @@ function initializeParty(party, partyType = 'player') {
 
 // シングルプレイ用バトル開始
 async function startBattle(partyMembers) {
+    // 画面遷移は既にmain.jsで実行済みなので、戦闘ロジックのみ開始
     logMessage('戦闘開始！');
     isBattleOngoing = true;
     currentTurn = 0;
@@ -190,13 +191,12 @@ function checkBothPartiesReady() {
 
 // オンライン戦闘開始（ホスト側から呼ばれる）
 async function startOnlineBattle() {
-    // 画面切り替え
-    partyScreen.classList.add('hidden');
-    battleScreenEl.classList.remove('hidden');
-
+    // 画面遷移は既にmain.jsで実行済みなので、戦闘ロジックのみ開始
     isBattleOngoing = true;
     currentTurn = 0;
 
+    logMessage('戦闘開始！');
+    
     // 戦闘ループを開始
     await battleLoop();
 }
@@ -206,10 +206,7 @@ function startBattleClientSide() {
     if (isBattleOngoing) return;
     logMessage('ホストが戦闘を開始しました。');
     
-    // 画面切り替え
-    partyScreen.classList.add('hidden');
-    battleScreenEl.classList.remove('hidden');
-    
+    // 画面遷移は既にmain.jsで実行済みなので、戦闘フラグのみ設定
     isBattleOngoing = true;
     currentTurn = 0;
 }

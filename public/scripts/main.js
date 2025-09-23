@@ -135,6 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // シングルプレイかオンラインか
         if (isOnlineMode) {
+            // オンラインモードの場合は戦闘画面に遷移してから処理
+            partyScreen.classList.add('hidden');
+            battleScreen.classList.remove('hidden');
+            
             window.initializePlayerParty(selectedParty);
             const partyToSend = window.getPlayerParty();
 
@@ -155,6 +159,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.sendData({ type: 'party_ready', party: partyDataForSend });
             logMessage('相手の準備を待っています...');
         } else {
+            // シングルプレイの場合は戦闘画面に遷移してから戦闘開始
+            partyScreen.classList.add('hidden');
+            battleScreen.classList.remove('hidden');
             window.startBattle(selectedParty);
         }
     });
