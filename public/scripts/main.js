@@ -235,6 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = '準備中...';
         connectButton.disabled = true; // 処理中の連続クリックを防止
 
+        let isSuccess = false;
+
         try {
             // 1. トークン取得
             console.log("[Client] ステップ1: トークンを取得します...");
@@ -293,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = '✅ 接続完了！';
             onlinePartyGoButton.classList.remove('hidden');
 
+            isSuccess = true;
+
         } catch (error) {
             // --- エラーハンドリング強化 ---
             console.error('クライアント接続エラー:', error);
@@ -303,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             // --- 処理完了後 ---
             // 成功時はボタンは押せないままで良いが、失敗時は再度押せるようにする
-            if (!room) { // roomがnullなら失敗と判断
+            if (!isSuccess) {
                 connectButton.disabled = false;
             }
         }
@@ -361,6 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = '';
             peerIdInput.value = '';
             goButton.disabled = false;
+
+            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+            // 削除：ボタンの状態管理は呼び出し元に任せる
+            // connectButton.disabled = false; 
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
             console.log("✅ cleanupSkyWay 完了");
         }
     }
