@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 3. ルーム検索
             console.log(`[Client] ステップ3: ルーム [${remoteRoomId}] を検索します...`);
             connectionStatusEl.textContent = 'ルームを検索中...';
-            room = await SkyWayRoom.Find(context, { name: remoteRoomId });
+            room = await SkyWayRoom.Find(context, { type: 'p2p', name: remoteRoomId });
             if (!room) {
                 throw new Error('ルームが見つかりませんでした。IDを確認してください。');
             }
