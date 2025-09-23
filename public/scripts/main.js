@@ -222,8 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function connectToRoom(remoteRoomId) {
         if (context) {
             logMessage('既存の接続をリセットします...', 'info');
-            await cleanupSkyWay(); // 既存の接続をクリーンアップ
+            await cleanupSkyWay();
         }
+
         isOnlineMode = true;
         connectionStatusEl.textContent = '初期化中...';
         logMessage('接続を開始しています...', 'info');
@@ -239,13 +240,15 @@ document.addEventListener('DOMContentLoaded', () => {
             context = await SkyWayContext.Create(token);
             console.log("✅ 2. SkyWayコンテキスト作成完了。");
 
-            console.log(`🔹 3. ルームID「${remoteRoomId}」を検索しています...`);
-            room = await SkyWayRoom.Find(context, {
+            console.log(`🔹 3. ルームID「${remoteRoomId}」に参加しています...`);
+            // ここを修正: FindではなくFindOrCreateを使用する
+            room = await SkyWayRoom.FindOrCreate(context, {
+                type: 'p2p',
                 name: remoteRoomId,
             });
 
             if (!room) {
-                throw new Error('指定されたルームが見つかりません');
+                throw new Error('指定されたルームへの参加に失敗しました');
             }
             console.log("✅ 3. ルーム参加準備完了。");
 
@@ -281,7 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = '接続完了！';
             showProceedButton();
             logMessage('🎉 ルームへの接続が完了しました！', 'success');
-
 
         } catch (error) {
             console.error('Failed to connect to room:', error);
