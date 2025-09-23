@@ -367,6 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
+        if (stream.data === undefined || stream.data === null) {
+            console.warn('⚠️ 無効なデータパケットを受信しました。処理をスキップします。');
+            return;
+        }
+
         stream.onData.add(async ({ data }) => {
             try {
                 // データがundefinedでないか、空でないかを確認
