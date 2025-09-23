@@ -135,6 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // シングルプレイかオンラインか
         if (isOnlineMode) {
+            // オンラインモードの場合は、まずパーティー情報を初期化
+            window.initializePlayerParty(selectedParty);
+
             // オンラインモードの場合は戦闘画面に遷移してから処理
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
@@ -159,6 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // クリーンなデータを相手に送信する
             const partyToSend = window.getPlayerParty();
+            if (!partyToSend) {
+                console.error('パーティー情報が見つかりません。');
+                return;
+            }
+
             const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
             partyDataForSend.forEach(member => {
                 if (member.passive) delete member.passive.desc;
@@ -202,8 +210,12 @@ document.addEventListener('DOMContentLoaded', () => {
     onlinePartyGoButton.addEventListener('click', () => {
         onlineScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
-        goButton.disabled = false; // パーティー編成画面に入るときにボタンを有効化
+        goButton.disabled = false;
+
+        // ここで直接パーティー情報の初期化は行わない。
+        // goButtonクリック時にgetSelectedParty()で選択されたものを初期化するのが正しい流れ。
     });
+
 
     // === SkyWay関連の関数 ===
 
