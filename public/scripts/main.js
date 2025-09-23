@@ -1,382 +1,222 @@
-// main.js (修正版)
-
-// SkyWay SDKはグローバル変数として読み込まれることを想定
-const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = window.skyway_room;
-
-let context = null;
-let room = null;
-let localPerson = null;
-let dataStream = null;
+// main.js
+let ws = null;
 let isHost = false;
 let isOnlineMode = false;
-
-// データストリームの準備ができたことを解決するPromise
-// cleanupSkyWayでリセットされるように、グローバルスコープで定義
-let resolveDataStreamReady = null;
-let dataStreamReadyPromise = new Promise(resolve => {
-    resolveDataStreamReady = resolve;
-});
-
-// UUID v4を生成する関数
-function generateUuidV4() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-    });
-}
-
-// ログ表示関数をグローバルに公開
-window.logMessage = (message, type) => {
-    const p = document.createElement('p');
-    p.textContent = message;
-    if (type) {
-        p.classList.add('log-message', type);
-    }
-    const messageLogEl = document.getElementById('message-log');
-    if (messageLogEl) {
-        messageLogEl.appendChild(p);
-        messageLogEl.scrollTop = messageLogEl.scrollHeight;
-    }
-};
+let roomId = '';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // === UI要素の取得 ===
     const startButton = document.getElementById('start-button');
-    const backButton = document.getElementById('back-button');
-    const goButton = document.getElementById('go-button');
     const onlineButton = document.getElementById('online-button');
-    const backToTitleButton = document.getElementById('back-to-title-button');
-    const showHostUiButton = document.getElementById('show-host-ui-button');
-    const showClientUiButton = document.getElementById('show-client-ui-button');
+    const backButton = document.getElementById('back-button');
+    const startAdventureButton = document.getElementById('go-button');
+    const onlineBattleGoButton = document.getElementById('online-battle-go-button');
+
+    const hostModeButton = document.getElementById('host-mode-button');
+    const joinModeButton = document.getElementById('join-mode-button');
+    const hostControls = document.getElementById('host-controls');
+    const joinControls = document.getElementById('join-controls');
+    const onlineModeSelect = document.getElementById('online-mode-select');
+
     const connectButton = document.getElementById('connect-button');
     const copyIdButton = document.getElementById('copy-id-button');
-    const onlinePartyGoButton = document.createElement('button');
-    const peerIdInput = document.getElementById('peer-id-input');
-    const myPeerIdEl = document.getElementById('my-peer-id');
-    const connectionStatusEl = document.getElementById('connection-status');
+    const backToTitleButton = document.getElementById('back-to-title-button');
 
     const titleScreen = document.getElementById('title-screen');
+    const onlineScreen = document.getElementById('online-screen');
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
-    const onlineScreen = document.getElementById('online-screen');
-    const modeSelection = document.getElementById('mode-selection');
-    const hostUi = document.getElementById('host-ui');
-    const clientUi = document.getElementById('client-ui');
 
-    onlinePartyGoButton.id = 'online-party-go-button';
-    onlinePartyGoButton.textContent = 'パーティー編成へ';
-    onlinePartyGoButton.className = 'proceed-button hidden';
-    document.querySelector('.online-controls').appendChild(onlinePartyGoButton);
+    const myPeerIdEl = document.getElementById('my-peer-id');
+    const peerIdInput = document.getElementById('peer-id-input');
+    const connectionStatusEl = document.getElementById('connection-status');
+    const goButton = document.getElementById('go-button');
 
-
-    // === イベントリスナー ===
-
+    // 「冒険開始」ボタン（シングルプレイ）
     startButton.addEventListener('click', () => {
         isOnlineMode = false;
         titleScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
     });
 
+    // 「オンライン対戦」ボタン
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-        modeSelection.classList.remove('hidden');
-        hostUi.classList.add('hidden');
-        clientUi.classList.add('hidden');
-        connectionStatusEl.textContent = 'モードを選択してください';
-        cleanupSkyWay();
     });
 
-    backButton.addEventListener('click', () => {
-        partyScreen.classList.add('hidden');
-        if (isOnlineMode) {
-            onlineScreen.classList.remove('hidden');
-        } else {
-            titleScreen.classList.remove('hidden');
+    // ホストモード選択
+    hostModeButton.addEventListener('click', async () => {
+        onlineModeSelect.classList.add('hidden');
+        hostControls.classList.remove('hidden');
+        isHost = true;
+        isOnlineMode = true;
+        await initializeWebSocket();
+    });
+
+    // 参加者モード選択
+    joinModeButton.addEventListener('click', () => {
+        onlineModeSelect.classList.add('hidden');
+        joinControls.classList.remove('hidden');
+        isHost = false;
+        isOnlineMode = true;
+        connectButton.disabled = false;
+        peerIdInput.addEventListener('input', () => {
+            connectButton.disabled = peerIdInput.value.length === 0;
+        });
+    });
+
+    // 接続ボタン
+    connectButton.addEventListener('click', async () => {
+        const targetId = peerIdInput.value;
+        if (targetId) {
+            connectionStatusEl.textContent = '接続中...';
+            await initializeWebSocket(targetId);
         }
     });
 
-    showHostUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        hostUi.classList.remove('hidden');
-        initializeAsHost();
+    // IDをコピーボタン
+    copyIdButton.addEventListener('click', () => {
+        if (myPeerIdEl.textContent) {
+            navigator.clipboard.writeText(myPeerIdEl.textContent);
+            connectionStatusEl.textContent = 'IDをコピーしました！';
+        }
     });
 
-    showClientUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        clientUi.classList.remove('hidden');
-        connectionStatusEl.textContent = '相手のルームIDを入力してください';
-    });
-
-    backToTitleButton.addEventListener('click', async () => {
+    // 戻るボタン
+    backButton.addEventListener('click', () => {
         onlineScreen.classList.add('hidden');
         titleScreen.classList.remove('hidden');
-        await cleanupSkyWay();
+        if (ws) {
+            ws.close();
+        }
     });
 
-    goButton.addEventListener('click', async () => {
-        const selectedParty = window.getSelectedParty();
-        if (!selectedParty) {
-            window.logMessage('パーティーメンバーを4人選択してください。', 'error');
-            return;
+    // タイトルへ戻るボタン（パーティ画面から）
+    backToTitleButton.addEventListener('click', () => {
+        partyScreen.classList.add('hidden');
+        titleScreen.classList.remove('hidden');
+        if (ws) {
+            ws.close();
         }
+    });
 
-        if (isOnlineMode) {
-            window.initializePlayerParty(selectedParty);
+    // 冒険開始ボタン（シングルプレイ）
+    startAdventureButton.addEventListener('click', () => {
+        if (window.startBattle) {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-
-            if (isHost) {
-                await new Promise(resolve => {
-                    room.onStreamPublished.once(async ({ publication }) => {
-                        if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                            const subscription = await localPerson.subscribe(publication.id);
-                            handleDataStream(subscription.stream);
-                            resolve();
-                        }
-                    });
-                });
-            } else {
-                window.sendData({ type: 'party_data', party: selectedParty });
-                logMessage('相手のパーティー情報を待機中...');
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        } else {
+            window.startBattle();
+        }
+    });
+    
+    // オンラインバトル開始ボタン
+    onlineBattleGoButton.addEventListener('click', () => {
+        if (window.startOnlineBattle) {
             partyScreen.classList.add('hidden');
+            onlineScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-            window.startBattle(selectedParty);
+            window.startOnlineBattle();
         }
     });
 
-    onlinePartyGoButton.addEventListener('click', () => {
-        onlineScreen.classList.add('hidden');
-        partyScreen.classList.remove('hidden');
-    });
-
-    peerIdInput.addEventListener('input', () => {
-        connectButton.disabled = peerIdInput.value.trim() === '';
-    });
-
-    copyIdButton.addEventListener('click', async () => {
-        if (myPeerIdEl.textContent) {
-            try {
-                await navigator.clipboard.writeText(myPeerIdEl.textContent);
-                window.logMessage('ルームIDをコピーしました！', 'success');
-            } catch (err) {
-                window.logMessage('IDのコピーに失敗しました。', 'error');
-                console.error('Failed to copy text:', err);
-            }
-        }
-    });
-
-    connectButton.addEventListener('click', () => {
-        const targetId = peerIdInput.value.trim();
-        if (targetId) {
-            joinRoom(targetId);
-        }
-    });
-
-    // === SkyWay関連の関数 ===
-
-    async function initializeAsHost() {
-        isOnlineMode = true;
-        isHost = true;
-        connectionStatusEl.textContent = 'トークンを取得中...';
-        copyIdButton.disabled = true;
-
+    async function initializeWebSocket(targetId = null) {
+        connectionStatusEl.textContent = '接続中...';
+        
         try {
-            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
-            if (!res.ok) throw new Error(`トークンサーバーからの応答が不正です: ${res.status}`);
-            const { token } = await res.json();
-            if (!token) throw new Error('トークンの取得に失敗しました。');
-
-            connectionStatusEl.textContent = 'ルームを作成中...';
-            context = await SkyWayContext.Create(token);
-
-            const roomName = generateUuidV4();
-            room = await SkyWayRoom.FindOrCreate(context, {
-                name: generateUuidV4(),
-                type: 'p2p',
-            });
-            localPerson = await room.attach();
-
-            myPeerIdEl.textContent = room.name;
-            copyIdButton.disabled = false;
-            connectionStatusEl.textContent = '相手の接続を待っています...';
-            console.log(`ルーム作成完了。ID: ${room.name}`);
-
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
-            resolveDataStreamReady();
-
-            room.onPersonJoined.once(async ({ person }) => {
-                window.logMessage(`${person.id} が入室しました！`, 'info');
-                connectionStatusEl.textContent = `${person.id} が接続しました。`;
-                // オンライン対戦を開始するボタンを表示
-                onlinePartyGoButton.classList.remove('hidden');
-            });
-
-            room.onStreamPublished.once(async ({ publication }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
+            const response = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
+            const data = await response.json();
+            const token = data.token;
+            
+            ws = new WebSocket('wss://command-battle-online2-8j5m.vercel.app/ws?token=' + token);
+            
+            ws.onopen = () => {
+                connectionStatusEl.textContent = '接続完了。';
+                if (isHost) {
+                    ws.send(JSON.stringify({ type: 'createRoom' }));
+                } else if (targetId) {
+                    ws.send(JSON.stringify({ type: 'joinRoom', roomId: targetId }));
                 }
-            });
-
-        } catch (error) {
-            console.error('ホストとしての初期化に失敗しました:', error);
-            window.logMessage('ホストとしての初期化に失敗しました。', 'error');
-            cleanupSkyWay();
-        }
-    }
-
-    async function joinRoom(roomId) {
-        isOnlineMode = true;
-        isHost = false;
-
-        console.log(`[Client] 接続開始: ルームID [${remoteRoomId}]`);
-        connectionStatusEl.textContent = '準備中...';
-        connectButton.disabled = true;
-
-        let isSuccess = false;
-
-        try {
-            console.log("[Client] ステップ1: トークンを取得します...");
-            connectionStatusEl.textContent = 'トークンを取得中...';
-            const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
-            if (!res.ok) throw new Error(`トークンサーバーエラー: ${res.status}`);
-            const { token } = await res.json();
-            if (!token) throw new Error('取得したトークンが無効です。');
-            console.log("[Client] ステップ1: トークン取得完了。");
-
-            console.log("[Client] ステップ2: SkyWayコンテキストを作成します...");
-            connectionStatusEl.textContent = 'SkyWayを初期化中...';
-            context = await SkyWayContext.Create(token);
-            console.log("[Client] ステップ2: SkyWayコンテキスト作成完了。");
-
-            console.log(`[Client] ステップ3: ルーム [${remoteRoomId}] に参加します...`);
-            connectionStatusEl.textContent = 'ルームに参加中...';
-
-            room = await SkyWayRoom.FindOrCreate(context, {
-                type: 'p2p',
-                name: remoteRoomId
-            });
-
-            console.log("[Client] ステップ3: ルーム参加処理完了。");
-
-            console.log("[Client] ステップ4: メンバーとしてjoinします...");
-            localPerson = await room.join();
-            console.log("[Client] ステップ4: メンバーとしてjoin完了。");
-
-            dataStream = await SkyWayStreamFactory.createDataStream();
-            await localPerson.publish(dataStream);
-            resolveDataStreamReady();
-
-            room.onStreamPublished.once(async ({ publication }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                }
-            });
-
-            const existingDataStream = room.publications.find(p => p.contentType === 'data' && p.publisher.id !== localPerson.id);
-            if (existingDataStream) {
-                const subscription = await localPerson.subscribe(existingDataStream.id);
-                handleDataStream(subscription.stream);
-            }
-
-        } catch (error) {
-            console.error('ルームへの参加に失敗しました:', error);
-            window.logMessage('ルームへの参加に失敗しました。', 'error');
-            cleanupSkyWay();
-        }
-    }
-
-    function handleDataStream(stream) {
-        stream.onData.add((event) => {
-            try {
+            };
+            
+            ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                console.log('Received data:', data);
-                // 統一されたアクション処理システム
+                handleReceivedData(data);
+            };
+
+            ws.onclose = () => {
+                connectionStatusEl.textContent = '接続が切断されました。';
+                onlineBattleGoButton.classList.add('hidden');
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+                connectionStatusEl.textContent = '接続エラーが発生しました。';
+            };
+            
+        } catch (error) {
+            console.error('通信エラー:', error);
+            connectionStatusEl.textContent = '通信エラーが発生しました。';
+        }
+    }
+
+    function handleReceivedData(data) {
+        switch (data.type) {
+            case 'roomCreated':
+                roomId = data.roomId;
+                myPeerIdEl.textContent = roomId;
+                copyIdButton.disabled = false;
+                connectionStatusEl.textContent = 'ルームが作成されました。相手の接続を待っています...';
+                break;
+            case 'roomJoined':
+                roomId = data.roomId;
+                if (!isHost) {
+                    myPeerIdEl.textContent = roomId;
+                    copyIdButton.disabled = false;
+                }
+                connectionStatusEl.textContent = `相手がルームに参加しました！`;
+                // 接続が確立したら、パーティ選択画面に遷移
+                onlineBattleGoButton.classList.remove('hidden');
+                goButton.disabled = true; // シングルプレイのGOボタンを無効化
+                titleScreen.classList.add('hidden');
+                partyScreen.classList.remove('hidden');
+                break;
+            case 'partyReady':
+            case 'playerAction':
+            case 'syncGameState':
+            case 'logMessage':
+            case 'battleEnd':
                 if (window.handleBattleAction) {
                     window.handleBattleAction(data);
-                } else {
-                    console.warn('handleBattleAction is not defined in battle.js');
                 }
-            } catch (e) {
-                console.error('受信したデータのパースに失敗しました。', e);
-            }
-        });
-        stream.onStateChanged.add((state) => {
-            console.log(`Data stream state: ${state}`);
-        });
-        stream.onClosed.add(() => {
-            window.logMessage('相手との接続が切断されました。', 'error');
-            cleanupSkyWay();
-        });
+                break;
+            default:
+                console.log('Unknown data type received:', data.type);
+                break;
+        }
     }
 
-    async function cleanupSkyWay() {
-        if (!context) return;
-        try {
-            if (localPerson) {
-                if (dataStream) {
-                    const publications = localPerson.publications.filter(p => p.stream === dataStream);
-                    for (const pub of publications) {
-                        await localPerson.unpublish(pub);
-                    }
-                    dataStream.destroy();
+    // データ送信関数をグローバルに公開
+    window.sendData = function (data) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const serializedData = JSON.stringify(data, (key, value) => {
+                if (typeof value === 'function') {
+                    return undefined; // functionタイプは除外
                 }
-                await localPerson.detach();
-            }
-            if (room) {
-                await room.close();
-            }
-            await context.dispose();
-        } catch (err) {
-            console.warn("⚠️ cleanupSkyWay エラー (無視してOK):", err);
-        } finally {
-            localPerson = null; room = null; context = null; dataStream = null;
-            isHost = false; isOnlineMode = false;
-            onlinePartyGoButton.classList.add('hidden');
-            myPeerIdEl.textContent = '';
-            connectionStatusEl.textContent = '';
-            peerIdInput.value = '';
-            goButton.disabled = false;
-
-            resolveDataStreamReady = null;
-            dataStreamReadyPromise = new Promise(resolve => {
-                resolveDataStreamReady = resolve;
+                return value;
             });
-            console.log("✅ cleanupSkyWay 完了");
-        }
-    }
-
-    window.sendData = async function (data) {
-        if (data === undefined || data === null || Object.keys(data).length === 0) {
-            console.warn('送信するデータが無効です (データが空です)。送信を中断します。', data);
-            return false;
-        }
-        if (!dataStream) {
-            console.warn('データストリームがまだ準備できていません。準備を待機します...');
-            await dataStreamReadyPromise;
-        }
-        try {
-            const serializedData = JSON.stringify(data);
-            dataStream.write(serializedData);
+            ws.send(serializedData);
             console.log('Sent data:', serializedData);
-            return true;
-        } catch (error) {
-            console.error('データ送信に失敗しました:', error);
-            return false;
+        } else {
+            console.warn('Connection not available for sending data');
         }
     };
 
+    // オンラインモード判定をグローバルに公開
     window.isOnlineMode = function () {
         return isOnlineMode;
     };
 
+    // ホスト判定をグローバルに公開
     window.isHost = function () {
         return isHost;
     };
