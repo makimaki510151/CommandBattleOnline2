@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const partyScreen = document.getElementById('party-screen');
     const onlineScreen = document.getElementById('online-screen');
     const onlineHostButton = document.getElementById('online-host-button');
-    const onlineClientButton = document.getElementById('online-client-button');
     const backToTitleButton = document.getElementById('back-to-title-button');
     const connectToRoomButton = document.getElementById('connect-to-room-button');
     const connectionStatusEl = document.getElementById('connection-status');
@@ -51,7 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const battleScreen = document.getElementById('battle-screen');
     const onlinePartyGoButton = document.getElementById('online-party-go-button');
     const remoteRoomIdInput = document.getElementById('remote-room-id-input');
-    const connectButton = document.getElementById('connect-button');
+    const peerInfoEl = document.querySelector('.peer-info'); // peer-info クラスを持つ要素を追加
+    const connectionControlsEl = document.querySelector('.connection-controls'); // connection-controls クラスを持つ要素を追加
 
     // 「冒険開始」ボタン（シングルプレイ）
     startButton.addEventListener('click', () => {
@@ -60,59 +60,48 @@ document.addEventListener('DOMContentLoaded', () => {
         isOnlineMode = false;
     });
 
-    connectButton.addEventListener('click', () => {
-        connectToRoom();
-    });
-
     // 「オンライン対戦」ボタン
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
         onlineScreen.classList.remove('hidden');
         isOnlineMode = true;
 
-        // ユーザーがホストかクライアントかを選択できるように、
-        // 接続コントロールの一部を一時的に非表示にします
+        // ホスト/クライアント選択のUIを表示
+        onlineHostButton.classList.remove('hidden');
+        connectionControlsEl.classList.remove('hidden');
+
+        // ホストモードのUIを非表示
         peerInfoEl.classList.add('hidden');
-        remoteRoomIdInput.classList.remove('hidden');
-        connectButton.classList.remove('hidden');
     });
 
-    // 「ホストとしてルーム作成」ボタン
+    // 「ホストとして開始」ボタン
     onlineHostButton.addEventListener('click', async () => {
-        // ホストとして初期化
         initializeSkyWay();
         onlineHostButton.classList.add('hidden');
 
         // ホストモードのUIを有効化
         peerInfoEl.classList.remove('hidden');
-        remoteRoomIdInput.classList.add('hidden');
-        connectButton.classList.add('hidden');
-    });
-
-    // 「クライアントとしてルーム接続」ボタン
-    onlineClientButton.addEventListener('click', () => {
-        onlineHostButton.classList.add('hidden');
-        onlineClientButton.classList.add('hidden');
-        remoteRoomIdInput.classList.remove('hidden');
-        connectToRoomButton.classList.remove('hidden');
-        copyIdButton.classList.add('hidden');
-    });
-
-    // 「戻る」ボタン
-    backToTitleButton.addEventListener('click', () => {
-        cleanupSkyWay();
-        onlineScreen.classList.add('hidden');
-        titleScreen.classList.remove('hidden');
+        connectionControlsEl.classList.add('hidden');
     });
 
     // 「接続」ボタン（クライアント）
     connectToRoomButton.addEventListener('click', () => {
         const remoteRoomId = remoteRoomIdInput.value;
         if (remoteRoomId) {
-            connectToRoom(remoteRoomId);
+            connectToRoom();
         } else {
             alert('ルームIDを入力してください。');
         }
+    });
+
+
+    // 「戻る」ボタン
+    backToTitleButton.addEventListener('click', () => {
+        cleanupSkyWay();
+        onlineScreen.classList.add('hidden');
+        titleScreen.classList.remove('hidden');
+        onlineHostButton.classList.remove('hidden');
+        connectionControlsEl.classList.remove('hidden');
     });
 
     // ルームIDをクリップボードにコピー
@@ -134,15 +123,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         partyScreen.classList.add('hidden');
+        battleScreen.classList.remove('hidden');
 
         if (isOnlineMode) {
-            onlineScreen.classList.add('hidden');
-            battleScreen.classList.remove('hidden');
             window.startOnlineBattle(selectedParty);
         } else {
-            battleScreen.classList.remove('hidden');
             window.startBattle(selectedParty);
         }
+    });
+
+    // パーティー編成画面へ進むボタン
+    onlinePartyGoButton.addEventListener('click', () => {
+        onlineScreen.classList.add('hidden');
+        partyScreen.classList.remove('hidden');
+        logMessage('パーティーを編成してください。');
     });
 
     // SkyWayを初期化し、ホストとしてルームを作成する
