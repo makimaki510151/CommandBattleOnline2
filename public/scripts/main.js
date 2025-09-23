@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         onlineScreen.classList.remove('hidden');
         
         // ホストとしてのUI設定
-        myPeerIdEl.textContent = '生成中...';
+        myPeerIdEl.textContent = 'IDを生成中...';
         peerIdInput.disabled = true;
         connectButton.disabled = true;
         copyIdButton.disabled = true;
@@ -194,30 +194,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: roomId,
                 type: 'sfu'
             });
+            
+            // 修正：roomオブジェクトが正常に作成されたか確認する
+            if (!room) {
+                throw new Error("Failed to create or find SkyWay room.");
+            }
 
-            // 修正1: イベントリスナーをjoin()呼び出しの前に設定する
-            room.onStreamSubscribed?.add((e) => {
-                if (e.stream.contentType === 'data') {
-                    dataStream = e.stream;
-                    dataStream.onData.add((message) => {
-                        const data = JSON.parse(new TextDecoder().decode(message));
-                        console.log("Received data:", data);
-                        window.handleBattleAction(data);
-                    });
-                    console.log("Data stream subscribed.");
-                    resolveDataStreamReady();
-                }
-            });
+            // イベントリスナーをjoin()呼び出しの前に設定する
+            if (room.onStreamSubscribed) {
+                room.onStreamSubscribed.add((e) => {
+                    if (e.stream.contentType === 'data') {
+                        dataStream = e.stream;
+                        dataStream.onData.add((message) => {
+                            const data = JSON.parse(new TextDecoder().decode(message));
+                            console.log("Received data:", data);
+                            window.handleBattleAction(data);
+                        });
+                        console.log("Data stream subscribed.");
+                        resolveDataStreamReady();
+                    }
+                });
+            } else {
+                console.warn("room.onStreamSubscribed is not available.");
+            }
+            
+            if (room.onPersonJoined) {
+                room.onPersonJoined.add((e) => {
+                    const isPeerJoined = room.getPersons().length === 2;
+                    if (isPeerJoined) {
+                        connectionStatusEl.textContent = '相手が参加しました！';
+                        onlinePartyGoButton.classList.remove('hidden');
+                    }
+                });
+            } else {
+                console.warn("room.onPersonJoined is not available.");
+            }
 
-            room.onPersonJoined.add((e) => {
-                const isPeerJoined = room.getPersons().length === 2;
-                if (isPeerJoined) {
-                    connectionStatusEl.textContent = '相手が参加しました！';
-                    onlinePartyGoButton.classList.remove('hidden');
-                }
-            });
-
-            // 修正2: room.join()の戻り値を変数に代入
             localPerson = await room.join();
 
             const localDataStream = await SkyWayStreamFactory.CreateDataStream();
