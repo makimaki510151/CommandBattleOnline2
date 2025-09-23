@@ -166,17 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
             copyIdButton.disabled = false;
 
             // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-            // 修正点：イベント名を onPersonJoined から onMemberJoined に変更
-            room.onMemberJoined.addOnce(async ({ member }) => {
+            // 修正点：メソッド名を addOnce から once に変更
+            room.onMemberJoined.once(async ({ member }) => {
                 // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 connectionStatusEl.textContent = `✅ 相手が接続しました！`;
                 onlinePartyGoButton.classList.remove('hidden');
                 window.sendData({ type: 'connection_established' });
 
-                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                // 修正点：引数名も person から member に合わせる
                 const { publication } = await room.waitForPublication({ publisher: member });
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 if (publication.contentType === 'data') {
                     const subscription = await localPerson.subscribe(publication.id);
                     handleDataStream(subscription.stream);
@@ -240,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
-        stream.onData.add(({ data }) => {
+        stream.onData.on(async ({ data }) => {
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
