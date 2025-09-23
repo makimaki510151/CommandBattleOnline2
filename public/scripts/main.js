@@ -316,6 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         proceedButton.addEventListener('click', () => {
+            // クライアントの場合、ホストに画面遷移をリクエスト
+            if (!isHost) {
+                console.log("🔹 クライアント: ホストにパーティー編成画面への遷移をリクエストします。");
+                window.sendData({ type: 'proceed_to_party' });
+            }
+
             onlineScreen.classList.add('hidden');
             partyScreen.classList.remove('hidden');
         });
@@ -338,11 +344,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // データストリームの受信ハンドラ
+    // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
+
+                // 新しいデータタイプ 'proceed_to_party' を追加
+                if (parsedData.type === 'proceed_to_party') {
+                    console.log("🟢 ホスト: クライアントからのパーティー編成画面への遷移リクエストを受信しました。");
+                    const onlineScreen = document.getElementById('online-screen');
+                    const partyScreen = document.getElementById('party-screen');
+                    if (onlineScreen && partyScreen) {
+                        onlineScreen.classList.add('hidden');
+                        partyScreen.classList.remove('hidden');
+                        logMessage('対戦相手がパーティー編成画面へ進みました。', 'info');
+                    }
+                    return; // 処理を終了
+                }
+
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
                     const onlineScreen = document.getElementById('online-screen');
