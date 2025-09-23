@@ -142,9 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
 
-            // データストリームが準備できるまで待機
-            await dataStreamReadyPromise;
-
             // ホストの場合、相手のストリーム購読を待つ
             if (isHost) {
                 // ホストは相手の参加とストリーム公開を待つ
@@ -160,6 +157,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
+            // データストリームが準備できるまで待機
+            await dataStreamReadyPromise;
+
+
             // クリーンなデータを相手に送信する
             const partyToSend = window.getPlayerParty();
             if (!partyToSend) {
@@ -174,13 +175,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (member.special) delete member.special.desc;
             });
 
-            logMessage('相手にパーティー情報を送信しています...');
-            console.log('送信するパーティーデータ:', partyDataForSend);
-
-            // クリーンなデータを相手に送信する
-            const sendResult = await window.sendData({ type: 'party_ready', party: partyDataForSend });
-            console.log('パーティー情報送信完了');
-            logMessage('パーティー情報を送信しました。相手の準備を待っています...');
+            // データ送信
+            const sent = await window.sendData({ type: 'party_ready', party: partyDataForSend });
+            if (sent) {
+                console.log('パーティー情報送信完了');
+                window.logMessage('パーティー情報を送信しました。相手の準備を待っています...');
+            } else {
+                console.error('パーティー情報の送信に失敗しました。');
+                window.logMessage('パーティー情報の送信に失敗しました。', 'error');
+            }
         } else {
             // シングルプレイの場合は戦闘画面に遷移してから戦闘開始
             partyScreen.classList.add('hidden');
