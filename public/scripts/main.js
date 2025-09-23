@@ -220,17 +220,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // SkyWayルームにクライアントとして接続する
     async function connectToRoom(remoteRoomId) {
-        if (context) return;
+        if (context) {
+            console.log("⚠️ 接続が既に確立しているため、スキップします。");
+            return;
+        }
         isOnlineMode = true;
         connectionStatusEl.textContent = '初期化中...';
+        logMessage('接続を開始しています...', 'info');
 
         try {
+            console.log("🔹 1. トークンをフェッチしています...");
             const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
+            console.log("✅ 1. トークン取得完了。");
 
+            console.log("🔹 2. SkyWayコンテキストを作成しています...");
             context = await SkyWayContext.Create(token);
+            console.log("✅ 2. SkyWayコンテキスト作成完了。");
 
+            console.log(`🔹 3. ルームID「${remoteRoomId}」を検索しています...`);
             room = await SkyWayRoom.Find(context, {
                 name: remoteRoomId,
             });
@@ -238,32 +247,41 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!room) {
                 throw new Error('指定されたルームが見つかりません');
             }
+            console.log("✅ 3. ルーム参加準備完了。");
 
+            console.log("🔹 4. ルームに参加しています...");
             localPerson = await room.join();
+            if (!localPerson) {
+                throw new Error('ルームへの参加に失敗しました');
+            }
+            console.log("✅ 4. ルーム参加完了。");
+
+            console.log("🔹 5. データストリームを公開しています...");
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
+            console.log("✅ 5. データストリーム公開完了。");
 
             isHost = false;
 
             // 相手がストリームを公開するのを待つ
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+            if (room.onStreamPublished) {
+                room.onStreamPublished.add(async ({ publication }) => {
+                    if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                        const subscription = await localPerson.subscribe(publication.id);
+                        handleDataStream(subscription.stream);
+                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+                        isOnlineMode = true;
+                        connectionStatusEl.textContent = '接続完了！';
+                        showProceedButton();
+                    }
+                });
+            }
 
-                    // 接続完了後の処理
-                    isOnlineMode = true;
-                    connectionStatusEl.textContent = '接続完了！';
-                    showProceedButton();
-                }
-            });
-
-            // クライアント側も接続が確立した時点でボタン表示
-            // （onStreamPublishedが発火しない場合でもUIが進むようにする）
             isOnlineMode = true;
             connectionStatusEl.textContent = '接続完了！';
             showProceedButton();
+            logMessage('🎉 ルームへの接続が完了しました！', 'success');
+
 
         } catch (error) {
             console.error('Failed to connect to room:', error);
