@@ -126,68 +126,41 @@ document.addEventListener('DOMContentLoaded', () => {
         await cleanupSkyWay(); // 画面を離れる際に必ずクリーンアップ
     });
 
-    goButton.addEventListener('click', async () => { // asyncを追加
-        const selectedParty = window.getSelectedParty();
-        if (selectedParty.length < 1) {
-            alert('パーティーは1人以上で編成してください。');
+    goButton.addEventListener('click', async () => {
+        const selectedParty = getSelectedParty();
+        if (!selectedParty) {
+            logMessage('パーティーメンバーを4人選択してください。', 'error');
             return;
         }
 
-        // 先に画面を遷移させる
-        partyScreen.classList.add('hidden');
-        battleScreen.classList.remove('hidden');
-
+        // シングルプレイかオンラインか
         if (isOnlineMode) {
             window.initializePlayerParty(selectedParty);
-
             const partyToSend = window.getPlayerParty();
 
-            if (!partyToSend || !Array.isArray(partyToSend) || partyToSend.length === 0) {
-                console.error('送信するパーティーデータが無効、または空です。送信を中止しました。', partyToSend);
-                logMessage('エラー: パーティーデータの準備に失敗しました。', 'error');
-                return;
-            }
-
-            // ★★★ ここから修正を追加 ★★★
-            // 送信データ量を削減するため、戦闘に不要な情報を削除する
-
-            // 1. 元のデータを壊さないように、ディープコピーを作成
+            // 不要なプロパティを削除
             const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
-
-            // 2. コピーしたデータから不要なプロパティを削除
             partyDataForSend.forEach(member => {
-                if (member.passive) {
-                    delete member.passive.desc;
-                    delete member.passive.flavor;
-                }
-                if (member.active) {
-                    member.active.forEach(skill => {
-                        delete skill.desc;
-                        delete skill.flavor;
-                    });
-                }
-                if (member.special) {
-                    delete member.special.desc;
-                    delete member.special.flavor;
-                }
+                if (member.passive) delete member.passive.desc;
+                if (member.active) member.active.forEach(skill => delete skill.desc);
+                if (member.special) delete member.special.desc;
             });
-            // ★★★ ここまで修正を追加 ★★★
 
-            // 2. データストリームが準備できるまで待機
-            logMessage('データストリームの準備を待っています...');
-            await dataStreamReadyPromise; // データストリームが確立されるまで待機
-            logMessage('データストリームの準備ができました。');
+            // 自分の準備完了を通知
+            window.setMyPartyReady(true); // ★★★ 自分の準備完了フラグを立てる処理を追加 ★★★
+            logMessage('自分のパーティー情報の準備ができました。');
 
-            // 3. クリーンなデータを相手に送信する
+            // データストリームが準備できるまで待機
+            await dataStreamReadyPromise;
+
+            // クリーンなデータを相手に送信する
             window.sendData({ type: 'party_ready', party: partyDataForSend });
-
-            // 4. ログに待機中メッセージを表示
             logMessage('相手の準備を待っています...');
         } else {
-            // シングルプレイはそのまま
             window.startBattle(selectedParty);
         }
     });
+
 
 
     connectButton.addEventListener('click', () => {
@@ -387,8 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
-                    // ★★★ この部分を修正 ★★★
-                    window.onOpponentPartyReady(parsedData.party);
+                    logMessage('対戦相手のパーティー情報を受信しました。');
+                    window.handleOpponentParty(parsedData.party);
+                    window.setOpponentPartyReady(true); // ★★★ 相手の準備完了フラグを立てる処理を追加 ★★★
                 } else if (parsedData.type === 'log_message') {
                     window.logMessage(parsedData.message, parsedData.messageType);
                 } else if (parsedData.type === 'execute_action') {

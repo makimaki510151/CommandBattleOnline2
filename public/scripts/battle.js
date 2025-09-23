@@ -166,32 +166,32 @@ window.onOpponentPartyReady = (partyData) => {
     checkBothPartiesReady();
 };
 
-// 両方のパーティーが準備完了かチェックし、戦闘を開始
-function checkBothPartiesReady() {
-    if (myPartyReady && opponentPartyReady) {
-        logMessage('両者の準備が完了しました。戦闘開始！');
-        startOnlineBattle();
-    }
-}
+// // 両方のパーティーが準備完了かチェックし、戦闘を開始
+// function checkBothPartiesReady() {
+//     if (myPartyReady && opponentPartyReady) {
+//         logMessage('両者の準備が完了しました。戦闘開始！');
+//         startOnlineBattle();
+//     }
+// }
 
-// オンラインプレイ用：両者の準備が整ったら戦闘開始
-function startOnlineBattle() {
-    if (!playerParty || !opponentParty) {
-        console.error("両方のパーティーの準備が整っていません。\nplayerParty: ", playerParty, "\nopponentParty: ", opponentParty);
-        return;
-    }
-    isBattleOngoing = true;
-    currentTurn = 0;
+// // オンラインプレイ用：両者の準備が整ったら戦闘開始
+// function startOnlineBattle() {
+//     if (!playerParty || !opponentParty) {
+//         console.error("両方のパーティーの準備が整っていません。\nplayerParty: ", playerParty, "\nopponentParty: ", opponentParty);
+//         return;
+//     }
+//     isBattleOngoing = true;
+//     currentTurn = 0;
 
-    // 相手のパーティーが既に描画されていることを確認
-    if (enemyPartyEl.querySelector('.waiting-message')) {
-        renderParty(enemyPartyEl, opponentParty, true);
-    }
+//     // 相手のパーティーが既に描画されていることを確認
+//     if (enemyPartyEl.querySelector('.waiting-message')) {
+//         renderParty(enemyPartyEl, opponentParty, true);
+//     }
 
-    // ターン管理キューを初期化して戦闘開始
-    initializeTurnQueue();
-    nextTurn();
-}
+//     // ターン管理キューを初期化して戦闘開始
+//     initializeTurnQueue();
+//     nextTurn();
+// }
 
 // シングルプレイ用：次の敵グループとの戦闘を開始
 let currentGroupIndex = 0; // グローバル変数として定義
@@ -759,6 +759,50 @@ function handleGameLose() {
     logMessage('戦闘敗北...', 'lose');
     commandAreaEl.classList.add('hidden');
     // 必要に応じてゲームオーバー画面などへ遷移
+}
+
+// 自分の準備完了フラグを立てる関数
+window.setMyPartyReady = (isReady) => {
+    myPartyReady = isReady;
+    checkBothPartiesReady();
+};
+
+// 相手の準備完了フラグを立てる関数
+window.setOpponentPartyReady = (isReady) => {
+    opponentPartyReady = isReady;
+    checkBothPartiesReady();
+};
+
+// 両者の準備完了をチェックして戦闘を開始
+function checkBothPartiesReady() {
+    if (myPartyReady && opponentPartyReady) {
+        logMessage('両者の準備が整いました！');
+
+        if (window.isHost()) {
+            // ★★★ ホストのみが戦闘開始をトリガーする ★★★
+            logMessage('ホストとして戦闘を開始します。');
+            startOnlineBattle();
+        } else {
+            // ★★★ クライアントはホストからの同期を待つ ★★★
+            logMessage('ホストからの同期を待っています...');
+        }
+    }
+}
+
+// オンライン対戦の開始関数
+function startOnlineBattle() {
+    // 画面切り替え
+    partyScreen.classList.add('hidden');
+    battleScreenEl.classList.remove('hidden');
+
+    isBattleOngoing = true;
+
+    // UIを初期化
+    renderParty(playerPartyEl, playerParty);
+    renderParty(enemyPartyEl, opponentParty, true); // 相手パーティーを表示
+
+    // 最初のターン開始
+    nextTurn();
 }
 
 // --- Global Access for main.js ---
