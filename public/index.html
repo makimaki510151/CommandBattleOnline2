@@ -26,26 +26,47 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <div class="connection-mode">
-                <button id="online-host-button">ホストとして開始</button>
+            <!-- ホスト/クライアント選択 -->
+            <div id="connection-mode-selection">
+                <button id="online-host-button">ホストとしてルームを作成</button>
                 <p>または</p>
+                <button id="online-join-button">既存のルームに参加</button>
             </div>
-            <div class="connection-controls">
-                <p>相手のルームIDを入力</p>
-                <input type="text" id="remote-room-id-input" placeholder="ルームID">
-                <button id="connect-button">接続</button>
+
+            <!-- ホスト用UI -->
+            <div id="host-info" class="hidden">
+                <div class="peer-info">
+                    <p>以下のルームIDを相手に伝えてください。</p>
+                    <p id="my-peer-id"></p>
+                    <button id="copy-id-button" disabled>IDをコピー</button>
+                </div>
+                <p id="host-connection-status">対戦相手の参加を待っています...</p>
             </div>
-            <div class="connection-status">
-                <p id="connection-status-text"></p>
+
+            <!-- クライアント用UI -->
+            <div id="client-controls" class="hidden">
+                <div class="connection-controls">
+                    <p>ホストのルームIDを入力してください。</p>
+                    <input type="text" id="remote-room-id-input" placeholder="ルームID">
+                    <button id="connect-button">接続</button>
+                </div>
+                <p id="client-connection-status"></p>
             </div>
-            <p id="my-peer-id"></p>
+
+            <!-- 接続後に表示 -->
+            <button id="online-party-go-button" class="proceed-button hidden">パーティー編成へ</button>
         </div>
         <button id="back-to-title-button">タイトルに戻る</button>
     </div>
 
+
     <div id="party-screen" class="hidden">
-        <header class="game-header">
-            <h1 class="game-title">パーティー編成</h1>
+        <header class="party-header">
+            <h1>パーティー編成</h1>
+            <div class="header-buttons">
+                <button id="back-button" class="action-button">戻る</button>
+                <button id="go-button" class="action-button">冒険へ</button>
+            </div>
         </header>
         <div class="main-content">
             <div class="character-pane">
@@ -70,10 +91,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="party-controls">
-            <button id="back-button">戻る</button>
-            <button id="go-button">冒険へ</button>
         </div>
     </div>
 

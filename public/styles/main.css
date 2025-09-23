@@ -1,15 +1,19 @@
 body {
-    background-color: #e0f7fa; /* 明るい水色 */
-    color: #333; /* 濃い灰色 */
+    background-color: #e0f7fa;
+    /* 明るい水色 */
+    color: #333;
+    /* 濃い灰色 */
     font-family: 'Arial', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh; /* `height`を`min-height`に変更 */
+    min-height: 100vh;
+    /* `height`を`min-height`に変更 */
     margin: 0;
 }
 
-#title-screen, #online-screen {
+#title-screen,
+#online-screen {
     text-align: center;
     background-color: #fff;
     padding: 40px 60px;
@@ -19,20 +23,27 @@ body {
 
 .game-title {
     font-size: 3em;
-    color: #4db6ac; /* 少し濃い目の緑 */
+    color: #4db6ac;
+    /* 少し濃い目の緑 */
     margin-bottom: 30px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.controls, .online-controls {
+.controls,
+.online-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 20px;
 }
 
-#start-button, #online-button, #connect-button, #copy-id-button, #back-to-title-button {
-    background-color: #81c784; /* 明るい緑 */
+#start-button,
+#online-button,
+#connect-button,
+#copy-id-button,
+#back-to-title-button {
+    background-color: #81c784;
+    /* 明るい緑 */
     color: white;
     font-size: 1.5em;
     padding: 15px 30px;
@@ -42,11 +53,16 @@ body {
     transition: background-color 0.3s ease;
 }
 
-#start-button:hover, #online-button:hover, #connect-button:hover, #copy-id-button:hover, #back-to-title-button:hover {
+#start-button:hover,
+#online-button:hover,
+#connect-button:hover,
+#copy-id-button:hover,
+#back-to-title-button:hover {
     background-color: #66bb6a;
 }
 
-#connect-button:disabled, #copy-id-button:disabled {
+#connect-button:disabled,
+#copy-id-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
 }
@@ -60,15 +76,18 @@ body {
 #volume-slider {
     width: 200px;
     cursor: pointer;
-    accent-color: #66bb6a; /* スライダーの色 */
+    accent-color: #66bb6a;
+    /* スライダーの色 */
 }
 
 .hidden {
-  display: none !important;
+    display: none !important;
 }
 
 /* オンライン対戦画面のスタイル */
-.peer-info, .connection-controls, .connection-status {
+.peer-info,
+.connection-controls,
+.connection-status {
     margin: 20px 0;
     padding: 15px;
     background-color: #f5f5f5;
@@ -101,9 +120,11 @@ body {
     0% {
         box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
     }
+
     50% {
         box-shadow: 0 8px 16px rgba(255, 107, 53, 0.6);
     }
+
     100% {
         box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
     }
@@ -132,3 +153,61 @@ body {
     left: 100%;
 }
 
+#online-screen .online-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+}
+
+#connection-mode-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+#host-info,
+#client-controls {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+#host-info .peer-info {
+    background-color: #f0f8ff;
+    border: 1px solid #add8e6;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+#my-peer-id {
+    font-family: monospace;
+    font-size: 1.2em;
+    color: #0056b3;
+    background-color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    word-break: break-all;
+    margin: 10px 0;
+}
+
+#host-connection-status,
+#client-connection-status {
+    font-weight: bold;
+    min-height: 24px;
+    /* メッセージの有無でレイアウトが崩れないように */
+}
+
+#online-party-go-button {
+    margin-top: 20px !important;
+    background-color: #ff6347;
+    /* トマト色 */
+    animation: pulse 1.5s infinite;
+}
+
+#online-party-go-button:hover {
+    background-color: #e55337;
+}
