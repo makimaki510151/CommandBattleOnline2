@@ -74,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelector('.online-controls').appendChild(onlinePartyGoButton);
 
-
     // === イベントリスナー ===
 
     startButton.addEventListener('click', () => {
@@ -82,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         titleScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
     });
+    
     // 「オンライン対戦」ボタン -> モード選択画面を表示
     onlineButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
@@ -146,9 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (member.special) delete member.special.desc;
             });
 
-            // 自分の準備完了を通知
-            window.setMyPartyReady(true); // ★★★ 自分の準備完了フラグを立てる処理を追加 ★★★
-            logMessage('自分のパーティー情報の準備ができました。');
+            logMessage('相手にパーティー情報を送信しています...');
 
             // データストリームが準備できるまで待機
             await dataStreamReadyPromise;
@@ -161,8 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-
     connectButton.addEventListener('click', () => {
         const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
@@ -171,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('接続先のIDを入力してください。');
         }
     });
-
 
     copyIdButton.addEventListener('click', () => {
         const roomId = myPeerIdEl.textContent;
@@ -187,7 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
         partyScreen.classList.remove('hidden');
         goButton.disabled = false; // パーティー編成画面に入るときにボタンを有効化
     });
-
 
     // === SkyWay関連の関数 ===
 
@@ -337,7 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         if (stream.data === undefined || stream.data === null) {
@@ -362,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (parsedData.type === 'party_ready') {
                     logMessage('対戦相手のパーティー情報を受信しました。');
                     window.handleOpponentParty(parsedData.party);
-                    window.setOpponentPartyReady(true); // ★★★ 相手の準備完了フラグを立てる処理を追加 ★★★
                 } else if (parsedData.type === 'log_message') {
                     window.logMessage(parsedData.message, parsedData.messageType);
                 } else if (parsedData.type === 'execute_action') {
@@ -373,13 +365,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.handleBattleAction(parsedData);
                 } else if (parsedData.type === 'battle_end') {
                     window.handleBattleAction(parsedData);
+                } else if (parsedData.type === 'start_battle') {
+                    window.handleBattleAction(parsedData);
                 }
             } catch (error) {
                 console.error('受信データの解析または処理に失敗しました:', error);
             }
         });
     }
-
 
     // SkyWayリソースのクリーンアップ
     async function cleanupSkyWay() {
@@ -432,9 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-
     window.isOnlineMode = () => isOnlineMode;
     window.isHost = () => isHost;
 });
-
-
