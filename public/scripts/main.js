@@ -387,9 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (parsedData.type === 'connection_established') {
                     onlinePartyGoButton.classList.remove('hidden');
                 } else if (parsedData.type === 'party_ready') {
-                    // 相手のパーティー情報を battle.js に渡し、相手の準備完了を通知
-                    window.handleOpponentParty(parsedData.party);
-                    window.setOpponentPartyReady(true); // ★★★ ここを修正 ★★★
+                    // ★★★ この部分を修正 ★★★
+                    window.onOpponentPartyReady(parsedData.party);
                 } else if (parsedData.type === 'log_message') {
                     window.logMessage(parsedData.message, parsedData.messageType);
                 } else if (parsedData.type === 'execute_action') {

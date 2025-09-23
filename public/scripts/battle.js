@@ -149,6 +149,23 @@ window.setOpponentPartyReady = (isReady) => { // ★★★ ここを修正 ★�
     checkBothPartiesReady();
 };
 
+// オンラインプレイ用：相手のパーティー情報を処理し、準備完了を通知する
+window.onOpponentPartyReady = (partyData) => {
+    // 相手のパーティーを初期化し、画面に描画
+    if (!partyData || !Array.isArray(partyData)) {
+        console.error('受信した相手のパーティーデータが無効です。', partyData);
+        logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
+        return;
+    }
+    opponentParty = partyData.map(p => createInitialPartyMember(p, window.isHost() ? 'client' : 'host'));
+    logMessage('相手のパーティー情報を受信しました！');
+    renderParty(enemyPartyEl, opponentParty, true);
+
+    // 準備完了フラグを立てて、戦闘開始をチェック
+    opponentPartyReady = true;
+    checkBothPartiesReady();
+};
+
 // 両方のパーティーが準備完了かチェックし、戦闘を開始
 function checkBothPartiesReady() {
     if (myPartyReady && opponentPartyReady) {
