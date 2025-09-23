@@ -99,10 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「接続」ボタン（クライアントとしてルーム参加）
     connectButton.addEventListener('click', () => {
-        console.log("✅ 接続ボタン押された");
         const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
-            console.log("入力されたルームID:", remoteRoomId);
             connectToRoom(remoteRoomId);
         } else {
             alert('接続先のIDを入力してください。');
@@ -230,18 +228,12 @@ document.addEventListener('DOMContentLoaded', () => {
         logMessage('接続を開始しています...', 'info');
 
         try {
-            console.log("🔹 1. トークンをフェッチしています...");
             const res = await fetch('https://command-battle-online2-8j5m.vercel.app/api/token');
             const { token } = await res.json();
             if (!token) throw new Error('トークンの取得に失敗しました。');
-            console.log("✅ 1. トークン取得完了。");
 
-            console.log("🔹 2. SkyWayコンテキストを作成しています...");
             context = await SkyWayContext.Create(token);
-            console.log("✅ 2. SkyWayコンテキスト作成完了。");
 
-            console.log(`🔹 3. ルームID「${remoteRoomId}」に参加しています...`);
-            // ここを修正: FindではなくFindOrCreateを使用する
             room = await SkyWayRoom.FindOrCreate(context, {
                 type: 'p2p',
                 name: remoteRoomId,
@@ -250,36 +242,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!room) {
                 throw new Error('指定されたルームへの参加に失敗しました');
             }
-            console.log("✅ 3. ルーム参加準備完了。");
 
-            console.log("🔹 4. ルームに参加しています...");
             localPerson = await room.join();
-            if (!localPerson) {
-                throw new Error('ルームへの参加に失敗しました');
-            }
-            console.log("✅ 4. ルーム参加完了。");
-
-            console.log("🔹 5. データストリームを公開しています...");
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
-            console.log("✅ 5. データストリーム公開完了。");
 
             isHost = false;
 
             // 相手がストリームを公開するのを待つ
-            if (room.onStreamPublished) {
-                room.onStreamPublished.add(async ({ publication }) => {
-                    if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                        const subscription = await localPerson.subscribe(publication.id);
-                        handleDataStream(subscription.stream);
-                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-                        isOnlineMode = true;
-                        connectionStatusEl.textContent = '接続完了！';
-                        showProceedButton();
-                    }
-                });
-            }
+            room.onStreamPublished.add(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
+                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
 
+                    // 接続完了後の処理
+                    isOnlineMode = true;
+                    connectionStatusEl.textContent = '接続完了！';
+                    showProceedButton();
+                }
+            });
+            
             isOnlineMode = true;
             connectionStatusEl.textContent = '接続完了！';
             showProceedButton();
@@ -315,15 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
             animation: pulse 2s infinite;
         `;
 
+        // 共通の画面遷移ロジック
         proceedButton.addEventListener('click', () => {
-            // クライアントの場合、ホストに画面遷移をリクエスト
-            if (!isHost) {
-                console.log("🔹 クライアント: ホストにパーティー編成画面への遷移をリクエストします。");
-                window.sendData({ type: 'proceed_to_party' });
+            const onlineScreen = document.getElementById('online-screen');
+            const partyScreen = document.getElementById('party-screen');
+            if (onlineScreen && partyScreen) {
+                onlineScreen.classList.add('hidden');
+                partyScreen.classList.remove('hidden');
             }
-
-            onlineScreen.classList.add('hidden');
-            partyScreen.classList.remove('hidden');
         });
 
         proceedButton.addEventListener('mouseenter', () => {
@@ -344,26 +326,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // データストリームの受信ハンドラ
-    // データストリームの受信ハンドラ
     function handleDataStream(stream) {
         stream.onData.add(({ data }) => {
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
-
-                // 新しいデータタイプ 'proceed_to_party' を追加
-                if (parsedData.type === 'proceed_to_party') {
-                    console.log("🟢 ホスト: クライアントからのパーティー編成画面への遷移リクエストを受信しました。");
-                    const onlineScreen = document.getElementById('online-screen');
-                    const partyScreen = document.getElementById('party-screen');
-                    if (onlineScreen && partyScreen) {
-                        onlineScreen.classList.add('hidden');
-                        partyScreen.classList.remove('hidden');
-                        logMessage('対戦相手がパーティー編成画面へ進みました。', 'info');
-                    }
-                    return; // 処理を終了
-                }
-
+                
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
                     const onlineScreen = document.getElementById('online-screen');
