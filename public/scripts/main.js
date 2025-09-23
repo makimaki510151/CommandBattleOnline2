@@ -325,8 +325,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('データストリーム購読開始:', stream);
         stream.onData.add(async ({ data }) => {
             try {
-                if (!data || data === 'undefined' || data === '') {
-                    console.error('無効なデータが受信されました: ', data);
+                if (!data) {
+                    console.error('無効なデータが受信されました: データが空かnullです。', data);
+                    return;
+                }
+                if (data === 'undefined' || data === '') {
+                    console.error('無効なデータが受信されました: 空文字列または"undefined"です。', data);
                     return;
                 }
                 console.log('生データ受信:', data);
@@ -385,8 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.sendData = async function (data) {
-        if (data === undefined || data === null) {
-            console.warn('送信するデータが無効です:', data);
+        if (data === undefined || data === null || Object.keys(data).length === 0) {
+            console.warn('送信するデータが無効です (データが空です)。送信を中断します。', data);
             return false;
         }
         if (!dataStream) {
