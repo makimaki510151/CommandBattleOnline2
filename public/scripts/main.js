@@ -325,10 +325,17 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('データストリーム購読開始:', stream);
         stream.onData.add(async ({ data }) => {
             try {
+                // 受信データがundefined, null, または文字列でない、空文字列、あるいは文字列"undefined"の場合は処理を中断
                 if (typeof data !== 'string' || data.trim() === '') {
-                    console.error('無効なデータが受信されました: データが文字列ではないか空です。', data);
+                    console.error('無効なデータが受信されました: undefined, null, 文字列ではない、または空です。', data);
                     return;
                 }
+                // 文字列"undefined"または"null"が送られてきた場合は、JSONパースせずに処理を中断
+                if (data === 'undefined' || data === 'null') {
+                    console.warn('受信データが文字列の"undefined"または"null"です。JSONパースをスキップします。', data);
+                    return;
+                }
+
                 let parsedData;
                 try {
                     parsedData = JSON.parse(data);
@@ -390,24 +397,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.sendData = async function (data) {
-        if (data === undefined || data === null) {
-            console.warn("送信するデータが無効です (undefinedまたはnull)。送信を中断します。", data);
+
+
+        if (data === undefined || data === null || (typeof data === 'object' && Object.keys(data).length === 0)) {
+            console.warn("送信するデータが無効です (undefined, null, または空のオブジェクト)。送信を中断します。", data);
             return false;
         }
-        if (typeof data === 'object' && Object.keys(data).length === 0) {
-            console.warn("送信するデータが空のオブジェクトです。送信を中断します。", data);
-            return false;
-        }
+
         if (!dataStream) {
             console.warn('データストリームがまだ準備できていません。準備を待機します...');
             await dataStreamReadyPromise;
         }
         try {
             const serializedData = JSON.stringify(data);
-            if (serializedData === undefined) {
-                console.warn('送信するデータがundefinedです。送信を中断します。', data);
-                return false;
-            }
+
+
             dataStream.write(serializedData);
             console.log('Sent data:', serializedData);
             return true;
