@@ -789,8 +789,19 @@ function checkBothPartiesReady() {
     }
 }
 
-// オンライン対戦の開始関数
 function startOnlineBattle() {
+    // ★★★ ここにDOM要素の取得処理を追加 ★★★
+    const battleScreenEl = document.getElementById('battle-screen');
+    const partyScreen = document.getElementById('party-screen');
+    const playerPartyEl = document.getElementById('player-party');
+    const enemyPartyEl = document.getElementById('enemy-party');
+
+    // DOM要素が取得できたかチェック
+    if (!battleScreenEl || !partyScreen || !playerPartyEl || !enemyPartyEl) {
+        console.error('必要なDOM要素が見つかりませんでした。');
+        return;
+    }
+
     // 画面切り替え
     partyScreen.classList.add('hidden');
     battleScreenEl.classList.remove('hidden');
