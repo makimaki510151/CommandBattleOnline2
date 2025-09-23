@@ -120,7 +120,7 @@ async function startBattle(partyMembers) {
 
     // 自分のパーティーを初期化
     currentPlayerParty = initializeParty(partyMembers, 'player');
-    
+
     // シングルプレイの場合は最初の敵グループから開始
     currentGroupIndex = 0;
     await startNextGroup();
@@ -142,7 +142,7 @@ function initializePlayerParty(partyData) {
 // オンライン対戦用：相手のパーティー情報を受け取る
 function handleOpponentParty(partyData) {
     console.log('handleOpponentParty呼び出し:', partyData);
-    
+
     if (!partyData || !Array.isArray(partyData)) {
         console.error('受信した相手のパーティーデータが無効です。', partyData);
         logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
@@ -172,11 +172,11 @@ function handleOpponentParty(partyData) {
 
     console.log('相手のパーティー初期化完了:', opponentParty);
     logMessage('相手のパーティー情報を受信しました！');
-    
+
     console.log('相手パーティーの描画開始');
     renderParty(enemyPartyEl, opponentParty, true);
     console.log('相手パーティーの描画完了');
-    
+
     opponentPartyReady = true;
     console.log('フラグ状態 - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
     checkBothPartiesReady();
@@ -186,11 +186,11 @@ function handleOpponentParty(partyData) {
 function checkBothPartiesReady() {
     console.log('checkBothPartiesReady呼び出し - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
     console.log('isHost:', window.isHost());
-    
+
     if (myPartyReady && opponentPartyReady) {
         console.log('両者の準備が完了しました');
         logMessage('両者の準備が完了しました。');
-        
+
         if (window.isHost()) {
             // ホストのみが戦闘開始をトリガーする
             console.log('ホストとして戦闘開始処理を実行');
@@ -214,7 +214,7 @@ async function startOnlineBattle() {
     currentTurn = 0;
 
     logMessage('戦闘開始！');
-    
+
     // 戦闘ループを開始
     await battleLoop();
 }
@@ -223,7 +223,7 @@ async function startOnlineBattle() {
 function startBattleClientSide() {
     if (isBattleOngoing) return;
     logMessage('ホストが戦闘を開始しました。');
-    
+
     // 画面遷移は既にmain.jsで実行済みなので、戦闘フラグのみ設定
     isBattleOngoing = true;
     currentTurn = 0;
@@ -315,18 +315,18 @@ async function battleLoop() {
                 resetHighlights(); // シングルプレイではターンの最後にハイライトをリセット
             }
         }
-        
+
         // ターン終了時の効果処理
         processEndTurnEffects(aliveCombatants);
         applyEndTurnPassiveAbilities(aliveCombatants);
         updateAllDisplays();
-        
+
         // ターン終了後に再度勝敗判定（自己修復などで状況が変わる可能性があるため）
         if (isBattleOver()) {
             handleBattleEnd();
             break;
         }
-        
+
         currentTurn++;
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -476,7 +476,7 @@ async function playerTurn(player) {
                 if (window.isOnlineMode()) {
                     window.sendData({ type: 'execute_action', ...actionData });
                 }
-                
+
                 // 自分自身でもアクションを実行
                 executeAction(actionData);
                 resolve(); // playerTurnのPromiseを解決
@@ -504,10 +504,10 @@ async function enemyTurn(enemy) {
 // --- Action Execution ---
 
 function executeAction(data) {
-    const allCombatants = window.isOnlineMode() 
-        ? [...currentPlayerParty, ...opponentParty] 
+    const allCombatants = window.isOnlineMode()
+        ? [...currentPlayerParty, ...opponentParty]
         : [...currentPlayerParty, ...currentEnemies];
-    
+
     const actor = allCombatants.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) {
         console.warn('Actor not found:', data.actorUniqueId);
