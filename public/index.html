@@ -27,71 +27,59 @@
         <h2>オンライン対戦</h2>
         <div class="online-controls">
 
-            <!-- ★★★ モード選択エリア (最初だけ表示) ★★★ -->
             <div id="mode-selection">
                 <button id="show-host-ui-button">ホストとしてルームを作成</button>
                 <p>または</p>
                 <button id="show-client-ui-button">既存のルームに参加</button>
             </div>
 
-            <!-- ★★★ ホスト用UI (最初は非表示) ★★★ -->
             <div id="host-ui" class="hidden">
                 <div class="peer-info">
-                    <p>あなたのルームID:</p>
-                    <p id="my-peer-id"></p>
+                    <p>あなたのルームID: <span id="my-peer-id">接続中...</span></p>
                     <button id="copy-id-button" disabled>IDをコピー</button>
                 </div>
+                <div class="connection-status">
+                    <p id="connection-status">相手の接続を待っています...</p>
+                    <button id="back-to-title-button">タイトルに戻る</button>
+                </div>
             </div>
 
-            <!-- ★★★ クライアント用UI (最初は非表示) ★★★ -->
             <div id="client-ui" class="hidden">
                 <div class="connection-controls">
-                    <p>相手のルームIDを入力</p>
-                    <input type="text" id="peer-id-input" placeholder="ルームID">
-                    <button id="connect-button">接続</button>
+                    <p id="connection-status">相手のルームIDを入力してください</p>
+                    <input type="text" id="peer-id-input" placeholder="相手のIDを入力">
+                    <button id="connect-button" disabled>接続</button>
                 </div>
             </div>
 
-            <!-- 接続状態表示 (共通) -->
-            <div class="connection-status">
-                <p id="connection-status"></p>
-            </div>
-
-            <!-- 「パーティー編成へ」ボタンはJSによって動的に追加されます -->
+            <button id="online-party-go-button" class="proceed-button hidden">パーティー編成へ</button>
+            
         </div>
-        <button id="back-to-title-button">タイトルに戻る</button>
     </div>
 
-
     <div id="party-screen" class="hidden">
-        <header class="party-header">
-            <h1>パーティー編成</h1>
-            <div class="header-buttons">
-                <button id="back-button" class="action-button">戻る</button>
-                <button id="go-button" class="action-button">冒険へ</button>
-            </div>
+        <header class="game-header">
+            <button id="back-button">戻る</button>
         </header>
-        <div class="main-content">
-            <div class="character-pane">
-                <h3>キャラクターリスト</h3>
-                <div id="character-list">
+
+        <div class="party-container">
+            <div id="go-button-area">
+                <button id="go-button">出かける</button>
+            </div>
+            <div class="party-selection">
+                <div id="character-list" class="character-area">
+                </div>
+                <div id="party-slots" class="party-area">
+                    <div class="party-slot" data-slot-id="0"></div>
+                    <div class="party-slot" data-slot-id="1"></div>
+                    <div class="party-slot" data-slot-id="2"></div>
+                    <div class="party-slot" data-slot-id="3"></div>
                 </div>
             </div>
-            <div class="right-pane">
-                <div class="party-pane">
-                    <h3>パーティーメンバー</h3>
-                    <div class="party-slots">
-                        <div class="party-slot" data-slot-id="0"></div>
-                        <div class="party-slot" data-slot-id="1"></div>
-                        <div class="party-slot" data-slot-id="2"></div>
-                        <div class="party-slot" data-slot-id="3"></div>
-                    </div>
-                </div>
-                <div id="character-details">
-                    <h3>詳細情報</h3>
-                    <div id="details-content">
-                        <p class="placeholder">キャラクターを選択してください</p>
-                    </div>
+            <div id="character-details">
+                <h3>詳細情報</h3>
+                <div id="details-content">
+                    <p class="placeholder">キャラクターを選択してください</p>
                 </div>
             </div>
         </div>

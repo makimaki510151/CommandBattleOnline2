@@ -124,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isOnlineMode) {
             window.initializePlayerParty(selectedParty);
-
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
 
@@ -138,30 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                 });
-            }
-
-            await dataStreamReadyPromise;
-
-            const partyToSend = window.getPlayerParty();
-            if (!partyToSend) {
-                console.error('パーティー情報が見つかりません。');
-                return;
-            }
-
-            const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
-            partyDataForSend.forEach(member => {
-                if (member.passive) delete member.passive.desc;
-                if (member.active) member.active.forEach(skill => delete skill.desc);
-                if (member.special) delete member.special.desc;
-            });
-
-            const sent = await window.sendData({ type: 'party_ready', party: partyDataForSend });
-            if (sent) {
-                console.log('パーティー情報送信完了');
-                window.logMessage('パーティー情報を送信しました。相手の準備を待っています...');
             } else {
-                console.error('パーティー情報の送信に失敗しました。');
-                window.logMessage('パーティー情報の送信に失敗しました。', 'error');
+                window.sendData({ type: 'party_data', party: selectedParty });
+                logMessage('相手のパーティー情報を待機中...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         } else {
             partyScreen.classList.add('hidden');
@@ -170,35 +149,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    connectButton.addEventListener('click', () => {
-        const remoteRoomId = peerIdInput.value;
-        if (remoteRoomId) {
-            connectToRoom(remoteRoomId);
-        } else {
-            alert('接続先のIDを入力してください。');
-        }
-    });
-
-    copyIdButton.addEventListener('click', () => {
-        const roomId = myPeerIdEl.textContent;
-        if (roomId) {
-            navigator.clipboard.writeText(roomId)
-                .then(() => alert('IDがクリップボードにコピーされました！'))
-                .catch(err => console.error('コピーに失敗しました', err));
-        }
-    });
-
     onlinePartyGoButton.addEventListener('click', () => {
         onlineScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
-        goButton.disabled = false;
     });
 
+    peerIdInput.addEventListener('input', () => {
+        connectButton.disabled = peerIdInput.value.trim() === '';
+    });
+
+    copyIdButton.addEventListener('click', async () => {
+        if (myPeerIdEl.textContent) {
+            try {
+                await navigator.clipboard.writeText(myPeerIdEl.textContent);
+                window.logMessage('ルームIDをコピーしました！', 'success');
+            } catch (err) {
+                window.logMessage('IDのコピーに失敗しました。', 'error');
+                console.error('Failed to copy text:', err);
+            }
+        }
+    });
+
+    connectButton.addEventListener('click', () => {
+        const targetId = peerIdInput.value.trim();
+        if (targetId) {
+            joinRoom(targetId);
+        }
+    });
 
     // === SkyWay関連の関数 ===
 
     async function initializeAsHost() {
-        if (context) return;
         isOnlineMode = true;
         isHost = true;
         connectionStatusEl.textContent = 'トークンを取得中...';
@@ -215,46 +196,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const roomName = generateUuidV4();
             room = await SkyWayRoom.FindOrCreate(context, {
+                name: generateUuidV4(),
                 type: 'p2p',
-                name: roomName,
             });
-
-            localPerson = await room.join();
+            localPerson = await room.attach();
 
             myPeerIdEl.textContent = room.name;
-            connectionStatusEl.textContent = '相手の接続を待っています...';
             copyIdButton.disabled = false;
-
-            room.onMemberJoined.once(async ({ member }) => {
-                connectionStatusEl.textContent = `✅ 相手が接続しました！`;
-                onlinePartyGoButton.classList.remove('hidden');
-                window.sendData({ type: 'connection_established' });
-            });
-
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.publisher.id === localPerson.id) return;
-                if (publication.contentType !== 'data') return;
-                const subscription = await localPerson.subscribe(publication.id);
-                handleDataStream(subscription.stream);
-                console.log(`[Host] クライアント (${publication.publisher.id}) のストリームを購読しました。`);
-            });
+            connectionStatusEl.textContent = '相手の接続を待っています...';
+            console.log(`ルーム作成完了。ID: ${room.name}`);
 
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
             resolveDataStreamReady();
 
+            room.onPersonJoined.once(async ({ person }) => {
+                window.logMessage(`${person.id} が入室しました！`, 'info');
+                connectionStatusEl.textContent = `${person.id} が接続しました。`;
+                // オンライン対戦を開始するボタンを表示
+                onlinePartyGoButton.classList.remove('hidden');
+            });
+
+            room.onStreamPublished.once(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
+                }
+            });
+
         } catch (error) {
-            console.error('ホスト初期化エラー:', error);
-            connectionStatusEl.textContent = `エラー: ${error.message}`;
-            await cleanupSkyWay();
+            console.error('ホストとしての初期化に失敗しました:', error);
+            window.logMessage('ホストとしての初期化に失敗しました。', 'error');
+            cleanupSkyWay();
         }
     }
 
-    async function connectToRoom(remoteRoomId) {
-        if (context) {
-            console.warn("既に接続処理が実行中のため、中断します。");
-            return;
-        }
+    async function joinRoom(roomId) {
         isOnlineMode = true;
         isHost = false;
 
@@ -296,79 +273,67 @@ document.addEventListener('DOMContentLoaded', () => {
             await localPerson.publish(dataStream);
             resolveDataStreamReady();
 
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.publisher.id === localPerson.id) return;
-                if (publication.contentType !== 'data') return;
-                const subscription = await localPerson.subscribe(publication.id);
-                handleDataStream(subscription.stream);
-                console.log(`[Client] ホスト (${publication.publisher.id}) のストリームを購読しました。`);
+            room.onStreamPublished.once(async ({ publication }) => {
+                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                    const subscription = await localPerson.subscribe(publication.id);
+                    handleDataStream(subscription.stream);
+                }
             });
 
-            console.log("[Client] 全ての接続処理が完了しました。");
-            connectionStatusEl.textContent = '✅ 接続完了！';
-            onlinePartyGoButton.classList.remove('hidden');
-
-            isSuccess = true;
+            const existingDataStream = room.publications.find(p => p.contentType === 'data' && p.publisher.id !== localPerson.id);
+            if (existingDataStream) {
+                const subscription = await localPerson.subscribe(existingDataStream.id);
+                handleDataStream(subscription.stream);
+            }
 
         } catch (error) {
-            console.error('クライアント接続エラー:', error);
-            connectionStatusEl.textContent = `❌ エラー: ${error.message}`;
-            await cleanupSkyWay();
-        } finally {
-            if (!isSuccess) {
-                connectButton.disabled = false;
-            }
+            console.error('ルームへの参加に失敗しました:', error);
+            window.logMessage('ルームへの参加に失敗しました。', 'error');
+            cleanupSkyWay();
         }
     }
 
     function handleDataStream(stream) {
-        console.log('データストリーム購読開始:', stream);
-        stream.onData.add(async ({ data }) => {
+        stream.onData.add((event) => {
             try {
-                if (!data) {
-                    console.error('無効なデータが受信されました: データが空かnullです。', data);
-                    return;
+                const data = JSON.parse(event.data);
+                console.log('Received data:', data);
+                // 統一されたアクション処理システム
+                if (window.handleBattleAction) {
+                    window.handleBattleAction(data);
+                } else {
+                    console.warn('handleBattleAction is not defined in battle.js');
                 }
-                if (data === 'undefined' || data === '') {
-                    console.error('無効なデータが受信されました: 空文字列または"undefined"です。', data);
-                    return;
-                }
-                console.log('生データ受信:', data);
-                const parsedData = JSON.parse(data);
-                console.log('Received data:', parsedData);
-
-                if (parsedData.type === 'connection_established') {
-                    onlinePartyGoButton.classList.remove('hidden');
-                } else if (parsedData.type === 'party_ready') {
-                    console.log('相手のパーティー情報を受信:', parsedData.party);
-                    window.logMessage('対戦相手のパーティー情報を受信しました。');
-                    window.handleOpponentParty(parsedData.party);
-                    window.checkBothPartiesReady();
-                } else if (parsedData.type === 'log_message') {
-                    window.logMessage(parsedData.message, parsedData.messageType);
-                } else if (parsedData.type === 'execute_action') {
-                    window.executeAction(parsedData);
-                } else if (parsedData.type === 'action_result') {
-                    window.handleActionResult(parsedData);
-                } else if (parsedData.type === 'sync_game_state') {
-                    window.handleBattleAction(parsedData);
-                } else if (parsedData.type === 'battle_end') {
-                    window.handleBattleAction(parsedData);
-                } else if (parsedData.type === 'start_battle') {
-                    window.handleBattleAction(parsedData);
-                }
-            } catch (error) {
-                console.error('受信データの解析または処理に失敗しました:', error);
+            } catch (e) {
+                console.error('受信したデータのパースに失敗しました。', e);
             }
+        });
+        stream.onStateChanged.add((state) => {
+            console.log(`Data stream state: ${state}`);
+        });
+        stream.onClosed.add(() => {
+            window.logMessage('相手との接続が切断されました。', 'error');
+            cleanupSkyWay();
         });
     }
 
     async function cleanupSkyWay() {
-        console.log("🧹 cleanupSkyWay 実行");
+        if (!context) return;
         try {
-            if (localPerson) await localPerson.leave();
-            if (room) await room.close();
-            if (context) await context.dispose();
+            if (localPerson) {
+                if (dataStream) {
+                    const publications = localPerson.publications.filter(p => p.stream === dataStream);
+                    for (const pub of publications) {
+                        await localPerson.unpublish(pub);
+                    }
+                    dataStream.destroy();
+                }
+                await localPerson.detach();
+            }
+            if (room) {
+                await room.close();
+            }
+            await context.dispose();
         } catch (err) {
             console.warn("⚠️ cleanupSkyWay エラー (無視してOK):", err);
         } finally {
@@ -408,6 +373,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.isOnlineMode = () => isOnlineMode;
-    window.isHost = () => isHost;
+    window.isOnlineMode = function () {
+        return isOnlineMode;
+    };
+
+    window.isHost = function () {
+        return isHost;
+    };
 });
