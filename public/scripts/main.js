@@ -99,8 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「接続」ボタン（クライアントとしてルーム参加）
     connectButton.addEventListener('click', () => {
+        console.log("✅ 接続ボタン押された");
         const remoteRoomId = peerIdInput.value;
         if (remoteRoomId) {
+            console.log("入力されたルームID:", remoteRoomId);
             connectToRoom(remoteRoomId);
         } else {
             alert('接続先のIDを入力してください。');
@@ -137,21 +139,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: `game_room_${roomId}`,
             });
 
-            // roomがnullでないか確認する
             if (!room) {
                 throw new Error('ルームが作成できませんでした');
             }
 
             isHost = true;
 
-            // localPersonがnullでないか確認する
-            localPerson = await room.join();
-            if (!localPerson) {
-                throw new Error('ルームへの参加に失敗しました');
-            }
-
             // メンバー入室時のイベントリスナー
-            // roomがnull/undefinedでないことを確認してからaddを呼び出す
             if (room.onMemberJoined) {
                 room.onMemberJoined.add(async (e) => {
                     logMessage('対戦相手が入室しました。');
@@ -160,17 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             const subscription = await localPerson.subscribe(publication.id);
                             handleDataStream(subscription.stream);
                             logMessage('✅ 相手のデータストリームを購読しました。', 'success');
-                            isOnlineMode = true;
-                            connectionStatusEl.textContent = '接続完了！';
-                            showProceedButton();
                         }
                     }
                 });
             }
 
-
             // ストリーム公開時のイベントリスナー
-            // roomがnull/undefinedでないことを確認してからaddを呼び出す
             if (room.onStreamPublished) {
                 room.onStreamPublished.add(async ({ publication }) => {
                     if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
@@ -181,15 +170,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            dataStream = await SkyWayStreamFactory.createDataStream();
-
-            // publicationがnull/undefinedでないか確認する
-            const publication = await localPerson.publish(dataStream);
-            if (!publication) {
-                throw new Error('ストリームの公開に失敗しました');
+            localPerson = await room.join();
+            if (!localPerson) {
+                throw new Error('ルームへの参加に失敗しました');
             }
+            dataStream = await SkyWayStreamFactory.createDataStream();
+            const publication = await localPerson.publish(dataStream);
 
-            // publicationがnull/undefinedでないことを確認してからaddを呼び出す
             if (publication.onSubscriptionStarted) {
                 publication.onSubscriptionStarted.add((e) => {
                     console.log("🟢 ホスト: 自身のデータストリームの購読が開始されました。");
@@ -207,6 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = 'ルームID: ' + room.name;
             logMessage('ホストとしてルームを作成しました。対戦相手の参加を待っています...', 'success');
             copyIdButton.disabled = false;
+
+            // 修正箇所: ホスト側の接続が完了した時点でボタンを表示
+            showProceedButton();
 
         } catch (error) {
             console.error('Failed to initialize SkyWay:', error);
@@ -244,27 +234,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             localPerson = await room.join();
+            if (!localPerson) {
+                throw new Error('ルームへの参加に失敗しました');
+            }
             dataStream = await SkyWayStreamFactory.createDataStream();
             await localPerson.publish(dataStream);
 
             isHost = false;
 
             // 相手がストリームを公開するのを待つ
-            room.onStreamPublished.add(async ({ publication }) => {
-                if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
-                    const subscription = await localPerson.subscribe(publication.id);
-                    handleDataStream(subscription.stream);
-                    logMessage('✅ 相手のデータストリームを購読しました。', 'success');
+            if (room.onStreamPublished) {
+                room.onStreamPublished.add(async ({ publication }) => {
+                    if (publication.contentType === 'data' && publication.publisher.id !== localPerson.id) {
+                        const subscription = await localPerson.subscribe(publication.id);
+                        handleDataStream(subscription.stream);
+                        logMessage('✅ 相手のデータストリームを購読しました。', 'success');
 
-                    // 接続完了後の処理
-                    isOnlineMode = true;
-                    connectionStatusEl.textContent = '接続完了！';
-                    showProceedButton();
-                }
-            });
-            
-            isOnlineMode = true;
-            connectionStatusEl.textContent = '接続完了！';
+                        // 修正箇所: クライアント側の接続が完了した時点でボタンを表示
+                        isOnlineMode = true;
+                        connectionStatusEl.textContent = '接続完了！';
+                        showProceedButton();
+                        logMessage('🎉 ルームへの接続が完了しました！', 'success');
+                    }
+                });
+            }
+
+            // 接続完了したタイミングでボタンを表示
             showProceedButton();
             logMessage('🎉 ルームへの接続が完了しました！', 'success');
 
@@ -331,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const parsedData = JSON.parse(data);
                 console.log('Received data:', parsedData);
-                
+
                 if (parsedData.type === 'party_data') {
                     window.handleOpponentParty(parsedData.party);
                     const onlineScreen = document.getElementById('online-screen');
