@@ -2,7 +2,7 @@
 
 // グローバル変数と定数
 const STUN_SERVER = 'stun:stun.l.google.com:19302';
-const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com/'; // ここをあなたのVercelデプロイURLに置き換えてください
+const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com'; // ここをあなたのVercelデプロイURLに置き換えてください
 
 let socket = null;
 let peerConnection = null;
