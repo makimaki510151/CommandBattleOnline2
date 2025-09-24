@@ -41,6 +41,9 @@ function logMessage(message, type = '') {
 }
 
 function deepCopy(obj) {
+    if (obj === undefined) {
+        return undefined;
+    }
     return JSON.parse(JSON.stringify(obj));
 }
 
@@ -164,7 +167,7 @@ function startOnlineBattleClientSide(initialState) {
     logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
 
     // ホストから送られてきた相手のパーティーを設定
-    opponentParty = data.opponentParty;
+    opponentParty = initialState.opponentParty;
     // 自分のパーティーはローカルで初期化済みのものを使用
     currentPlayerParty = window.getPlayerParty();
 
@@ -449,31 +452,69 @@ window.executeAction = (data) => {
 
 };
 
-function performAttack(attacker, target) {
-    logMessage(`${attacker.name}の攻撃！`);
-    let attackPower = attacker.status.atk;
-    let defensePower = target.status.def;
+function calculateDamage(attacker, target, isMagic = false) {
+    let attackPower;
+    let defensePower;
+    let damageMultiplier = 1;
+    let isCritical = false;
+    let isDodged = false;
+
+    if (isMagic) {
+        attackPower = attacker.status.matk;
+        defensePower = target.status.mdef;
+    } else {
+        attackPower = attacker.status.atk;
+        defensePower = target.status.def;
+    }
+
+    // 防御状態の処理
     if (target.isDefending) {
         defensePower *= 2;
         target.isDefending = false;
-        logMessage(`${target.name}は防御している！`, 'defend');
     }
-    let damage = Math.max(0, attackPower - defensePower);
-    let isCritical = false;
-    if (Math.random() < (attacker.status.critRate || 0.1)) {
+
+    // 回避判定
+    if (Math.random() < target.status.dodgeRate) {
+        isDodged = true;
+        return { damage: 0, critical: false, dodged: true };
+    }
+
+    // クリティカル判定
+    let criticalRate = attacker.status.criticalRate;
+    if (criticalPassiveEffects[attacker.originalId]) {
+        criticalRate = criticalPassiveEffects[attacker.originalId](attacker, target, criticalRate);
+    }
+
+    if (Math.random() < criticalRate) {
         isCritical = true;
-        damage = Math.floor(damage * (attacker.status.critDamage || 1.5));
-        logMessage('会心の一撃！', 'critical');
+        damageMultiplier *= attacker.status.criticalMultiplier;
     }
-    damage = applyDamagePassiveEffects(attacker, target, damage);
-    if (isCritical) {
-        criticalPassiveEffects(attacker, target, logMessage);
+
+    // ダメージ計算
+    let damage = Math.max(1, Math.floor((attackPower * damageMultiplier) - (defensePower / 2)));
+
+    // パッシブ効果によるダメージ調整
+    if (damagePassiveEffects[attacker.originalId]) {
+        damage = damagePassiveEffects[attacker.originalId](attacker, target, damage, !isMagic);
     }
-    target.status.hp -= damage;
-    logMessage(`${target.name}に${damage}のダメージ！`, 'damage');
-    if (target.status.hp <= 0) {
-        target.status.hp = 0;
-        logMessage(`${target.name}は倒れた...`, 'fainted');
+
+    return { damage, critical: isCritical, dodged: isDodged };
+}
+
+function performAttack(attacker, target) {
+    logMessage(`${attacker.name}の攻撃！`);
+    const { damage, critical, dodged } = calculateDamage(attacker, target, false);
+
+    if (dodged) {
+        logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+    } else {
+        if (critical) logMessage(`会心の一撃！`, 'special-event');
+        logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+        target.status.hp = Math.max(0, target.status.hp - damage);
+        if (target.status.hp <= 0) {
+            target.status.hp = 0;
+            logMessage(`${target.name}は倒れた...`, 'fainted');
+        }
     }
     updateAllDisplays();
 }
@@ -616,7 +657,7 @@ function executeSkill(actor, skill) {
     const effectFunc = skillEffects[skill.id];
     if (effectFunc) {
         const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-        return effectFunc(actor, currentPlayerParty, targets, selectTarget, logMessage);
+        return effectFunc(actor, targets, calculateDamage, logMessage);
     }
     return false;
 }
@@ -625,7 +666,7 @@ function executeSpecial(actor, special) {
     const effectFunc = skillEffects[special.id];
     if (effectFunc) {
         const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-        return effectFunc(actor, currentPlayerParty, targets, selectTarget, logMessage);
+        return effectFunc(actor, targets, calculateDamage, logMessage);
     }
     return false;
 }

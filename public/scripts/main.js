@@ -277,11 +277,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // パーティー編成に進むボタンのイベントリスナー
     if (onlinePartyGoButton) {
         onlinePartyGoButton.addEventListener('click', () => {
-            // キャラクターIDの文字列配列をキャラクターオブジェクトの配列に変換
-            const playerPartyData = ["char01", "char02", "char03", "char04"].map(id => characters.find(char => char.id === id));
-            const opponentPartyData = ["char05", "char06", "char07", "char08"].map(id => characters.find(char => char.id === id));
+            const playerPartyData = window.getSelectedParty();
             window.initializePlayerParty(playerPartyData);
-            window.handleOpponentParty(opponentPartyData);
             if (onlineScreen) onlineScreen.classList.add('hidden');
             if (document.getElementById('party-screen')) document.getElementById('party-screen').classList.remove('hidden');
             if (goButton) goButton.disabled = false;
@@ -387,7 +384,7 @@ function handleDataChannelMessage(event) {
         if (eventType === 'sync_party') {
             window.handleOpponentParty(eventData);
         } else if (eventType === 'start_battle') {
-            window.startBattleWithOpponentParty(eventData.initialState.opponentParty);
+            window.startOnlineBattleClientSide(eventData.initialState);
         } else if (eventType === 'execute_action') {
             window.executeAction(eventData);
         } else if (eventType === 'sync_game_state') {
