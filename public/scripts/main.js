@@ -210,12 +210,18 @@ async function connectToSignalingServer(roomId) {
     socket.on('connect', () => {
         console.log('シグナリングサーバー接続成功');
         socket.emit('joinRoom', roomId);
+        console.log(`ルーム ${roomId} に参加リクエストを送信しました。`);
         window.logMessage(`ルーム ${roomId} に参加リクエストを送信しました。`, 'info');
         window.logMessage('シグナリングサーバーに接続しました。');
 
         // ホストの場合はここでPeerConnectionのセットアップを開始
+        console.log(`isHostの値: ${isHost}`);
         if (isHost) {
+            console.log("ホストとしてPeerConnectionのセットアップを開始します。");
             setupPeerConnection();
+            console.log("setupPeerConnection()が呼び出されました。");
+        } else {
+            console.log("クライアントモードのため、PeerConnectionのセットアップはシグナル受信時に行われます。");
         }
     });
 
@@ -268,9 +274,11 @@ async function connectToSignalingServer(roomId) {
 }
 
 function setupPeerConnection() {
+    console.log("PeerConnectionのセットアップを開始します。");
     peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: STUN_SERVER }]
     });
+    console.log("PeerConnectionが初期化されました。");
 
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
