@@ -1,4 +1,5 @@
-// main.js (オンライン同期強化版)
+// main.js (オンライン同期強化版・再修正)
+
 const PUSHER_APP_KEY = 'a2fd55b8bc4f266ae242';
 const PUSHER_CLUSTER = 'ap3';
 
@@ -6,11 +7,18 @@ let pusher = null;
 let channel = null;
 let isOnlineMode = false;
 let myRoomId = null;
+let resolveDataStreamReady = null;
+let dataStreamReadyPromise = null;
 
 window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => channel && channel.name === myRoomId;
 
-window.logMessage = (message, type) => {
+window.logMessage = (message, type = '') => {
+    if (window.isOnlineMode() && !window.isHost()) {
+        // クライアントモードの場合は、ログ表示をサーバーからのメッセージに任せる
+        return;
+    }
+
     const p = document.createElement('p');
     p.textContent = message;
     if (type) {
@@ -20,6 +28,11 @@ window.logMessage = (message, type) => {
     if (messageLogEl) {
         messageLogEl.appendChild(p);
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
+    }
+
+    if (window.isOnlineMode() && window.isHost()) {
+        // ホストの場合は、ログをクライアントに送信
+        window.sendData('log_message', { message: message, messageType: type });
     }
 };
 
@@ -32,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const showHostUiButton = document.getElementById('show-host-ui-button');
     const showClientUiButton = document.getElementById('show-client-ui-button');
     const connectButton = document.getElementById('connect-button');
-    const startHostConnectionButton = document.getElementById('start-host-connection-button'); // 追加
+    const startHostConnectionButton = document.getElementById('start-host-connection-button');
     const copyIdButton = document.getElementById('copy-id-button');
     const onlinePartyGoButton = document.createElement('button');
     const peerIdInput = document.getElementById('peer-id-input');
@@ -119,10 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isOnlineMode) {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-
+            
             window.initializePlayerParty(selectedParty);
             const partyToSend = window.getPlayerParty();
-
+            
             if (!partyToSend) {
                 console.error('パーティー情報が見つかりません。');
                 return;
@@ -197,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('チャンネル購読成功');
             connectionStatusEl.textContent = '✅ 接続完了！';
             onlinePartyGoButton.classList.remove('hidden');
-            // 接続完了後、ホストがクライアントへ接続完了を通知する
             if (window.isHost()) {
                 window.sendData('connection_established', {});
             }
@@ -208,8 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.logMessage('チャンネルへの接続に失敗しました。ルームIDを確認してください。', 'error');
             cleanupPusher();
         });
-
-        // ★★★ 修正箇所: 各イベントを個別に購読するように変更 ★★★
+        
         channel.bind('client-connection_established', (data) => {
             console.log('Received data: client-connection_established', data);
             onlinePartyGoButton.classList.remove('hidden');
@@ -220,12 +231,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         channel.bind('client-party_ready', (data) => {
             console.log('相手のパーティー情報を受信:', data.party);
-            window.logMessage('対戦相手のパーティー情報を受信しました！');
             window.handleOpponentParty(data.party);
         });
 
         channel.bind('client-log_message', (data) => {
-            window.logMessage(data.message, data.messageType);
+            const p = document.createElement('p');
+            p.textContent = data.message;
+            if (data.messageType) {
+                p.classList.add('log-message', data.messageType);
+            }
+            const messageLogEl = document.getElementById('message-log');
+            if (messageLogEl) {
+                messageLogEl.appendChild(p);
+                messageLogEl.scrollTop = messageLogEl.scrollHeight;
+            }
         });
 
         channel.bind('client-execute_action', (data) => {
@@ -243,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
         channel.bind('client-start_battle', (data) => {
             window.handleBattleAction(data);
         });
-        // ★★★ 修正箇所ここまで ★★★
     }
 
     function cleanupPusher() {
@@ -259,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         channel = null;
         isOnlineMode = false;
         myRoomId = null;
-
+        
         onlinePartyGoButton.classList.add('hidden');
         myPeerIdEl.textContent = '';
         connectionStatusEl.textContent = '';
@@ -273,9 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('チャンネルがまだ準備できていないか、許可されていないタイプです。');
             return false;
         }
-
+        
         const eventName = `client-${eventType}`;
-
+        
         try {
             channel.trigger(eventName, data);
             console.log('Sent data:', eventName, data);

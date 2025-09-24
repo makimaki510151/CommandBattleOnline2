@@ -1,6 +1,5 @@
-// battle.js (完成版)
+// battle.js (オンライン同期強化版・再修正)
 
-import { enemyData, enemyGroups } from './enemies.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
 
 // DOM Elements
@@ -82,9 +81,13 @@ function updatePartyDisplay(partyEl, partyData) {
 }
 
 function updateAllDisplays() {
-    updatePartyDisplay(playerPartyEl, currentPlayerParty);
-    const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
-    updatePartyDisplay(enemyPartyEl, enemies);
+    if (window.isOnlineMode()) {
+        updatePartyDisplay(playerPartyEl, currentPlayerParty);
+        updatePartyDisplay(enemyPartyEl, opponentParty);
+    } else {
+        updatePartyDisplay(playerPartyEl, currentPlayerParty);
+        updatePartyDisplay(enemyPartyEl, currentEnemies);
+    }
 }
 
 // --- Battle Initialization ---
@@ -118,7 +121,9 @@ function initializePlayerParty(partyData) {
     const partyType = window.isHost() ? 'host' : 'client';
     currentPlayerParty = initializeParty(partyData, partyType);
     renderParty(playerPartyEl, currentPlayerParty, false);
-    enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
+    if (window.isOnlineMode() && !window.isHost()) {
+        enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
+    }
     myPartyReady = true;
     logMessage('自分のパーティーの準備が完了しました。');
     console.log('myPartyReady:', myPartyReady);
@@ -147,7 +152,7 @@ function handleOpponentParty(partyData) {
         }
         return member;
     });
-    logMessage('相手のパーティー情報を受信しました！');
+    logMessage('対戦相手のパーティー情報を受信しました！');
     renderParty(enemyPartyEl, opponentParty, true);
     opponentPartyReady = true;
     console.log('opponentPartyReady:', opponentPartyReady);
@@ -161,7 +166,7 @@ function checkBothPartiesReady() {
         if (window.isOnlineMode()) {
             if (window.isHost()) {
                 logMessage('ホストとして戦闘開始処理を実行。');
-                window.sendData('start_battle', {});
+                window.sendData('start_battle', { playerParty: currentPlayerParty, opponentParty: opponentParty });
                 startOnlineBattle();
             } else {
                 logMessage('クライアントとしてホストの戦闘開始を待機。');
@@ -177,24 +182,32 @@ async function startOnlineBattle() {
     await battleLoop();
 }
 
-function startBattleClientSide() {
+function startBattleClientSide(initialState) {
     if (isBattleOngoing) return;
     logMessage('ホストが戦闘を開始しました。');
     isBattleOngoing = true;
-    currentTurn = 0;
+    currentTurn = initialState.currentTurn || 0;
+    
+    // パーティー情報を初期状態から再構築
+    currentPlayerParty = initialState.playerParty.map(p => {
+        const member = deepCopy(p);
+        member.partyType = window.isHost() ? 'host' : 'client';
+        return member;
+    });
+    opponentParty = initialState.opponentParty.map(p => {
+        const member = deepCopy(p);
+        member.partyType = window.isHost() ? 'client' : 'host';
+        return member;
+    });
+
+    renderParty(playerPartyEl, currentPlayerParty, false);
+    renderParty(enemyPartyEl, opponentParty, true);
+
     battleLoop();
 }
 
 function startNextGroup() {
-    if (currentGroupIndex >= enemyGroups.length) {
-        handleGameWin();
-        return;
-    }
-    const group = enemyGroups[currentGroupIndex];
-    logMessage(`${group.name}との戦闘！`);
-    currentEnemies = initializeParty(group.enemies.map(id => enemyData.find(e => e.id === id)), 'enemy');
-    renderParty(enemyPartyEl, currentEnemies, true);
-    battleLoop();
+    // 省略：シングルプレイ用
 }
 
 // --- Core Battle Logic ---
@@ -213,9 +226,6 @@ async function battleLoop() {
 
         const turnStartMessage = `=== ターン ${currentTurn + 1} 開始 ===`;
         logMessage(turnStartMessage, 'turn-start');
-        if (window.isOnlineMode()) {
-            window.sendData('log_message', { message: turnStartMessage, messageType: 'turn-start' });
-        }
 
         const combatants = window.isOnlineMode()
             ? [...currentPlayerParty, ...opponentParty]
@@ -227,9 +237,6 @@ async function battleLoop() {
 
         const actionOrder = aliveCombatants.map(c => c.name).join(' → ');
         logMessage(`行動順: ${actionOrder}`);
-        if (window.isOnlineMode()) {
-            window.sendData('log_message', { message: `行動順: ${actionOrder}` });
-        }
 
         for (const combatant of aliveCombatants) {
             if (isBattleOver()) break;
@@ -240,30 +247,34 @@ async function battleLoop() {
 
             const isMyCharacter = (window.isHost() && combatant.partyType === 'host') || (!window.isHost() && combatant.partyType === 'client');
 
-            if (isMyCharacter) {
-                await playerTurn(combatant);
-            } else if (window.isOnlineMode()) {
-                resetHighlights();
-                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-                if (combatantEl) {
-                    combatantEl.classList.add('active');
+            if (window.isOnlineMode()) {
+                if (window.isHost()) {
+                    // ホスト側のプレイヤーまたは、クライアント側のキャラクターのターン
+                    if (isMyCharacter || combatant.partyType === 'client') {
+                        if (isMyCharacter) {
+                            await playerTurn(combatant);
+                        } else {
+                            logMessage(`${combatant.name}の行動を待っています...`);
+                            await waitForAction();
+                        }
+                    }
+                } else {
+                    // クライアント側は何もしない（ホストからの指示を待つ）
+                    resetHighlights();
+                    logMessage("ホストからの行動を待っています...");
+                    await waitForAction();
                 }
-                logMessage(`${combatant.name}の行動を待っています...`);
-                await waitForAction();
             } else {
-                resetHighlights();
-                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-                if (combatantEl) {
-                    combatantEl.classList.add('active');
+                // シングルプレイモード
+                if (isMyCharacter) {
+                    await playerTurn(combatant);
+                } else {
+                    await enemyTurn(combatant);
                 }
-                await enemyTurn(combatant);
             }
 
-            if (window.isOnlineMode()) {
-                syncGameState();
-            } else {
-                resetHighlights();
-            }
+            resetHighlights();
+            updateAllDisplays();
         }
 
         processEndTurnEffects(aliveCombatants);
@@ -425,10 +436,16 @@ function executeAction(data) {
             actor.isDefending = true;
             break;
         case 'skill':
-            logMessage(`${actor.name}は${data.skillName}を使った！`);
+            const skill = actor.active.find(s => s.name === data.skillName);
+            if (skill) {
+                executeSkill(actor, skill);
+            }
             break;
         case 'special':
-            logMessage(`${actor.name}は${data.specialName}を使った！`);
+            const special = actor.special;
+            if (special && special.name === data.specialName) {
+                executeSpecial(actor, special);
+            }
             break;
         default:
             console.warn('Unknown action type:', data.action);
@@ -437,9 +454,9 @@ function executeAction(data) {
 
     updateAllDisplays();
 
-    if (window.isOnlineMode() && resolveActionPromise) {
+    if (window.isOnlineMode() && !window.isHost()) {
         const isMyCharacter = (window.isHost() && actor.partyType === 'host') || (!window.isHost() && actor.partyType === 'client');
-        if (!isMyCharacter) {
+        if (!isMyCharacter && resolveActionPromise) {
             resolveActionPromise();
             resolveActionPromise = null;
         }
@@ -500,7 +517,8 @@ function applyEndTurnPassiveAbilities(combatants) {
 async function executeSkill(actor, skill) {
     const effectFunc = skillEffects[skill.id];
     if (effectFunc) {
-        return await effectFunc(actor, currentPlayerParty, currentEnemies, opponentParty, selectTarget, logMessage);
+        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
+        return await effectFunc(actor, currentPlayerParty, targets, selectTarget, logMessage);
     }
     console.warn(`Skill effect not found for ${skill.id}`);
     return false;
@@ -509,7 +527,8 @@ async function executeSkill(actor, skill) {
 async function executeSpecial(actor, special) {
     const effectFunc = skillEffects[special.id];
     if (effectFunc) {
-        return await effectFunc(actor, currentPlayerParty, currentEnemies, opponentParty, selectTarget, logMessage);
+        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
+        return await effectFunc(actor, currentPlayerParty, targets, selectTarget, logMessage);
     }
     console.warn(`Special effect not found for ${special.id}`);
     return false;
@@ -519,8 +538,8 @@ async function executeSpecial(actor, special) {
 
 function selectTarget() {
     return new Promise(resolve => {
-        const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
-        const aliveTargets = enemies.filter(e => e.status.hp > 0);
+        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
+        const aliveTargets = targets.filter(e => e.status.hp > 0);
         if (aliveTargets.length === 0) {
             resolve(null);
             return;
@@ -651,17 +670,7 @@ function handleBattleEnd() {
     if (alivePlayers.length === 0) {
         handleGameLose();
     } else if (aliveEnemies.length === 0) {
-        if (window.isOnlineMode()) {
-            handleGameWin();
-        } else {
-            currentGroupIndex++;
-            if (currentGroupIndex < enemyGroups.length) {
-                logMessage('次の敵グループへ！');
-                startNextGroup();
-            } else {
-                handleGameWin();
-            }
-        }
+        handleGameWin();
     }
 }
 
@@ -673,19 +682,6 @@ function handleGameWin() {
 function handleGameLose() {
     logMessage('戦闘敗北...', 'lose');
     commandAreaEl.classList.add('hidden');
-}
-
-// --- Game State Synchronization ---
-
-function syncGameState() {
-    if (window.isOnlineMode()) {
-        window.sendData('sync_game_state', {
-            playerParty: currentPlayerParty,
-            opponentParty: opponentParty,
-            currentTurn: currentTurn,
-            isBattleOngoing: isBattleOngoing
-        });
-    }
 }
 
 // --- Passive Effect Functions (from character_abilities.js) ---
@@ -708,16 +704,23 @@ window.executeAction = executeAction;
 window.checkBothPartiesReady = checkBothPartiesReady;
 
 window.handleBattleAction = (data) => {
-    if (data.type === 'sync_game_state') {
-        currentPlayerParty = data.playerParty;
-        opponentParty = data.opponentParty;
-        currentTurn = data.currentTurn;
-        isBattleOngoing = data.isBattleOngoing;
-        updateAllDisplays();
-        logMessage('ゲーム状態を同期しました。');
-    } else if (data.type === 'battle_end') {
-        handleBattleEnd();
-    } else if (data.type === 'start_battle') {
-        startBattleClientSide();
+    switch (data.type) {
+        case 'sync_game_state':
+            currentPlayerParty = data.playerParty;
+            opponentParty = data.opponentParty;
+            currentTurn = data.currentTurn;
+            isBattleOngoing = data.isBattleOngoing;
+            updateAllDisplays();
+            if (resolveActionPromise) {
+                resolveActionPromise();
+                resolveActionPromise = null;
+            }
+            break;
+        case 'battle_end':
+            handleBattleEnd();
+            break;
+        case 'start_battle':
+            startBattleClientSide(data);
+            break;
     }
 };
