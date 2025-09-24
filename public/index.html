@@ -38,7 +38,6 @@
                     <p>あなたのルームID:</p>
                     <p id="my-peer-id"></p>
                     <button id="copy-id-button" disabled>IDをコピー</button>
-                    <button id="create-room-button">ルームIDを生成</button>
                 </div>
             </div>
 
@@ -46,14 +45,13 @@
                 <div class="connection-controls">
                     <p>相手のルームIDを入力</p>
                     <input type="text" id="peer-id-input" placeholder="ルームID">
-                    <button id="join-room-button">接続</button>
+                    <button id="connect-button">接続</button>
                 </div>
             </div>
 
             <div class="connection-status">
                 <p id="connection-status"></p>
             </div>
-            
         </div>
         <button id="back-to-title-button">タイトルに戻る</button>
     </div>
@@ -114,7 +112,6 @@
     </div>
 
     <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
-
     <script defer type="module" src="/scripts/main.js"></script>
     <script type="module" src="/scripts/characters.js"></script>
     <script type="module" src="/scripts/enemies.js"></script>
@@ -122,4 +119,5 @@
     <script type="module" src="/scripts/battle.js"></script>
     <script type="module" src="/scripts/character_abilities.js"></script>
 </body>
+
 </html>
