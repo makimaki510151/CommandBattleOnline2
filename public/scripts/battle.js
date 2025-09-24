@@ -120,7 +120,6 @@ function initializePlayerParty(partyData) {
         return;
     }
     const partyType = window.isHost() ? 'host' : 'client';
-    // 既にオブジェクト配列なので、そのまま initializeParty を呼び出す
     currentPlayerParty = initializeParty(partyData, partyType);
     renderParty(playerPartyEl, currentPlayerParty, false);
     if (window.isOnlineMode() && !window.isHost()) {
@@ -140,8 +139,7 @@ function handleOpponentParty(partyData) {
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
 
-    // 相手のパーティーを描画
-    renderParty(enemyPartyEl, opponentParty, true); // ここで renderParty を呼び出す
+    renderParty(enemyPartyEl, opponentParty, true);
 
     opponentPartyReady = true;
     checkBothPartiesReady();
@@ -165,30 +163,45 @@ function checkBothPartiesReady() {
     }
 }
 
-async function startOnlineBattleHostSide() {
+async function startOnlineBattleHostSide(opponentPartyData) {
+    // クライアントから受け取ったパーティー情報を設定
+    opponentParty = opponentPartyData;
+
     isBattleOngoing = true;
     currentTurn = 0;
-    logMessage("戦闘開始！");
+    logMessage("両者の準備が完了しました。", 'system');
+
+    // クライアントに戦闘開始を通知
+    sendOnlineEvent('start_battle', {
+        initialState: {
+            playerParty: currentPlayerParty,
+            opponentParty: opponentParty
+        }
+    });
+
+    // 自分のパーティーと相手のパーティーを描画
+    renderParty(playerPartyEl, currentPlayerParty, false);
+    renderParty(enemyPartyEl, opponentParty, true);
+
     await battleLoop();
 }
 
 function startOnlineBattleClientSide(initialState) {
     isBattleOngoing = true;
-    logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
+    logMessage("両者の準備が完了しました。", 'system');
 
-    // ホストから送られてきた相手のパーティーを設定
-    // ホストのplayerPartyがクライアントのopponentPartyになる
+    // ホストから送られてきた状態を基にパーティーを設定
+    // ホストのplayerPartyが、クライアントのopponentParty
     opponentParty = initialState.playerParty;
-    // 自分のパーティーはローカルで初期化済みのものを使用
-    currentPlayerParty = window.getPlayerParty();
+    // ホストのopponentPartyが、クライアントのcurrentPlayerParty
+    currentPlayerParty = initialState.opponentParty;
 
     // パーティーの描画を更新
-    renderParty(playerPartyEl, currentPlayerParty, false);
-    // 修正: 相手のパーティーを描画する行を有効化する
-    renderParty(enemyPartyEl, opponentParty, true);
+    renderParty(playerPartyEl, currentPlayerParty, false); // 自分のパーティー
+    renderParty(enemyPartyEl, opponentParty, true); // 相手のパーティー（ホストのパーティー）
 
     // クライアント側はここで待機し、ホストからの指示を待つ
-    // これ以上の処理はホストからのイベント（request_actionなど）がトリガーとなる
+    // これ以上の処理はホストからのイベント（execute_actionなど）がトリガーとなる
 }
 
 // --- Core Battle Logic ---

@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const offerSdp = decompressSDP(compressedSdpText);
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
-                
+
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
 
@@ -320,7 +320,7 @@ function setupPeerConnection() {
         handleChannelStatusChange();
         dataChannel.onmessage = handleDataChannelMessage;
     };
-    
+
     if (isHost) {
         dataChannel = peerConnection.createDataChannel("game-data");
         handleChannelStatusChange();
@@ -383,7 +383,13 @@ function handleDataChannelMessage(event) {
     const { eventType, eventData } = message;
 
     if (eventType === 'sync_party') {
-        window.handleOpponentParty(eventData);
+        if (isHost) {
+            // ホストの場合、相手のパーティー情報を設定
+            window.handleOpponentParty(eventData);
+        } else {
+            // クライアントの場合、自分のパーティー情報として設定
+            window.handleOpponentParty(eventData);
+        }
     } else if (eventType === 'start_battle') {
         if (!isHost) {
             window.startOnlineBattleClientSide(eventData.initialState);
