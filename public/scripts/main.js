@@ -1,4 +1,4 @@
-// main.js (修正版)
+// main.js (ログ同期対応版)
 import { characters } from './characters.js';
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -395,7 +395,13 @@ function handleDataChannelMessage(event) {
             window.syncGameStateClientSide(eventData);
         }
     } else if (eventType === 'log_message') {
-        window.logMessage(eventData.message, 'from-host');
+        // ホストから送られてきたログメッセージを表示
+        window.logMessage(eventData.message, eventData.type || 'from-host');
+    } else if (eventType === 'request_action') {
+        // クライアント側でアクション要求を受信
+        if (!isHost) {
+            window.handleActionRequest(eventData);
+        }
     }
 }
 

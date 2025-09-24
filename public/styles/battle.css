@@ -34,14 +34,16 @@
 }
 
 .enemy-character,
-.player-character {
-    transition: transform 0.3s ease;
+.player-character,
+.character-card {
+    transition: all 0.3s ease;
     width: 20%;
     min-width: 150px;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 10px;
     padding: 10px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 .character-info {
@@ -65,7 +67,8 @@
     text-align: center;
 }
 
-.character-name {
+.character-name,
+.char-name {
     margin: 0 0 5px 0;
     font-size: 1.1em;
     font-weight: bold;
@@ -73,30 +76,37 @@
 }
 
 .hp-text-line,
-.mp-text-line {
+.mp-text-line,
+.hp-text,
+.mp-text {
     margin: 2px 0;
     font-size: 0.9em;
     color: #555;
 }
 
 .hp-bar,
-.mp-bar {
+.mp-bar,
+.hp-bar-container,
+.mp-bar-container {
     height: 8px;
     background-color: #ccc;
     border-radius: 4px;
     margin-top: 5px;
+    position: relative;
 }
 
 .hp-bar-fill {
     height: 100%;
     background-color: #e57373;
     border-radius: 4px;
+    transition: width 0.3s ease;
 }
 
 .mp-bar-fill {
     height: 100%;
     background-color: #42a5f5;
     border-radius: 4px;
+    transition: width 0.3s ease;
 }
 
 .ui-container {
@@ -179,12 +189,118 @@
     display: none !important;
 }
 
+/* ハイライト機能の強化 */
+
 /* 行動するキャラクターの強調表示 */
-.player-character.active {
-    outline: 3px solid #ffeb3b;
-    box-shadow: 0 0 15px 5px rgba(255, 230, 0, 0.8);
-    border-radius: 8px;
-    transform: scale(1.1);
+.character-card.active,
+.player-character.active,
+.enemy-character.active {
+    outline: 4px solid #ffeb3b;
+    box-shadow: 0 0 20px 8px rgba(255, 235, 59, 0.8);
+    border-radius: 12px;
+    transform: scale(1.08);
+    z-index: 10;
+    background: rgba(255, 255, 255, 1);
+}
+
+/* 行動するキャラクターのアニメーション */
+.character-card.active::before,
+.player-character.active::before,
+.enemy-character.active::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    background: linear-gradient(45deg, #ffeb3b, #ffc107, #ffeb3b, #ffc107);
+    background-size: 400% 400%;
+    border-radius: 15px;
+    z-index: -1;
+    animation: activeGlow 2s ease-in-out infinite;
+}
+
+@keyframes activeGlow {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* 選択可能なターゲットの強調表示 */
+.character-card.selectable,
+.player-character.selectable,
+.enemy-character.selectable {
+    outline: 3px solid #00bcd4;
+    box-shadow: 0 0 15px 5px rgba(0, 188, 212, 0.6);
+    cursor: pointer;
+    transform: scale(1.02);
+    background: rgba(224, 247, 250, 0.95);
+}
+
+/* 選択可能なターゲットのホバー効果 */
+.character-card.selectable:hover,
+.player-character.selectable:hover,
+.enemy-character.selectable:hover {
+    outline: 3px solid #0097a7;
+    box-shadow: 0 0 20px 8px rgba(0, 151, 167, 0.8);
+    transform: scale(1.05);
+    background: rgba(178, 235, 242, 0.95);
+}
+
+/* 選択可能なターゲットの点滅アニメーション */
+.character-card.selectable::after,
+.player-character.selectable::after,
+.enemy-character.selectable::after {
+    content: '選択可能';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #00bcd4;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.7em;
+    font-weight: bold;
+    animation: selectablePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes selectablePulse {
+    0%, 100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* 倒れたキャラクターのスタイル */
+.character-card.fainted,
+.player-character.fainted,
+.enemy-character.fainted {
+    opacity: 0.4;
+    filter: grayscale(80%);
+    transform: scale(0.95);
+}
+
+/* 倒れたキャラクターには選択可能スタイルを適用しない */
+.character-card.fainted.selectable,
+.player-character.fainted.selectable,
+.enemy-character.fainted.selectable {
+    outline: none;
+    box-shadow: none;
+    cursor: default;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.character-card.fainted.selectable::after,
+.player-character.fainted.selectable::after,
+.enemy-character.fainted.selectable::after {
+    display: none;
 }
 
 /* Log message colors */
@@ -209,6 +325,7 @@
     font-weight: bold;
 }
 
+/* 旧スタイルとの互換性維持 */
 .player-character.selecting-target,
 .enemy-character.selecting-target {
     box-shadow: 0 0 10px 3px rgba(0, 200, 255, 0.8);

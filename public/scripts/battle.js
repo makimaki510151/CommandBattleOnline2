@@ -1,4 +1,4 @@
-// battle.js (修正版)
+// battle.js (ハイライト機能強化版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { characters } from './characters.js';
@@ -34,9 +34,15 @@ function generateUniqueId() {
     return `unique_${Date.now()}_${uniqueIdCounter++}`;
 }
 
+// ログメッセージを同期する関数
 function logMessage(message, type = '') {
     if (window.logMessage) {
         window.logMessage(message, type);
+    }
+    
+    // オンラインモードでホストの場合、ログをクライアントに送信
+    if (window.isOnlineMode() && window.isHost()) {
+        window.sendData('log_message', { message: message, type: type });
     }
 }
 
@@ -45,6 +51,44 @@ function deepCopy(obj) {
         return undefined;
     }
     return JSON.parse(JSON.stringify(obj));
+}
+
+// --- Highlight Functions ---
+
+function resetHighlights() {
+    document.querySelectorAll('.character-card, .player-character, .enemy-character').forEach(card => {
+        card.classList.remove('active', 'selectable');
+    });
+}
+
+function highlightActiveCharacter(uniqueId) {
+    resetHighlights();
+    const characterEl = document.querySelector(`[data-unique-id="${uniqueId}"]`);
+    if (characterEl) {
+        characterEl.classList.add('active');
+        logMessage(`${getCharacterName(uniqueId)}が行動中...`, 'character-turn');
+    }
+}
+
+function highlightSelectableTargets(targets) {
+    // まず全ての選択可能スタイルをリセット
+    document.querySelectorAll('.character-card, .player-character, .enemy-character').forEach(card => {
+        card.classList.remove('selectable');
+    });
+    
+    // 生きているターゲットのみを選択可能にする
+    targets.filter(target => target.status.hp > 0).forEach(target => {
+        const targetEl = document.querySelector(`[data-unique-id="${target.uniqueId}"]`);
+        if (targetEl) {
+            targetEl.classList.add('selectable');
+        }
+    });
+}
+
+function getCharacterName(uniqueId) {
+    const allCombatants = [...(currentPlayerParty || []), ...(opponentParty || []), ...(currentEnemies || [])];
+    const character = allCombatants.find(c => c.uniqueId === uniqueId);
+    return character ? character.name : '不明';
 }
 
 // --- Display Update Functions ---
@@ -224,11 +268,7 @@ async function battleLoop() {
                 if (isHostCharacter) {
                     await playerTurn(combatant);
                 } else if (isClientCharacter) {
-                    resetHighlights();
-                    const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-                    if (combatantEl) {
-                        combatantEl.classList.add('active');
-                    }
+                    highlightActiveCharacter(combatant.uniqueId);
                     logMessage(`${combatant.name}の行動を待っています...`);
                     window.sendData('request_action', { actorUniqueId: combatant.uniqueId });
                     await new Promise(resolve => {
@@ -255,6 +295,7 @@ async function battleLoop() {
             }
 
             currentTurn++;
+            resetHighlights(); // ターン終了時にハイライトをリセット
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     } else {
@@ -264,11 +305,7 @@ async function battleLoop() {
 
 // ホスト側のプレイヤーの行動を処理する関数
 async function playerTurn(actor) {
-    resetHighlights();
-    const combatantEl = document.querySelector(`[data-unique-id="${actor.uniqueId}"]`);
-    if (combatantEl) {
-        combatantEl.classList.add('active');
-    }
+    highlightActiveCharacter(actor.uniqueId);
     logMessage(`${actor.name}のターン！`, 'character-turn');
     commandAreaEl.classList.remove('hidden');
     updateCommandMenu(actor);
@@ -333,11 +370,7 @@ window.handleActionRequest = async (data) => {
     const actor = currentPlayerParty.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) return;
 
-    resetHighlights();
-    const combatantEl = document.querySelector(`[data-unique-id="${actor.uniqueId}"]`);
-    if (combatantEl) {
-        combatantEl.classList.add('active');
-    }
+    highlightActiveCharacter(actor.uniqueId);
     logMessage(`${actor.name}のターン！`, 'character-turn');
 
     commandAreaEl.classList.remove('hidden');
@@ -530,7 +563,7 @@ function performAttack(attacker, target) {
 
 function selectTarget() {
     return new Promise(resolve => {
-        const targets = window.isOnlineMode() ? (window.isHost() ? opponentParty : currentPlayerParty) : currentEnemies;
+        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
         if (!targets) {
             resolve(null);
             return;
@@ -541,17 +574,36 @@ function selectTarget() {
             resolve(null);
             return;
         }
+
+        // 選択可能なターゲットをハイライト
+        highlightSelectableTargets(targets);
+        
         const targetSelectionOverlay = document.createElement('div');
         targetSelectionOverlay.id = 'target-selection-overlay';
         targetSelectionOverlay.innerHTML = '<p>ターゲットを選択してください</p>';
+        targetSelectionOverlay.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            z-index: 1000;
+            font-size: 1.2em;
+            font-weight: bold;
+        `;
         battleScreenEl.appendChild(targetSelectionOverlay);
+        
         const clickHandler = (event) => {
             const targetEl = event.target.closest('.character-card');
-            if (targetEl) {
+            if (targetEl && targetEl.classList.contains('selectable')) {
                 const uniqueId = targetEl.dataset.uniqueId;
                 const selectedTarget = aliveTargets.find(t => t.uniqueId === uniqueId);
                 if (selectedTarget) {
                     targetSelectionOverlay.remove();
+                    resetHighlights();
                     enemyPartyEl.removeEventListener('click', clickHandler);
                     resolve({ target: selectedTarget, element: targetEl });
                 }
@@ -591,10 +643,10 @@ function renderParty(containerEl, party, isOpponent = false) {
 
 function updateCommandMenu(player) {
     commandAreaEl.innerHTML = `
-        <button class="action-attack">攻撃</button>
-        <button class="action-defend">防御</button>
-        <button class="action-skill">スキル</button>
-        <button class="action-special">必殺技</button>
+        <button class="command-button action-attack">攻撃</button>
+        <button class="command-button action-defend">防御</button>
+        <button class="command-button action-skill">スキル</button>
+        <button class="command-button action-special">必殺技</button>
         <div class="skill-menu hidden">
             ${player.active.map(skill => `<button class="skill-button">${skill.name}</button>`).join('')}
         </div>
@@ -605,12 +657,6 @@ function updateCommandMenu(player) {
     } else {
         specialButton.classList.add('hidden');
     }
-}
-
-function resetHighlights() {
-    document.querySelectorAll('.character-card').forEach(card => {
-        card.classList.remove('active');
-    });
 }
 
 function applyPassiveAbilities(combatants) {
@@ -721,6 +767,7 @@ function syncGameStateClientSide(data) {
 
 function handleBattleEnd() {
     isBattleOngoing = false;
+    resetHighlights(); // 戦闘終了時にハイライトをリセット
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     if (alivePlayers.length === 0) {
         logMessage('戦闘敗北...', 'lose');

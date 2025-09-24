@@ -41,6 +41,11 @@ body {
 #online-button,
 #connect-button,
 #copy-id-button,
+#show-host-ui-button,
+#show-client-ui-button,
+#copy-id-button-client,
+#connect-button-host,
+#online-party-go-button,
 #back-to-title-button {
     background-color: #81c784;
     /* 明るい緑 */
@@ -57,6 +62,10 @@ body {
 #online-button:hover,
 #connect-button:hover,
 #copy-id-button:hover,
+#show-host-ui-button:hover,
+#show-client-ui-button:hover,
+#copy-id-button-client:hover,
+#connect-button-host:hover,
 #back-to-title-button:hover {
     background-color: #66bb6a;
 }
