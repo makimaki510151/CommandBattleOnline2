@@ -113,10 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isOnlineMode) {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-            
+
             window.initializePlayerParty(selectedParty);
             const partyToSend = window.getPlayerParty();
-            
+
             if (!partyToSend) {
                 console.error('パーティー情報が見つかりません。');
                 return;
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function connectToPusher(roomId) {
         if (pusher) return;
         isOnlineMode = true;
-        
+
         pusher = new Pusher(PUSHER_APP_KEY, {
             cluster: PUSHER_CLUSTER,
             forceTLS: true,
@@ -248,13 +248,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.sendData = function (eventType, data) {
-        if (!channel) {
-            console.warn('チャンネルがまだ準備できていません。');
+        if (!channel || channel.name.startsWith('presence-')) {
+            console.warn('チャンネルがまだ準備できていないか、許可されていないタイプです。');
             return false;
         }
+
+        // イベント名に 'client-' プレフィックスを付けて送信
+        const eventName = `client-${eventType}`;
+
         try {
-            channel.trigger(`client-${eventType}`, { type: eventType, ...data });
-            console.log('Sent data:', eventType, data);
+            channel.trigger(eventName, data);
+            console.log('Sent data:', eventName, data);
             return true;
         } catch (error) {
             console.error('データ送信に失敗しました:', error);
