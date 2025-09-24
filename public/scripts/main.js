@@ -25,7 +25,7 @@ let clientUiEl;
 let showHostUiButton;
 let showClientUiButton;
 let startHostConnectionButton;
-let connectToRoomButton;
+let connectButton; // 'connect-to-room-button' から 'connect-button' に変更
 let onlineScreen;
 let messageLogEl;
 
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showHostUiButton = document.getElementById('show-host-ui-button');
     showClientUiButton = document.getElementById('show-client-ui-button');
     startHostConnectionButton = document.getElementById('start-host-connection-button');
-    connectToRoomButton = document.getElementById('connect-to-room-button');
+    connectButton = document.getElementById('connect-button'); // IDを修正しました
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
     
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         hostUiEl.classList.remove('hidden');
         clientUiEl.classList.add('hidden');
-        myPeerIdEl.textContent = '生成されるSDPがここに表示されます。';
+        myPeerIdEl.textContent = 'SDPがここに表示されます。';
         window.logMessage('ホストモードに切り替えました。');
     });
 
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = false;
         hostUiEl.classList.add('hidden');
         clientUiEl.classList.remove('hidden');
-        myPeerIdEl.textContent = '生成されるSDPがここに表示されます。';
+        myPeerIdEl.textContent = 'SDPがここに表示されます。';
         window.logMessage('クライアントモードに切り替えました。');
     });
 
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    connectToRoomButton.addEventListener('click', async () => {
+    connectButton.addEventListener('click', async () => { // IDを修正しました
         const offerSdpText = peerIdInput.value;
         if (!offerSdpText) {
             window.logMessage('SDP offerを貼り付けてください。', 'error');
