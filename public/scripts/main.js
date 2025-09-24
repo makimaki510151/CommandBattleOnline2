@@ -1,7 +1,7 @@
 // main.js (手動SDP交換版 - UI表示)
 
 // pakoライブラリのインポート (CDNで読み込む場合は不要ですが、モジュールとして扱う場合は必要です)
-// import pako from 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.mjs';
+import pako from 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.mjs';
 
 // グローバル変数と定数
 const STUN_SERVERS = [
