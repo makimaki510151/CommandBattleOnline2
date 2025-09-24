@@ -32,12 +32,20 @@
                 <button id="show-client-ui-button">既存のルームに参加</button>
             </div>
             <div id="host-ui" class="hidden">
-                <div class="peer-info">
-                    <p>あなたのSDP:</p>
-                    <p id="my-peer-id"></p>
-                    <button id="copy-id-button">IDをコピー</button>
+                <p>生成されたSDPを相手に伝えてください。</p>
+                <div id="my-peer-id-container">
+                    <textarea id="my-peer-id" readonly></textarea>
+                    <button id="copy-id-button">コピー</button>
                 </div>
-                <button id="start-host-connection-button">接続を開始</button>
+
+                <div id="connect-container-host">
+                    <p>相手のSDPを貼り付けて接続を完了させてください。</p>
+                    <textarea id="peer-id-input-host" placeholder="相手のSDPをここに貼り付け"></textarea>
+                    <button id="connect-button-host">接続完了</button>
+                </div>
+                <div class="status-box">
+                    <p>状態：<span id="connection-status">未接続</span></p>
+                </div>
             </div>
             <div id="client-ui" class="hidden">
                 <div class="connection-controls">

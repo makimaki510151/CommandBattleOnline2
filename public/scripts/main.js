@@ -30,6 +30,10 @@ let onlineScreen;
 let messageLogEl;
 let copyIdButton;
 
+// 修正：ホスト側のUI要素を追加
+let peerIdInputHost;
+let connectButtonHost;
+
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => isHost;
@@ -47,7 +51,7 @@ window.logMessage = (message, type) => {
     }
 };
 
-// SDPの圧縮・伸長関数 (バイナリデータを正しく扱うように修正)
+// SDPの圧縮・伸長関数
 function compressSDP(sdp) {
     const jsonSdp = JSON.stringify(sdp);
     const textEncoder = new TextEncoder();
@@ -82,6 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
     copyIdButton = document.getElementById('copy-id-button');
+
+    // 修正：ホスト側のUI要素を初期化
+    peerIdInputHost = document.getElementById('peer-id-input-host');
+    connectButtonHost = document.getElementById('connect-button-host');
 
     // イベントリスナー設定
     document.getElementById('online-button').addEventListener('click', () => {
@@ -143,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
-        // ICE候補が収集完了するまで待機
         peerConnection.onicegatheringstatechange = () => {
             console.log('ICE Gathering State:', peerConnection.iceGatheringState);
             if (peerConnection.iceGatheringState === 'complete') {
@@ -163,12 +170,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 修正：ホスト側のAnswer処理を追加
-    myPeerIdEl.addEventListener('paste', async (event) => {
-        if (isHost && peerConnection) {
-            event.preventDefault();
-            const compressedSdpText = (event.clipboardData || window.clipboardData).getData('text');
-            window.logMessage('クライアントのSDPを検出しました。接続を試みます...', 'info');
+    // 修正：ホスト側の「接続完了」ボタンのイベントリスナー
+    if (connectButtonHost) {
+        connectButtonHost.addEventListener('click', async () => {
+            const compressedSdpText = peerIdInputHost.value;
+            if (!compressedSdpText) {
+                window.logMessage('相手のSDPを貼り付けてください。', 'error');
+                return;
+            }
+
+            if (!peerConnection) {
+                window.logMessage('先に「接続を開始」ボタンを押してください。', 'error');
+                return;
+            }
+
+            window.logMessage('相手のSDPを処理中...', 'info');
             try {
                 const answerSdp = decompressSDP(compressedSdpText);
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
@@ -179,11 +195,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Answer処理エラー:', error);
-                window.logMessage('クライアントSDPの処理中にエラーが発生しました。', 'error');
+                window.logMessage('相手のSDPの処理中にエラーが発生しました。', 'error');
                 cleanupConnection();
             }
-        }
-    });
+        });
+    }
 
     connectButton.addEventListener('click', async () => {
         const compressedSdpText = peerIdInput.value;
@@ -208,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            // ICE候補が収集完了するまで待機
             peerConnection.onicegatheringstatechange = () => {
                 console.log('ICE Gathering State:', peerConnection.iceGatheringState);
                 if (peerConnection.iceGatheringState === 'complete') {
@@ -239,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('go-button').disabled = false;
         window.logMessage('パーティー編成画面に移動しました。', 'success');
     });
+
 });
 
 // PeerConnectionのセットアップ
@@ -276,9 +292,6 @@ function handleChannelStatusChange() {
     if (dataChannel) {
         dataChannel.onopen = () => {
             window.logMessage('データチャネルが開かれました。', 'success');
-            if (!isHost) {
-                window.logMessage('ホストが接続しました。パーティー編成へボタンが有効になりました。', 'info');
-            }
             if (onlinePartyGoButton) {
                 onlinePartyGoButton.classList.remove('hidden');
             }
@@ -339,6 +352,10 @@ function cleanupConnection() {
     }
     if (goButton) {
         goButton.disabled = true;
+    }
+    // 修正：ホスト側の入力フィールドもリセット
+    if (peerIdInputHost) {
+        peerIdInputHost.value = '';
     }
 }
 
