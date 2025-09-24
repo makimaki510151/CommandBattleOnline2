@@ -127,10 +127,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isOnlineMode) {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
-            
+
             // initializePlayerPartyは、party_readyを送る前に呼ぶ
             window.initializePlayerParty(selectedParty);
-            
+
             // クリーンなデータを送信
             const partyToSend = JSON.parse(JSON.stringify(window.getPlayerParty()));
             window.sendData('party_ready', { party: partyToSend });
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.logMessage('チャンネルへの接続に失敗しました。ルームIDを確認してください。', 'error');
             cleanupPusher();
         });
-        
+
         channel.bind('client-connection_established', () => {
             onlinePartyGoButton.classList.remove('hidden');
             if (!window.isHost()) {
@@ -214,7 +214,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ホスト側は自分が送ったメッセージを処理しないように修正
         channel.bind('client-party_ready', (data) => {
-            if (!window.isHost()) {
+            if (window.isHost() && data.party[0].partyType !== 'host') {
+                // ホストとして、クライアントから送られてきたパーティー情報を処理
+                window.handleOpponentParty(data.party);
+            } else if (!window.isHost() && data.party[0].partyType === 'host') {
+                // クライアントとして、ホストから送られてきたパーティー情報を処理
+                // これはホストがクライアントのparty_readyを受信後に送り返す想定
                 window.handleOpponentParty(data.party);
             }
         });
@@ -258,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         channel = null;
         isOnlineMode = false;
         myRoomId = null;
-        
+
         onlinePartyGoButton.classList.add('hidden');
         myPeerIdEl.textContent = '';
         connectionStatusEl.textContent = '';
@@ -266,13 +271,18 @@ document.addEventListener('DOMContentLoaded', () => {
         goButton.disabled = false;
     }
 
+    // クライアント側でゲーム状態を同期する関数を実装し、bindで呼び出す
+    window.syncGameStateClientSide = (data) => {
+        window.syncState(data.playerParty, data.opponentParty);
+    };
+
     window.sendData = function (eventType, data) {
         if (!channel) {
             return false;
         }
-        
+
         const eventName = `client-${eventType}`;
-        
+
         try {
             channel.trigger(eventName, data);
             return true;

@@ -149,12 +149,14 @@ function checkBothPartiesReady() {
         logMessage('両者の準備が完了しました。');
         if (window.isOnlineMode() && window.isHost()) {
             logMessage('ホストとして戦闘開始処理を実行。');
-            window.sendData('start_battle', { initialState: {
-                playerParty: currentPlayerParty,
-                opponentParty: opponentParty,
-                currentTurn: 0,
-                isBattleOngoing: true
-            }});
+            window.sendData('start_battle', {
+                initialState: {
+                    playerParty: currentPlayerParty,
+                    opponentParty: opponentParty,
+                    currentTurn: 0,
+                    isBattleOngoing: true
+                }
+            });
             startOnlineBattleHostSide();
         }
     }
@@ -220,7 +222,7 @@ async function battleLoop() {
                         resolveClientActionPromise = resolve;
                     });
                 }
-                
+
                 // ホスト側でアクション結果を同期
                 window.sendData('sync_game_state', {
                     playerParty: currentPlayerParty,
@@ -317,14 +319,14 @@ async function playerTurn(actor) {
 window.handleActionRequest = async (data) => {
     const actor = currentPlayerParty.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) return;
-    
+
     resetHighlights();
     const combatantEl = document.querySelector(`[data-unique-id="${actor.uniqueId}"]`);
     if (combatantEl) {
         combatantEl.classList.add('active');
     }
     logMessage(`${actor.name}のターン！`, 'character-turn');
-    
+
     commandAreaEl.classList.remove('hidden');
     updateCommandMenu(actor);
 
@@ -426,10 +428,21 @@ window.executeAction = (data) => {
 
     updateAllDisplays();
 
-    if (window.isOnlineMode() && window.isHost() && resolveClientActionPromise) {
-        resolveClientActionPromise();
-        resolveClientActionPromise = null;
+    // ホストとしてクライアントのアクション実行を受け取った場合、待機Promiseを解決する
+    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId.includes('client')) {
+        if (resolveClientActionPromise) {
+            resolveClientActionPromise();
+            resolveClientActionPromise = null;
+        }
     }
+
+    // ホストのキャラクターのアクション実行後もPromiseを解決
+    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId.includes('host')) {
+        // この部分は元々ホストのターン処理のPromiseを解決するためにあった部分
+        // しかし、クライアントからのアクション処理とは別のもの
+        // ロジックを明確に分けるか、`battleLoop`の処理を見直す必要がある
+    }
+
 };
 
 function performAttack(attacker, target) {
@@ -626,6 +639,15 @@ function isBattleOver() {
     return alivePlayers.length === 0 || aliveEnemies.length === 0;
 }
 
+// ゲーム状態を同期する新しい関数
+function syncState(myParty, opponentParty) {
+    currentPlayerParty = myParty;
+    opponentParty = opponentParty;
+    updateAllDisplays();
+    logMessage('ゲーム状態をホストと同期しました。', 'sync');
+}
+
+
 function handleBattleEnd() {
     isBattleOngoing = false;
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
@@ -638,6 +660,7 @@ function handleBattleEnd() {
 }
 
 // グローバルアクセス
+window.syncState = syncState;
 window.getPlayerParty = () => currentPlayerParty;
 window.initializePlayerParty = initializePlayerParty;
 window.handleOpponentParty = handleOpponentParty;
