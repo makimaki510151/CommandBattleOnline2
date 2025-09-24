@@ -1,7 +1,5 @@
 // main.js (手動SDP交換版 - UI表示)
 
-// pakoライブラリのimport文は不要
-
 // グローバル変数と定数
 const STUN_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -135,6 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     startHostConnectionButton.addEventListener('click', async () => {
+        // 修正: 既にPeerConnectionが存在する場合は何もしない
+        if (peerConnection) {
+            window.logMessage('SDPはすでに生成されています。', 'info');
+            return;
+        }
+
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
@@ -171,6 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const compressedSdpText = peerIdInput.value;
         if (!compressedSdpText) {
             window.logMessage('SDP offerを貼り付けてください。', 'error');
+            return;
+        }
+
+        // 修正: 既にPeerConnectionが存在する場合は何もしない
+        if (peerConnection) {
+            window.logMessage('SDPはすでに生成されています。', 'info');
             return;
         }
 
