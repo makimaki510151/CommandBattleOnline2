@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // クライアント側でペーストしたら自動接続
     if (peerIdInput) {
         peerIdInput.addEventListener('paste', () => {
-            setTimeout(async() => {
+            setTimeout(async () => {
                 const compressedSdpText = peerIdInput.value;
                 if (!compressedSdpText) {
                     window.logMessage('SDP offerを貼り付けてください。', 'error');
@@ -283,6 +283,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('party-screen')) document.getElementById('party-screen').classList.remove('hidden');
             if (goButton) goButton.disabled = false;
             window.logMessage('パーティー編成画面に移動しました。', 'success');
+        });
+    }
+
+    if (goButton) {
+        goButton.addEventListener('click', () => {
+            const selectedParty = window.getSelectedParty();
+
+            if (selectedParty.length === 0) {
+                window.logMessage('パーティーにキャラクターを編成してください。', 'error');
+                return;
+            }
+
+            // パーティー編成画面を非表示にし、戦闘画面を表示
+            const partyScreen = document.getElementById('party-screen');
+            const battleScreen = document.getElementById('battle-screen');
+            if (partyScreen) partyScreen.classList.add('hidden');
+            if (battleScreen) battleScreen.classList.remove('hidden');
+
+            // オンラインモードに応じて戦闘を開始
+            if (window.isOnlineMode()) {
+                window.logMessage('パーティー情報を同期中...', 'info');
+                const myPartyData = window.getSelectedParty();
+                window.initializePlayerParty(myPartyData);
+                // 相手にパーティー情報を同期するための信号を送る
+                window.sendData('sync_party', myPartyData);
+            } else {
+                // シングルプレイの場合の戦闘開始ロジック（既存の関数を呼び出す）
+                window.startBattle(selectedParty);
+            }
         });
     }
 });

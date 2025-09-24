@@ -129,12 +129,11 @@ function initializePlayerParty(partyData) {
 
 function handleOpponentParty(partyData) {
     const partyType = window.isHost() ? 'client' : 'host';
-    // 既にオブジェクト配列なので、そのまま initializeParty を呼び出す
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
     renderParty(enemyPartyEl, opponentParty, true);
     opponentPartyReady = true;
-    checkBothPartiesReady();
+    checkBothPartiesReady(); // ここで呼び出す
 }
 
 function checkBothPartiesReady() {
