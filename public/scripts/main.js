@@ -27,6 +27,7 @@ let showClientUiButton;
 let startHostConnectionButton;
 let connectToRoomButton;
 let onlineScreen;
+let messageLogEl;
 
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
@@ -39,7 +40,6 @@ window.logMessage = (message, type) => {
     if (type) {
         p.classList.add('log-message', type);
     }
-    const messageLogEl = document.getElementById('message-log');
     if (messageLogEl) {
         messageLogEl.appendChild(p);
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startHostConnectionButton = document.getElementById('start-host-connection-button');
     connectToRoomButton = document.getElementById('connect-to-room-button');
     onlineScreen = document.getElementById('online-screen');
+    messageLogEl = document.getElementById('message-log');
     
     // イベントリスナー設定
     document.getElementById('online-button').addEventListener('click', () => {
