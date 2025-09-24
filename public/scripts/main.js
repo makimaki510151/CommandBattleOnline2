@@ -278,9 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (onlinePartyGoButton) {
         onlinePartyGoButton.addEventListener('click', () => {
             // キャラクターIDの文字列配列をキャラクターオブジェクトの配列に変換
-            const playerPartyData = ['char01', 'char02', 'char03', 'char04'].map(id => characters[id]);
-            const opponentPartyData = ['char05', 'char06', 'char07', 'char08'].map(id => characters[id]);
-
+            const playerPartyData = ["char01", "char02", "char03", "char04"].map(id => characters.find(char => char.id === id));
+            const opponentPartyData = ["char05", "char06", "char07", "char08"].map(id => characters.find(char => char.id === id));
             window.initializePlayerParty(playerPartyData);
             window.handleOpponentParty(opponentPartyData);
             if (onlineScreen) onlineScreen.classList.add('hidden');
@@ -388,7 +387,7 @@ function handleDataChannelMessage(event) {
         if (eventType === 'sync_party') {
             window.handleOpponentParty(eventData);
         } else if (eventType === 'start_battle') {
-            window.startBattleWithOpponentParty(eventData.enemies);
+            window.startBattleWithOpponentParty(eventData.initialState.opponentParty);
         } else if (eventType === 'execute_action') {
             window.executeAction(eventData);
         } else if (eventType === 'sync_game_state') {

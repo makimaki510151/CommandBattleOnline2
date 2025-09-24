@@ -181,9 +181,11 @@
 /* 行動するキャラクターの強調表示 */
 .player-character.active {
     outline: 3px solid #ffeb3b;
-    box-shadow: 0 0 15px rgba(255, 235, 59, 0.8);
+    box-shadow: 0 0 15px 5px rgba(255, 230, 0, 0.8);
     border-radius: 8px;
+    transform: scale(1.1);
 }
+
 /* Log message colors */
 .log-message.damage {
     color: #d32f2f; /* Red */
@@ -200,12 +202,6 @@
 .log-message.special-event {
     color: #fbc02d; /* Amber */
     font-weight: bold;
-}
-
-
-.player-character.active {
-    box-shadow: 0 0 15px 5px rgba(255, 230, 0, 0.8);
-    transform: scale(1.1);
 }
 
 .player-character.selecting-target,
