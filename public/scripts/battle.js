@@ -113,6 +113,7 @@ async function startBattle(partyMembers) {
 
 function initializePlayerParty(partyData) {
     const partyType = window.isHost() ? 'host' : 'client';
+    // 既にオブジェクト配列なので、そのまま initializeParty を呼び出す
     currentPlayerParty = initializeParty(partyData, partyType);
     renderParty(playerPartyEl, currentPlayerParty, false);
     if (window.isOnlineMode() && !window.isHost()) {
@@ -125,20 +126,8 @@ function initializePlayerParty(partyData) {
 
 function handleOpponentParty(partyData) {
     const partyType = window.isHost() ? 'client' : 'host';
-    opponentParty = partyData.map((p, index) => {
-        const member = deepCopy(p);
-        if (!member.uniqueId) {
-            member.uniqueId = generateUniqueId();
-        }
-        member.originalId = member.id || member.originalId;
-        member.partyType = partyType;
-        member.partyIndex = index;
-        member.effects = member.effects || {};
-        if (member.originalId === 'char06') {
-            member.targetMemory = member.targetMemory || { lastTargetId: null, missed: false };
-        }
-        return member;
-    });
+    // 既にオブジェクト配列なので、そのまま initializeParty を呼び出す
+    opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
     renderParty(enemyPartyEl, opponentParty, true);
     opponentPartyReady = true;
@@ -690,18 +679,6 @@ function handleBattleEnd() {
         logMessage('戦闘勝利！', 'win');
     }
     commandAreaEl.classList.add('hidden');
-}
-
-// キャラクターIDの配列からパーティーオブジェクトを生成する
-function createPartyFromIds(characterIds) {
-    return characterIds.map(id => {
-        const charData = characters.find(c => c.id === id);
-        if (!charData) {
-            console.error(`Character data not found for ID: ${id}`);
-            return null;
-        }
-        return deepCopy(charData);
-    }).filter(c => c !== null);
 }
 
 // グローバルアクセス
