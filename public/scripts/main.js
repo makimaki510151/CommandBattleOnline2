@@ -285,9 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // パーティー編成に進むボタンのイベントリスナー
     if (onlinePartyGoButton) {
         onlinePartyGoButton.addEventListener('click', () => {
-            // キャラクターIDから実際のキャラクターオブジェクトを取得する
-            const playerPartyData = ['char01', 'char02', 'char03'].map(id => characters[id]);
-            const opponentPartyData = ['char04', 'char05', 'char06'].map(id => characters[id]);
+            // キャラクターIDの文字列配列をキャラクターオブジェクトの配列に変換
+            const playerPartyData = ['char01', 'char02', 'char03', 'char04'].map(id => characters[id]);
+            const opponentPartyData = ['char05', 'char06', 'char07', 'char08'].map(id => characters[id]);
 
             window.initializePlayerParty(playerPartyData);
             window.handleOpponentParty(opponentPartyData);
