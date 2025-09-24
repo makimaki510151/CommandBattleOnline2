@@ -1,7 +1,6 @@
-// party.js (修正版)
+// party.js (最終版)
 
 import { characters } from './characters.js';
-import { deepCopy } from './utils.js';
 
 // DOM Elements
 const partyScreen = document.getElementById('party-screen');
@@ -13,6 +12,11 @@ const partyBackButton = document.getElementById('party-back-to-title-button');
 
 // Game State
 let selectedParty = [];
+
+// Utility Function: Deep copy
+function deepCopy(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
 
 // グローバルに公開する関数
 window.initializePlayerParty = initializePlayerParty;
@@ -32,7 +36,9 @@ function logMessage(message, type = '') {
 // パーティー編成画面の初期化
 function initializePlayerParty(initialPartyIds = []) {
     selectedParty = [];
-    selectedPartyEl.innerHTML = '<p class="placeholder">メンバーを4人選択してください</p>';
+    if (selectedPartyEl) {
+        selectedPartyEl.innerHTML = '<p class="placeholder">メンバーを4人選択してください</p>';
+    }
     renderCharacterList();
     if (initialPartyIds.length > 0) {
         initialPartyIds.forEach(id => {
@@ -43,7 +49,6 @@ function initializePlayerParty(initialPartyIds = []) {
         });
     }
 
-    // プレイヤーがオンラインモードでない場合、決定ボタンを有効化
     if (!window.isOnlineMode()) {
         if(goButton) {
             goButton.disabled = false;
@@ -78,8 +83,8 @@ function selectCharacter(char) {
         return;
     }
 
-    if (selectedParty.length === 0) {
-        selectedPartyEl.innerHTML = ''; // プレースホルダーを削除
+    if (selectedParty.length === 0 && selectedPartyEl) {
+        selectedPartyEl.innerHTML = '';
     }
 
     const newChar = deepCopy(char);
@@ -157,7 +162,6 @@ if (goButton) {
                     checkBothPartiesReady();
                 }
             } else {
-                // オフラインモードの場合
                 window.startBattleWithMyParty(selectedParty);
             }
         } else {
@@ -167,8 +171,9 @@ if (goButton) {
 }
 if (partyBackButton) {
     partyBackButton.addEventListener('click', () => {
-        partyScreen.classList.add('hidden');
-        document.getElementById('title-screen').classList.remove('hidden');
+        if (partyScreen) partyScreen.classList.add('hidden');
+        const titleScreen = document.getElementById('title-screen');
+        if (titleScreen) titleScreen.classList.remove('hidden');
         if (window.isOnlineMode()) {
             window.cleanupConnection();
         }
