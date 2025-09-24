@@ -383,12 +383,9 @@ function handleDataChannelMessage(event) {
     const { eventType, eventData } = message;
 
     if (eventType === 'sync_party') {
+        // ホストの場合、相手のパーティー情報を受け取って描画
         if (isHost) {
-            // ホストの場合、相手のパーティー情報を設定
-            window.handleOpponentParty(eventData);
-        } else {
-            // クライアントの場合、自分のパーティー情報として設定
-            window.handleOpponentParty(eventData);
+            window.handleOpponentParty(eventData.partyData);
         }
     } else if (eventType === 'start_battle') {
         if (!isHost) {

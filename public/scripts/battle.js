@@ -115,93 +115,87 @@ async function startBattle(partyMembers) {
 }
 
 function initializePlayerParty(partyData) {
-    // 既にパーティー情報が設定されている場合は処理をスキップ
     if (currentPlayerParty && currentPlayerParty.length > 0) {
         return;
     }
     const partyType = window.isHost() ? 'host' : 'client';
     currentPlayerParty = initializeParty(partyData, partyType);
+
+    // 自分のパーティーを描画
     renderParty(playerPartyEl, currentPlayerParty, false);
-    if (window.isOnlineMode() && !window.isHost()) {
-        enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
-    }
+
     myPartyReady = true;
     logMessage('自分のパーティーの準備が完了しました。');
+
+    // 両者の準備完了をチェック
     checkBothPartiesReady();
 }
 
 function handleOpponentParty(partyData) {
-    // 既に相手のパーティー情報が設定されている場合は処理をスキップ
     if (opponentParty && opponentParty.length > 0) {
         return;
     }
+
+    // ホストから見ると、クライアントのパーティーが相手になる
     const partyType = window.isHost() ? 'client' : 'host';
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
 
+    // 相手のパーティーを描画
     renderParty(enemyPartyEl, opponentParty, true);
 
     opponentPartyReady = true;
+    // 両者の準備完了をチェック
     checkBothPartiesReady();
 }
 
 function checkBothPartiesReady() {
     if (myPartyReady && opponentPartyReady) {
-        logMessage('両者の準備が完了しました。');
-        if (window.isOnlineMode() && window.isHost()) {
-            logMessage('ホストとして戦闘開始処理を実行。');
-            window.sendData('start_battle', {
-                initialState: {
-                    playerParty: currentPlayerParty,
-                    opponentParty: opponentParty,
-                    currentTurn: 0,
-                    isBattleOngoing: true
-                }
-            });
+        logMessage("両者の準備が完了しました。", 'system');
+
+        // ホストの場合のみ戦闘開始イベントを送信
+        if (window.isHost()) {
             startOnlineBattleHostSide();
         }
     }
 }
 
-async function startOnlineBattleHostSide(opponentPartyData) {
-    // クライアントから受け取ったパーティー情報を設定
-    opponentParty = opponentPartyData;
-
+async function startOnlineBattleHostSide() {
     isBattleOngoing = true;
     currentTurn = 0;
-    logMessage("両者の準備が完了しました。", 'system');
+    logMessage("戦闘開始！", 'system');
 
     // クライアントに戦闘開始を通知
-    sendOnlineEvent('start_battle', {
+    window.sendData('start_battle', {
         initialState: {
-            playerParty: currentPlayerParty,
-            opponentParty: opponentParty
+            playerParty: currentPlayerParty, // ホストのパーティー
+            opponentParty: opponentParty, // クライアントのパーティー
+            currentTurn: 0,
+            isBattleOngoing: true
         }
     });
 
-    // 自分のパーティーと相手のパーティーを描画
+    // ホスト側も自分のパーティーと相手のパーティーを描画
     renderParty(playerPartyEl, currentPlayerParty, false);
     renderParty(enemyPartyEl, opponentParty, true);
 
+    // 戦闘ループを開始
     await battleLoop();
 }
 
 function startOnlineBattleClientSide(initialState) {
     isBattleOngoing = true;
-    logMessage("両者の準備が完了しました。", 'system');
+    logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
 
-    // ホストから送られてきた状態を基にパーティーを設定
-    // ホストのplayerPartyが、クライアントのopponentParty
+    // ホストから送られてきたデータを基にパーティーを設定
+    // ホストのplayerPartyがクライアントのopponentParty
     opponentParty = initialState.playerParty;
-    // ホストのopponentPartyが、クライアントのcurrentPlayerParty
+    // ホストのopponentPartyがクライアントのcurrentPlayerParty
     currentPlayerParty = initialState.opponentParty;
 
     // パーティーの描画を更新
-    renderParty(playerPartyEl, currentPlayerParty, false); // 自分のパーティー
-    renderParty(enemyPartyEl, opponentParty, true); // 相手のパーティー（ホストのパーティー）
-
-    // クライアント側はここで待機し、ホストからの指示を待つ
-    // これ以上の処理はホストからのイベント（execute_actionなど）がトリガーとなる
+    renderParty(playerPartyEl, currentPlayerParty, false);
+    renderParty(enemyPartyEl, opponentParty, true);
 }
 
 // --- Core Battle Logic ---
