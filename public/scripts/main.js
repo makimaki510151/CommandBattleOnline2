@@ -2,7 +2,7 @@
 
 // グローバル変数と定数
 const STUN_SERVER = 'stun:stun.l.google.com:19302';
-const SIGNALING_SERVER_URL = 'https://command-battle-online2-8j5m.vercel.app'; // ここをあなたのVercelデプロイURLに置き換えてください
+const SIGNALING_SERVER_URL = 'https://github.com/makimaki510151/online-battle-signaling-server'; // ここをあなたのVercelデプロイURLに置き換えてください
 
 let socket = null;
 let peerConnection = null;
@@ -205,7 +205,7 @@ async function connectToSignalingServer(roomId) {
         console.log('シグナリングサーバー接続成功');
         socket.emit('joinRoom', roomId);
         window.logMessage('シグナリングサーバーに接続しました。');
-        
+
         // ホストの場合はここでPeerConnectionのセットアップを開始
         if (isHost) {
             setupPeerConnection();
@@ -220,9 +220,9 @@ async function connectToSignalingServer(roomId) {
                 if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
                     setupPeerConnection();
                 }
-                
+
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                
+
                 // answerを作成して送信
                 if (data.sdp.type === 'offer' && !isHost) {
                     const answer = await peerConnection.createAnswer();
