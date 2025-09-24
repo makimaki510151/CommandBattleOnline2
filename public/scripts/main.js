@@ -1,5 +1,8 @@
 // main.js (手動SDP交換版 - UI表示)
 
+// pakoライブラリのインポート (CDNで読み込む場合は不要ですが、モジュールとして扱う場合は必要です)
+// import pako from 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.mjs';
+
 // グローバル変数と定数
 const STUN_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -25,10 +28,10 @@ let clientUiEl;
 let showHostUiButton;
 let showClientUiButton;
 let startHostConnectionButton;
-let connectButton; // 'connect-to-room-button' から 'connect-button' に変更
+let connectButton;
 let onlineScreen;
 let messageLogEl;
-let copyIdButton; // コピーボタンの参照を追加
+let copyIdButton;
 
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
@@ -47,9 +50,25 @@ window.logMessage = (message, type) => {
     }
 };
 
+// SDPの圧縮・伸長関数
+function compressSDP(sdp) {
+    const jsonSdp = JSON.stringify(sdp);
+    const compressed = pako.deflate(jsonSdp, { to: 'string' });
+    return btoa(compressed);
+}
+
+function decompressSDP(compressedSdp) {
+    const binaryString = atob(compressedSdp);
+    const charData = binaryString.split('').map(function (x) {
+        return x.charCodeAt(0);
+    });
+    const binData = new Uint8Array(charData);
+    const decompressed = pako.inflate(binData, { to: 'string' });
+    return JSON.parse(decompressed);
+}
+
 // DOMが読み込まれた後に初期化
 document.addEventListener('DOMContentLoaded', () => {
-    // 修正: 'online-go-button' から 'online-party-go-button' に修正
     onlinePartyGoButton = document.getElementById('online-party-go-button');
     myPeerIdEl = document.getElementById('my-peer-id');
     connectionStatusEl = document.getElementById('connection-status');
@@ -60,10 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
     showHostUiButton = document.getElementById('show-host-ui-button');
     showClientUiButton = document.getElementById('show-client-ui-button');
     startHostConnectionButton = document.getElementById('start-host-connection-button');
-    connectButton = document.getElementById('connect-button'); // IDを修正しました
+    connectButton = document.getElementById('connect-button');
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
-    copyIdButton = document.getElementById('copy-id-button'); // コピーボタンの参照を取得
+    copyIdButton = document.getElementById('copy-id-button');
 
     // イベントリスナー設定
     document.getElementById('online-button').addEventListener('click', () => {
@@ -83,9 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         hostUiEl.classList.remove('hidden');
         clientUiEl.classList.add('hidden');
-        myPeerIdEl.textContent = 'SDPがここに表示されます。';
+        myPeerIdEl.textContent = 'SDPを生成中...';
         window.logMessage('ホストモードに切り替えました。');
-        // 修正: ホストUIが表示されたら自動的に接続を開始
         startHostConnectionButton.click();
     });
 
@@ -97,13 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('クライアントモードに切り替えました。');
     });
 
-    // 修正: コピーボタンのイベントリスナーを追加
+    // コピーボタンのイベントリスナー
     copyIdButton.addEventListener('click', async () => {
         const sdpText = myPeerIdEl.textContent;
-        if (sdpText && sdpText !== 'SDPがここに表示されます。') {
+        if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。') {
             try {
                 await navigator.clipboard.writeText(sdpText);
-                window.logMessage('SDPがクリップボードにコピーされました！', 'info');
+                window.logMessage('コピーしました！', 'info');
             } catch (err) {
                 console.error('コピー失敗:', err);
                 window.logMessage('SDPのコピーに失敗しました。ブラウザの権限を確認してください。', 'error');
@@ -115,18 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
-        // 接続状態の監視
         peerConnection.onconnectionstatechange = () => {
             console.log('PeerConnection State:', peerConnection.connectionState);
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                // 修正: online-party-go-button が正しく取得できるようになったため、ここで表示
+                // 修正: 接続完了後にボタンを表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
                 }
-            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionstate === 'disconnected') {
                 window.logMessage('接続が切断されました。', 'error');
                 cleanupConnection();
             }
@@ -137,8 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await peerConnection.setLocalDescription(offer);
 
             // SDP offerをUIに表示
-            myPeerIdEl.textContent = JSON.stringify(peerConnection.localDescription);
-            window.logMessage('ホストのSDP offerをテキストボックスに表示しました。コピーしてクライアントに渡してください。', 'success');
+            const compressedOffer = compressSDP(peerConnection.localDescription);
+            myPeerIdEl.textContent = compressedOffer;
+            window.logMessage('SDPを生成しました。コピーボタンを押して相手に伝えてください。', 'success');
 
         } catch (error) {
             console.error('Offer作成エラー:', error);
@@ -146,9 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    connectButton.addEventListener('click', async () => { // IDを修正しました
-        const offerSdpText = peerIdInput.value;
-        if (!offerSdpText) {
+    connectButton.addEventListener('click', async () => {
+        const compressedSdpText = peerIdInput.value;
+        if (!compressedSdpText) {
             window.logMessage('SDP offerを貼り付けてください。', 'error');
             return;
         }
@@ -156,25 +174,24 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
-        // 接続状態の監視
         peerConnection.onconnectionstatechange = () => {
             console.log('PeerConnection State:', peerConnection.connectionState);
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                // 修正: online-party-go-button が正しく取得できるようになったため、ここで表示
+                // 修正: 接続完了後にボタンを表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
                 }
-            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionstate === 'disconnected') {
                 window.logMessage('接続が切断されました。', 'error');
                 cleanupConnection();
             }
         };
 
         try {
-            const offerSdp = JSON.parse(offerSdpText);
+            const offerSdp = decompressSDP(compressedSdpText);
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
             window.logMessage(`RemoteDescriptionを設定しました (offer)`, 'info');
 
@@ -182,8 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await peerConnection.setLocalDescription(answer);
 
             // SDP answerをUIに表示
-            myPeerIdEl.textContent = JSON.stringify(peerConnection.localDescription);
-            window.logMessage('クライアントのSDP answerをテキストボックスに表示しました。これをホストに渡してください。', 'success');
+            const compressedAnswer = compressSDP(peerConnection.localDescription);
+            myPeerIdEl.textContent = compressedAnswer;
+            window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
 
         } catch (error) {
             console.error('Answer作成エラー:', error);
@@ -191,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 修正: クライアント側でペーストしたら自動接続
+    // クライアント側でペーストしたら自動接続
     peerIdInput.addEventListener('paste', () => {
         setTimeout(() => {
             connectButton.click();
