@@ -234,7 +234,9 @@ async function connectToSignalingServer(roomId) {
             try {
                 // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
                 if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
+                    console.log("クライアントとしてPeerConnectionのセットアップを開始します。");
                     setupPeerConnection();
+                    console.log("setupPeerConnection()が呼び出されました。(クライアント側)");
                     // クライアント側でPeerConnectionがセットアップされたら、接続状態を監視し始める
                     peerConnection.onconnectionstatechange = () => {
                         console.log('PeerConnection State:', peerConnection.connectionState);
@@ -315,7 +317,8 @@ function setupPeerConnection() {
     }
 
     // 接続状態の変化を監視
-    peerConnection.onconnectionstatechange = () => {
+    peerConnection.onconnectionstatechange = (event) => {
+        console.log('PeerConnection State (event):', event);
         console.log('PeerConnection State:', peerConnection.connectionState);
         window.logMessage(`WebRTC接続状態: ${peerConnection.connectionState}`, 'info');
         connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
