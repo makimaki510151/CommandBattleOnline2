@@ -26,7 +26,6 @@ let uniqueIdCounter = 0;
 
 // クライアント側で行動を待機するためのPromise
 let resolveClientActionPromise = null;
-let executingCharacter = null;
 
 // --- Utility Functions ---
 
@@ -248,9 +247,76 @@ async function battleLoop() {
     }
 }
 
+// ホスト側のプレイヤーの行動を処理する関数
+async function playerTurn(actor) {
+    resetHighlights();
+    const combatantEl = document.querySelector(`[data-unique-id="${actor.uniqueId}"]`);
+    if (combatantEl) {
+        combatantEl.classList.add('active');
+    }
+    logMessage(`${actor.name}のターン！`, 'character-turn');
+    commandAreaEl.classList.remove('hidden');
+    updateCommandMenu(actor);
+
+    return new Promise(resolve => {
+        const handleCommand = async (event) => {
+            const target = event.target;
+            let actionData = null;
+            let targetUniqueId = null;
+
+            if (target.matches('.action-attack')) {
+                logMessage('攻撃対象を選んでください。');
+                const targetInfo = await selectTarget();
+                if (targetInfo) {
+                    targetUniqueId = targetInfo.target.uniqueId;
+                    actionData = { action: 'attack', actorUniqueId: actor.uniqueId, targetUniqueId: targetUniqueId };
+                }
+            } else if (target.matches('.action-defend')) {
+                actionData = { action: 'defend', actorUniqueId: actor.uniqueId };
+            } else if (target.matches('.action-skill')) {
+                const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
+                if (skillMenuEl) {
+                    skillMenuEl.classList.toggle('hidden');
+                }
+                return;
+            } else if (target.matches('.skill-button')) {
+                const skillName = target.textContent;
+                const skill = actor.active.find(s => s.name === skillName);
+                if (skill) {
+                    let mpCost = skill.mp;
+                    if (actor.status.mp < mpCost) {
+                        logMessage(`MPが足りません！`);
+                        return;
+                    }
+                    actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id };
+                }
+            } else if (target.matches('.action-special')) {
+                const special = actor.special;
+                if (special) {
+                    let mpCost = special.mp;
+                    if (actor.status.mp < mpCost) {
+                        logMessage(`MPが足りません！`);
+                        return;
+                    }
+                    actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id };
+                }
+            }
+
+            if (actionData) {
+                commandAreaEl.removeEventListener('click', handleCommand);
+                commandAreaEl.classList.add('hidden');
+                executeAction(actionData);
+                resolve();
+            }
+        };
+        commandAreaEl.addEventListener('click', handleCommand);
+    });
+}
+
 // クライアントからのアクション実行要求
 window.handleActionRequest = async (data) => {
-    const actor = opponentParty.find(c => c.uniqueId === data.actorUniqueId);
+    // 相手からのリクエストなので、自分のキャラクターを探す
+    const actor = currentPlayerParty.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) return;
     
     resetHighlights();
@@ -573,5 +639,5 @@ window.handleOpponentParty = handleOpponentParty;
 window.checkBothPartiesReady = checkBothPartiesReady;
 window.startOnlineBattleHostSide = startOnlineBattleHostSide;
 window.startOnlineBattleClientSide = startOnlineBattleClientSide;
-window.handleActionRequest = window.handleActionRequest || (() => console.log('Action request received.'));
+window.handleActionRequest = window.handleActionRequest;
 window.executeAction = executeAction;

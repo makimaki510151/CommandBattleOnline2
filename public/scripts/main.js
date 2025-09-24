@@ -238,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.handleActionRequest(data);
         });
 
+        channel.bind('client-execute_action', (data) => {
+            window.executeAction(data);
+        });
+
         channel.bind('client-sync_game_state', (data) => {
             window.syncGameStateClientSide(data);
         });
