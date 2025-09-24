@@ -315,7 +315,6 @@ async function playerTurn(actor) {
 
 // クライアントからのアクション実行要求
 window.handleActionRequest = async (data) => {
-    // 相手からのリクエストなので、自分のキャラクターを探す
     const actor = currentPlayerParty.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) return;
     
@@ -354,7 +353,6 @@ window.handleActionRequest = async (data) => {
                 const skillName = target.textContent;
                 const skill = actor.active.find(s => s.name === skillName);
                 if (skill) {
-                    // MPチェックはホスト側でも実行されるが、UI上はここでチェック
                     let mpCost = skill.mp;
                     if (actor.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
@@ -388,7 +386,14 @@ window.handleActionRequest = async (data) => {
 };
 
 window.executeAction = (data) => {
-    const allCombatants = window.isOnlineMode() ? [...currentPlayerParty, ...opponentParty] : [...currentPlayerParty, ...currentEnemies];
+    // オンラインモードか否かで戦闘参加者の配列を正しく生成
+    let allCombatants;
+    if (window.isOnlineMode()) {
+        allCombatants = [...currentPlayerParty, ...opponentParty];
+    } else {
+        allCombatants = [...currentPlayerParty, ...currentEnemies];
+    }
+
     const actor = allCombatants.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) {
         return;

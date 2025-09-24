@@ -212,8 +212,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // ホスト側は自分が送ったメッセージを処理しないように修正
         channel.bind('client-party_ready', (data) => {
-            window.handleOpponentParty(data.party);
+            if (!window.isHost()) {
+                window.handleOpponentParty(data.party);
+            }
         });
 
         channel.bind('client-log_message', (data) => {
