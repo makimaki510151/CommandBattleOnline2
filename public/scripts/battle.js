@@ -115,6 +115,10 @@ async function startBattle(partyMembers) {
 }
 
 function initializePlayerParty(partyData) {
+    // 既にパーティー情報が設定されている場合は処理をスキップ
+    if (currentPlayerParty && currentPlayerParty.length > 0) {
+        return;
+    }
     const partyType = window.isHost() ? 'host' : 'client';
     // 既にオブジェクト配列なので、そのまま initializeParty を呼び出す
     currentPlayerParty = initializeParty(partyData, partyType);
@@ -128,6 +132,10 @@ function initializePlayerParty(partyData) {
 }
 
 function handleOpponentParty(partyData) {
+    // 既に相手のパーティー情報が設定されている場合は処理をスキップ
+    if (opponentParty && opponentParty.length > 0) {
+        return;
+    }
     const partyType = window.isHost() ? 'client' : 'host';
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');

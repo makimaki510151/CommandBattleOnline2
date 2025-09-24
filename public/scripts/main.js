@@ -46,7 +46,7 @@ window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => isHost;
 
 // ログ表示関数をグローバルに公開
-window.logMessage = (message, type) => {
+window.logMessage = (message, type = '') => {
     const p = document.createElement('p');
     p.textContent = message;
     if (type) {
@@ -313,14 +313,14 @@ function setupPeerConnection() {
         }
     };
 
-    // データチャネルの受信
-    if (!isHost) {
-        peerConnection.ondatachannel = (event) => {
-            dataChannel = event.channel;
-            handleChannelStatusChange();
-            dataChannel.onmessage = handleDataChannelMessage;
-        };
-    } else {
+    // データチャネルの受信 (ホストとクライアント両方で受信できるように変更)
+    peerConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        handleChannelStatusChange();
+        dataChannel.onmessage = handleDataChannelMessage;
+    };
+    
+    if (isHost) {
         dataChannel = peerConnection.createDataChannel("game-data");
         handleChannelStatusChange();
     }
