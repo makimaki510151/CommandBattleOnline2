@@ -50,9 +50,9 @@ window.logMessage = (message, type) => {
 // SDPの圧縮・伸長関数 (バイナリデータを正しく扱うように修正)
 function compressSDP(sdp) {
     const jsonSdp = JSON.stringify(sdp);
-    const compressed = pako.deflate(jsonSdp);
-    const binaryString = String.fromCharCode.apply(null, compressed);
-    return btoa(binaryString);
+    const textEncoder = new TextEncoder();
+    const compressed = pako.deflate(textEncoder.encode(jsonSdp));
+    return btoa(String.fromCharCode.apply(null, compressed));
 }
 
 function decompressSDP(compressedSdp) {
@@ -61,8 +61,9 @@ function decompressSDP(compressedSdp) {
     for (let i = 0; i < binaryString.length; i++) {
         uint8Array[i] = binaryString.charCodeAt(i);
     }
-    const decompressed = pako.inflate(uint8Array, { to: 'string' });
-    return JSON.parse(decompressed);
+    const decompressed = pako.inflate(uint8Array);
+    const textDecoder = new TextDecoder();
+    return JSON.parse(textDecoder.decode(decompressed));
 }
 
 // DOMが読み込まれた後に初期化
