@@ -285,7 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // オンラインモードに応じて戦闘を開始
             if (window.isOnlineMode()) {
                 const myPartyData = window.getSelectedParty();
-                window.initializePlayerParty(myPartyData);
+                // この行を削除することで重複呼び出しを防ぎます
+                // window.initializePlayerParty(myPartyData);
                 // 相手にパーティー情報を同期するための信号を送る
                 window.sendData('sync_party', myPartyData);
             } else {

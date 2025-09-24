@@ -177,12 +177,14 @@ function startOnlineBattleClientSide(initialState) {
     logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
 
     // ホストから送られてきた相手のパーティーを設定
-    opponentParty = initialState.opponentParty;
+    // ホストのplayerPartyがクライアントのopponentPartyになる
+    opponentParty = initialState.playerParty;
     // 自分のパーティーはローカルで初期化済みのものを使用
     currentPlayerParty = window.getPlayerParty();
 
     // パーティーの描画を更新
     renderParty(playerPartyEl, currentPlayerParty, false);
+    // 修正: 相手のパーティーを描画する行を有効化する
     renderParty(enemyPartyEl, opponentParty, true);
 
     // クライアント側はここで待機し、ホストからの指示を待つ

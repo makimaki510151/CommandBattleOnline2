@@ -51,7 +51,7 @@
     gap: 8px;
 }
 
-.character-image {
+.char-icon {
     width: 80px;
     height: 80px;
     object-fit: cover;
@@ -107,7 +107,8 @@
     padding: 15px;
     margin-top: 20px;
     gap: 20px;
-    min-height: 340px; /* ここを150pxから250pxに変更 */
+    min-height: 340px;
+    /* ここを150pxから250pxに変更 */
 }
 
 .log-box {
@@ -188,19 +189,23 @@
 
 /* Log message colors */
 .log-message.damage {
-    color: #d32f2f; /* Red */
+    color: #d32f2f;
+    /* Red */
 }
 
 .log-message.heal {
-    color: #43a047; /* Green */
+    color: #43a047;
+    /* Green */
 }
 
 .log-message.status-effect {
-    color: #1976d2; /* Blue */
+    color: #1976d2;
+    /* Blue */
 }
 
 .log-message.special-event {
-    color: #fbc02d; /* Amber */
+    color: #fbc02d;
+    /* Amber */
     font-weight: bold;
 }
 
@@ -252,6 +257,7 @@
         transform: scale(0.8) translateY(50px);
         opacity: 0;
     }
+
     100% {
         transform: scale(1) translateY(0);
         opacity: 1;
@@ -271,9 +277,12 @@
 }
 
 @keyframes titlePulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.05);
     }
