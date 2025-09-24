@@ -1,4 +1,4 @@
-// main.js (手動SDP交換版)
+// main.js (手動SDP交換版 - UI表示)
 
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startHostConnectionButton = document.getElementById('start-host-connection-button');
     connectToRoomButton = document.getElementById('connect-to-room-button');
     onlineScreen = document.getElementById('online-screen');
-
+    
     // イベントリスナー設定
     document.getElementById('online-button').addEventListener('click', () => {
         isOnlineMode = true;
@@ -80,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUiEl.classList.remove('hidden');
         clientUiEl.classList.add('hidden');
         window.logMessage('ホストモードに切り替えました。');
-        myPeerIdEl.textContent = 'ホストのSDPをコピーしてください';
     });
 
     showClientUiButton.addEventListener('click', () => {
@@ -88,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUiEl.classList.add('hidden');
         clientUiEl.classList.remove('hidden');
         window.logMessage('クライアントモードに切り替えました。');
-        myPeerIdEl.textContent = 'クライアントのSDPをコピーしてください';
     });
 
     startHostConnectionButton.addEventListener('click', async () => {
@@ -115,11 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             
-            // SDP offerをコンソールに表示
-            console.log("ホストのSDP offerをコピーしてください:");
-            console.log(JSON.stringify(peerConnection.localDescription));
-
-            window.logMessage('ホストのSDP offerをコンソールに表示しました。コピーしてクライアントに渡してください。', 'success');
+            // SDP offerをUIに表示
+            myPeerIdEl.textContent = JSON.stringify(peerConnection.localDescription);
+            window.logMessage('ホストのSDP offerをテキストボックスに表示しました。コピーしてクライアントに渡してください。', 'success');
 
         } catch (error) {
             console.error('Offer作成エラー:', error);
@@ -161,11 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            // SDP answerをコンソールに表示
-            console.log("クライアントのSDP answerをコピーしてください:");
-            console.log(JSON.stringify(peerConnection.localDescription));
-
-            window.logMessage('クライアントのSDP answerをコンソールに表示しました。これをホストに渡してください。', 'success');
+            // SDP answerをUIに表示
+            myPeerIdEl.textContent = JSON.stringify(peerConnection.localDescription);
+            window.logMessage('クライアントのSDP answerをテキストボックスに表示しました。これをホストに渡してください。', 'success');
 
         } catch (error) {
             console.error('Answer作成エラー:', error);
@@ -267,7 +261,7 @@ function cleanupConnection() {
         onlinePartyGoButton.classList.add('hidden');
     }
     if (myPeerIdEl) {
-        myPeerIdEl.textContent = 'ホストのSDPをコピーしてください'; // 初期状態に戻す
+        myPeerIdEl.textContent = '';
     }
     if (connectionStatusEl) {
         connectionStatusEl.textContent = '';
