@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // イベントリスナー設定
     document.getElementById('online-button').addEventListener('click', () => {
+        cleanupConnection();
         isOnlineMode = true;
         document.getElementById('title-screen').classList.add('hidden');
         onlineScreen.classList.remove('hidden');
@@ -142,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
-        // 修正: ICE候補が収集完了するまで待機
+        // ICE候補が収集完了するまで待機
         peerConnection.onicegatheringstatechange = () => {
             console.log('ICE Gathering State:', peerConnection.iceGatheringState);
             if (peerConnection.iceGatheringState === 'complete') {
@@ -177,16 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
 
-        // 修正: ICE候補が収集完了するまで待機
-        peerConnection.onicegatheringstatechange = () => {
-            console.log('ICE Gathering State:', peerConnection.iceGatheringState);
-            if (peerConnection.iceGatheringState === 'complete') {
-                const compressedAnswer = compressSDP(peerConnection.localDescription);
-                myPeerIdEl.textContent = compressedAnswer;
-                window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
-            }
-        };
-
         try {
             const offerSdp = decompressSDP(compressedSdpText);
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
@@ -195,6 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
+            // 修正: ICE候補が収集完了するまで待機
+            peerConnection.onicegatheringstatechange = () => {
+                console.log('ICE Gathering State:', peerConnection.iceGatheringState);
+                if (peerConnection.iceGatheringState === 'complete') {
+                    const compressedAnswer = compressSDP(peerConnection.localDescription);
+                    myPeerIdEl.textContent = compressedAnswer;
+                    window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
+                }
+            };
         } catch (error) {
             console.error('Answer作成エラー:', error);
             window.logMessage('Answer作成中にエラーが発生しました。', 'error');
