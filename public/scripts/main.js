@@ -214,13 +214,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ホスト側は自分が送ったメッセージを処理しないように修正
         channel.bind('client-party_ready', (data) => {
-            if (window.isHost() && data.party[0].partyType !== 'host') {
-                // ホストとして、クライアントから送られてきたパーティー情報を処理
+            // ホストとして、クライアントから送られてきたパーティー情報を処理
+            if (window.isHost() && data.party[0].partyType === 'client') {
                 window.handleOpponentParty(data.party);
-            } else if (!window.isHost() && data.party[0].partyType === 'host') {
-                // クライアントとして、ホストから送られてきたパーティー情報を処理
-                // これはホストがクライアントのparty_readyを受信後に送り返す想定
-                window.handleOpponentParty(data.party);
+            }
+            // クライアントとして、ホストから送られてきた自分のパーティー情報を受信
+            else if (!window.isHost() && data.party[0].partyType === 'host') {
+                // クライアントのパーティーは自分で初期化済みなのでここでは何もしない
             }
         });
 

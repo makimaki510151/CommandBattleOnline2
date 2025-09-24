@@ -172,11 +172,17 @@ async function startOnlineBattleHostSide() {
 function startOnlineBattleClientSide(initialState) {
     isBattleOngoing = true;
     currentTurn = initialState.currentTurn;
-    currentPlayerParty = initialState.playerParty;
-    opponentParty = initialState.opponentParty;
+    // ホストから受け取った初期状態を自分のパーティーと相手のパーティーとして設定
+    currentPlayerParty = initialState.opponentParty;
+    opponentParty = initialState.playerParty;
 
     renderParty(playerPartyEl, currentPlayerParty, false);
     renderParty(enemyPartyEl, opponentParty, true);
+
+    logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
+
+    // クライアント側はここで待機し、ホストからの指示を待つ
+    // これ以上の処理はホストからのイベント（request_actionなど）がトリガーとなる
 }
 
 // --- Core Battle Logic ---
@@ -428,19 +434,22 @@ window.executeAction = (data) => {
 
     updateAllDisplays();
 
-    // ホストとしてクライアントのアクション実行を受け取った場合、待機Promiseを解決する
-    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId.includes('client')) {
-        if (resolveClientActionPromise) {
+    // ホストとしてクライアントのアクション実行を受け取った場合
+    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId) {
+        // クライアントのキャラクターのターンであることを確認
+        const isClientCharacter = opponentParty.some(c => c.uniqueId === data.actorUniqueId);
+        if (isClientCharacter && resolveClientActionPromise) {
             resolveClientActionPromise();
             resolveClientActionPromise = null;
         }
     }
 
-    // ホストのキャラクターのアクション実行後もPromiseを解決
-    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId.includes('host')) {
-        // この部分は元々ホストのターン処理のPromiseを解決するためにあった部分
-        // しかし、クライアントからのアクション処理とは別のもの
-        // ロジックを明確に分けるか、`battleLoop`の処理を見直す必要がある
+    // ホストのキャラクターのアクション実行後、ホスト側の待機Promiseを解決
+    if (window.isOnlineMode() && window.isHost() && data.actorUniqueId) {
+        const isHostCharacter = currentPlayerParty.some(c => c.uniqueId === data.actorUniqueId);
+        if (isHostCharacter) {
+            // ... (元々のロジックをここに配置)
+        }
     }
 
 };
