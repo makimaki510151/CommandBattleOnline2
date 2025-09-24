@@ -1,4 +1,4 @@
-// battle.js (修正版)
+// battle.js (Pusher版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
@@ -12,21 +12,18 @@ const battleScreenEl = document.getElementById('battle-screen');
 const partyScreen = document.getElementById('party-screen');
 
 // Game State
-let currentPlayerParty = null;     // 自分のパーティー情報
-let opponentParty = null;          // 相手のパーティー情報 (オンライン対戦時)
-let currentEnemies = null;         // シングルプレイ時の敵情報
+let currentPlayerParty = null;
+let opponentParty = null;
+let currentEnemies = null;
 let currentTurn = 0;
 let isBattleOngoing = false;
 let currentGroupIndex = 0;
 
-// オンライン対戦用の準備完了フラグ
 let myPartyReady = false;
 let opponentPartyReady = false;
 
-// ユニークID生成カウンター
 let uniqueIdCounter = 0;
 
-// オンライン対戦用の行動待機
 let resolveActionPromise = null;
 
 // --- Utility Functions ---
@@ -36,7 +33,6 @@ function generateUniqueId() {
 }
 
 function logMessage(message, type = '') {
-    // main.jsのグローバル関数を優先的に使用
     if (window.logMessage) {
         window.logMessage(message, type);
     } else {
@@ -96,14 +92,11 @@ function updateAllDisplays() {
 function initializeParty(party, partyType = 'player') {
     return party.map((p, index) => {
         const member = deepCopy(p);
-        // ユニークIDを生成（元のIDは保持）
         member.uniqueId = generateUniqueId();
-        member.originalId = member.id; // 元のIDを保存
-        member.partyType = partyType; // パーティータイプを追加
-        member.partyIndex = index; // パーティー内のインデックス
+        member.originalId = member.id;
+        member.partyType = partyType;
+        member.partyIndex = index;
         member.effects = {};
-
-        // キャラクター固有の初期化
         if (member.originalId === 'char06') {
             member.targetMemory = { lastTargetId: null, missed: false };
         }
@@ -111,128 +104,79 @@ function initializeParty(party, partyType = 'player') {
     });
 }
 
-// シングルプレイ用バトル開始
 async function startBattle(partyMembers) {
-    // 画面遷移は既にmain.jsで実行済みなので、戦闘ロジックのみ開始
     logMessage('戦闘開始！');
     isBattleOngoing = true;
     currentTurn = 0;
-
-    // 自分のパーティーを初期化
     currentPlayerParty = initializeParty(partyMembers, 'player');
-
-    // シングルプレイの場合は最初の敵グループから開始
     currentGroupIndex = 0;
     await startNextGroup();
 }
 
-// オンライン対戦用：自分のパーティーを準備
 function initializePlayerParty(partyData) {
-    // ホストなら 'host'、クライアントなら 'client' のpartyTypeを付与
-    currentPlayerParty = initializeParty(partyData, window.isHost() ? 'host' : 'client');
-    renderParty(playerPartyEl, currentPlayerParty, false); // 自分のパーティーを描画
-
-    // 相手待機中の表示
+    const partyType = window.isHost() ? 'host' : 'client';
+    currentPlayerParty = initializeParty(partyData, partyType);
+    renderParty(playerPartyEl, currentPlayerParty, false);
     enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
-
-    myPartyReady = true; // 自分のパーティー準備完了
+    myPartyReady = true;
     logMessage('自分のパーティーの準備が完了しました。');
 }
 
-// オンライン対戦用：相手のパーティー情報を受け取る
 function handleOpponentParty(partyData) {
-    console.log('handleOpponentParty呼び出し:', partyData);
-
     if (!partyData || !Array.isArray(partyData)) {
         console.error('受信した相手のパーティーデータが無効です。', partyData);
         logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
         return;
     }
-
-    console.log('相手のパーティーデータ処理開始, 要素数:', partyData.length);
-
-    // 相手のパーティーを初期化（ホストなら 'client'、クライアントなら 'host' のpartyTypeを付与）
+    const partyType = window.isHost() ? 'client' : 'host';
     opponentParty = partyData.map((p, index) => {
         const member = deepCopy(p);
-        // 相手から受信したユニークIDをそのまま使用
         if (!member.uniqueId) {
             member.uniqueId = generateUniqueId();
         }
         member.originalId = member.id || member.originalId;
-        member.partyType = window.isHost() ? 'client' : 'host';
+        member.partyType = partyType;
         member.partyIndex = index;
         member.effects = member.effects || {};
-
         if (member.originalId === 'char06') {
             member.targetMemory = member.targetMemory || { lastTargetId: null, missed: false };
         }
-        console.log(`相手パーティーメンバー${index}:`, member.name, member.uniqueId);
         return member;
     });
-
-    console.log('相手のパーティー初期化完了:', opponentParty);
     logMessage('相手のパーティー情報を受信しました！');
-
-    console.log('相手パーティーの描画開始');
     renderParty(enemyPartyEl, opponentParty, true);
-    console.log('相手パーティーの描画完了');
-
     opponentPartyReady = true;
-    console.log('フラグ状態 - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
     checkBothPartiesReady();
 }
 
-// 両方のパーティーが準備完了かチェックし、戦闘を開始
 function checkBothPartiesReady() {
-    console.log('checkBothPartiesReady呼び出し - myPartyReady:', myPartyReady, 'opponentPartyReady:', opponentPartyReady);
-    console.log('isHost:', window.isHost());
-
     if (myPartyReady && opponentPartyReady) {
-        console.log('両者の準備が完了しました');
         logMessage('両者の準備が完了しました。');
-
         if (window.isHost()) {
-            // ホストのみが戦闘開始をトリガーする
-            console.log('ホストとして戦闘開始処理を実行');
-            logMessage('ホストとして戦闘を開始します。');
-            window.sendData({ type: 'start_battle' });
+            logMessage('ホストとして戦闘開始処理を実行。');
+            window.sendData('start_battle', {});
             startOnlineBattle();
         } else {
-            // クライアントはホストからの同期を待つ
-            console.log('クライアントとしてホストの戦闘開始を待機');
-            logMessage('ホストからの戦闘開始を待っています...');
+            logMessage('クライアントとしてホストの戦闘開始を待機。');
         }
-    } else {
-        console.log('まだ準備が完了していません');
     }
 }
 
-// オンライン戦闘開始（ホスト側から呼ばれる）
 async function startOnlineBattle() {
-    // 画面遷移は既にmain.jsで実行済みなので、戦闘ロジックのみ開始
     isBattleOngoing = true;
     currentTurn = 0;
-
-    logMessage("戦闘開始！"); // ホストは既にcheckBothPartiesReadyでstart_battleを送信済み
-
-    // 戦闘ループを開始
+    logMessage("戦闘開始！");
     await battleLoop();
 }
 
-// クライアント側の戦闘開始処理
 function startBattleClientSide() {
     if (isBattleOngoing) return;
     logMessage('ホストが戦闘を開始しました。');
-
-    // 画面遷移は既にmain.jsで実行済みなので、戦闘フラグのみ設定
     isBattleOngoing = true;
     currentTurn = 0;
-
-    // クライアント側も戦闘ループを開始
     battleLoop();
 }
 
-// シングルプレイ用：次の敵グループとの戦闘を開始
 async function startNextGroup() {
     if (currentGroupIndex >= enemyGroups.length) {
         handleGameWin();
@@ -248,7 +192,6 @@ async function startNextGroup() {
 // --- Core Battle Logic ---
 
 async function battleLoop() {
-    // オンラインモードでクライアントの場合は、ホストからの同期を待つため、ここでは何もしない
     if (window.isOnlineMode() && !window.isHost()) {
         logMessage("ホストからの行動を待っています...");
         return;
@@ -263,7 +206,7 @@ async function battleLoop() {
         const turnStartMessage = `=== ターン ${currentTurn + 1} 開始 ===`;
         logMessage(turnStartMessage, 'turn-start');
         if (window.isOnlineMode()) {
-            window.sendData({ type: 'log_message', message: turnStartMessage, messageType: 'turn-start' });
+            window.sendData('log_message', { message: turnStartMessage, messageType: 'turn-start' });
         }
 
         const combatants = window.isOnlineMode()
@@ -271,16 +214,13 @@ async function battleLoop() {
             : [...currentPlayerParty, ...currentEnemies];
 
         const aliveCombatants = combatants.filter(c => c.status.hp > 0);
-
-        // パッシブ能力の適用（ターン開始時）
         applyPassiveAbilities(aliveCombatants);
-
         aliveCombatants.sort((a, b) => b.status.spd - a.status.spd || Math.random() - 0.5);
 
         const actionOrder = aliveCombatants.map(c => c.name).join(' → ');
         logMessage(`行動順: ${actionOrder}`);
         if (window.isOnlineMode()) {
-            window.sendData({ type: 'log_message', message: `行動順: ${actionOrder}` });
+            window.sendData('log_message', { message: `行動順: ${actionOrder}` });
         }
 
         for (const combatant of aliveCombatants) {
@@ -290,44 +230,38 @@ async function battleLoop() {
             const actionSkipped = processStatusEffects(combatant);
             if (actionSkipped) continue;
 
-        const isMyCharacter = (window.isHost() && combatant.partyType === 'host') || (!window.isHost() && combatant.partyType === 'client');
+            const isMyCharacter = (window.isHost() && combatant.partyType === 'host') || (!window.isHost() && combatant.partyType === 'client');
 
-        if (isMyCharacter) {
-            // 自分のキャラクターのターン
-            await playerTurn(combatant);
-        } else if (window.isOnlineMode()) {
-            // オンラインモードで相手のキャラクターのターン
-            resetHighlights();
-            const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-            if (combatantEl) {
-                combatantEl.classList.add('active');
+            if (isMyCharacter) {
+                await playerTurn(combatant);
+            } else if (window.isOnlineMode()) {
+                resetHighlights();
+                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
+                if (combatantEl) {
+                    combatantEl.classList.add('active');
+                }
+                logMessage(`${combatant.name}の行動を待っています...`);
+                await waitForAction();
+            } else {
+                resetHighlights();
+                const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
+                if (combatantEl) {
+                    combatantEl.classList.add('active');
+                }
+                await enemyTurn(combatant);
             }
-            logMessage(`${combatant.name}の行動を待っています...`);
-            // ホストは相手の行動を待つ、クライアントはホストからの指示を待つ
-            await waitForAction();
-        } else {
-            // シングルプレイの敵のターン
-            resetHighlights();
-            const combatantEl = document.querySelector(`[data-unique-id="${combatant.uniqueId}"]`);
-            if (combatantEl) {
-                combatantEl.classList.add('active');
-            }
-            await enemyTurn(combatant);
-        }
 
             if (window.isOnlineMode()) {
                 syncGameState();
             } else {
-                resetHighlights(); // シングルプレイではターンの最後にハイライトをリセット
+                resetHighlights();
             }
         }
 
-        // ターン終了時の効果処理
         processEndTurnEffects(aliveCombatants);
         applyEndTurnPassiveAbilities(aliveCombatants);
         updateAllDisplays();
 
-        // ターン終了後に再度勝敗判定（自己修復などで状況が変わる可能性があるため）
         if (isBattleOver()) {
             handleBattleEnd();
             break;
@@ -338,56 +272,20 @@ async function battleLoop() {
     }
 }
 
-// オンライン対戦用の行動待機
 function waitForAction() {
     return new Promise(resolve => {
         resolveActionPromise = resolve;
     });
 }
 
-// --- Passive Abilities ---
-
-function applyPassiveAbilities(combatants) {
-    const playerCombatants = combatants.filter(c => c.partyType !== 'enemy');
-    const enemyCombatants = combatants.filter(c => c.partyType === 'enemy');
-
-    combatants.forEach(combatant => {
-        const passiveFunc = passiveAbilities[combatant.originalId];
-        if (passiveFunc) {
-            const allies = combatant.partyType === 'enemy' ? enemyCombatants : playerCombatants;
-            const enemies = combatant.partyType === 'enemy' ? playerCombatants : enemyCombatants;
-            passiveFunc(combatant, allies, enemies, logMessage);
-        }
-    });
-}
-
-function applyEndTurnPassiveAbilities(combatants) {
-    combatants.forEach(combatant => {
-        // 生存しているキャラクターのみにターン終了時パッシブを適用
-        if (combatant.status.hp > 0) {
-            const endTurnPassiveFunc = endTurnPassiveAbilities[combatant.originalId];
-            if (endTurnPassiveFunc) {
-                const message = endTurnPassiveFunc(combatant, logMessage);
-                if (message) {
-                    logMessage(message, 'heal');
-                }
-            }
-        }
-    });
-}
-
 // --- Turn Handling ---
 
 async function playerTurn(player) {
-    // プレイヤーのターン開始時に全てのハイライトをリセット
     resetHighlights();
-
-    // 行動中のキャラクターをハイライト
     const playerEl = document.querySelector(`[data-unique-id="${player.uniqueId}"]`);
     if (playerEl) {
         playerEl.classList.add('active');
     }
-
     logMessage(`${player.name}のターン！`, 'character-turn');
     commandAreaEl.classList.remove('hidden');
     updateCommandMenu(player);
@@ -412,27 +310,22 @@ async function playerTurn(player) {
                 if (skillMenuEl) {
                     skillMenuEl.classList.toggle('hidden');
                 }
-                return; // スキルメニュー表示中はアクションを確定しない
+                return;
             } else if (target.matches('.skill-button')) {
                 const skillName = target.textContent;
                 const skill = player.active.find(s => s.name === skillName);
                 if (skill) {
                     let mpCost = skill.mp;
-
-                    // 状態異常によるMP消費増加の処理
                     if (player.effects.curse) {
                         mpCost = Math.floor(mpCost * 1.5);
                         logMessage(`${player.name}の「呪縛」により、MP消費が${mpCost}に増加した。`);
                     }
-
                     if (player.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
                         return;
                     }
-
                     player.status.mp -= mpCost;
                     logMessage(`${player.name}は${skill.name}を使った！`);
-
                     const skillExecuted = await executeSkill(player, skill);
                     if (skillExecuted) {
                         actionData = {
@@ -441,22 +334,19 @@ async function playerTurn(player) {
                             skillName: skill.name
                         };
                     } else {
-                        player.status.mp += mpCost; // スキル実行失敗時はMPを戻す
+                        player.status.mp += mpCost;
                     }
                 }
             } else if (target.matches('.action-special')) {
                 const special = player.special;
                 if (special) {
                     let mpCost = special.mp;
-
                     if (player.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
                         return;
                     }
-
                     player.status.mp -= mpCost;
                     logMessage(`${player.name}は${special.name}を使った！`);
-
                     const specialExecuted = await executeSpecial(player, special);
                     if (specialExecuted) {
                         actionData = {
@@ -465,7 +355,7 @@ async function playerTurn(player) {
                             specialName: special.name
                         };
                     } else {
-                        player.status.mp += mpCost; // 必殺技実行失敗時はMPを戻す
+                        player.status.mp += mpCost;
                     }
                 }
             } else if (target.matches('.action-defend')) {
@@ -475,30 +365,25 @@ async function playerTurn(player) {
             }
 
             if (actionData) {
-                commandAreaEl.removeEventListener('click', handleCommand); // イベントリスナーを削除
-                commandAreaEl.classList.add('hidden'); // コマンドメニューを隠す
-
-                // オンラインモードの場合、相手にアクションを送信
+                commandAreaEl.removeEventListener('click', handleCommand);
+                commandAreaEl.classList.add('hidden');
                 if (window.isOnlineMode()) {
-                    window.sendData({ type: 'execute_action', ...actionData });
+                    window.sendData('execute_action', actionData);
                 }
-
-                // 自分自身でもアクションを実行
                 executeAction(actionData);
-                resolve(); // playerTurnのPromiseを解決
+                resolve();
             }
         };
-        commandAreaEl.addEventListener('click', handleCommand); // コマンドメニューのクリックイベントリスナー
+        commandAreaEl.addEventListener('click', handleCommand);
     });
 }
 
 async function enemyTurn(enemy) {
     logMessage(`${enemy.name}のターン！`);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 敵の行動に少し間を置く
-
+    await new Promise(resolve => setTimeout(resolve, 1000));
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     if (alivePlayers.length > 0) {
-        const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)]; // ランダムなプレイヤーをターゲット
+        const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
         executeAction({
             action: 'attack',
             actorUniqueId: enemy.uniqueId,
@@ -532,11 +417,9 @@ function executeAction(data) {
             actor.isDefending = true;
             break;
         case 'skill':
-            // スキル実行ロジック (ここではログ表示のみ、実際の効果はexecuteSkillで処理済み)
             logMessage(`${actor.name}は${data.skillName}を使った！`);
             break;
         case 'special':
-            // 必殺技実行ロジック (ここではログ表示のみ、実際の効果はexecuteSpecialで処理済み)
             logMessage(`${actor.name}は${data.specialName}を使った！`);
             break;
         default:
@@ -546,8 +429,6 @@ function executeAction(data) {
 
     updateAllDisplays();
 
-    // オンラインモードで、かつ現在行動しているのが相手のキャラクターの場合のみ、待機Promiseを解決
-    // ホスト側では相手（クライアント）の行動完了時に、クライアント側ではホストの行動完了時に解決する
     if (window.isOnlineMode() && resolveActionPromise) {
         const isMyCharacter = (window.isHost() && actor.partyType === 'host') || (!window.isHost() && actor.partyType === 'client');
         if (!isMyCharacter) {
@@ -561,40 +442,26 @@ function executeAction(data) {
 
 function performAttack(attacker, target) {
     logMessage(`${attacker.name}の攻撃！`);
-
-    // 攻撃力と防御力の計算
     let attackPower = attacker.status.atk;
     let defensePower = target.status.def;
-
-    // 防御状態の処理
     if (target.isDefending) {
-        defensePower *= 2; // 防御中は防御力2倍
-        target.isDefending = false; // 防御状態を解除
+        defensePower *= 2;
+        target.isDefending = false;
         logMessage(`${target.name}は防御している！`, 'defend');
     }
-
-    // ダメージ計算
     let damage = Math.max(0, attackPower - defensePower);
-
-    // 会心の一撃判定
     let isCritical = false;
-    if (Math.random() < (attacker.status.critRate || 0.1)) { // デフォルト会心率10%
+    if (Math.random() < (attacker.status.critRate || 0.1)) {
         isCritical = true;
-        damage = Math.floor(damage * (attacker.status.critDamage || 1.5)); // デフォルト会心ダメージ1.5倍
+        damage = Math.floor(damage * (attacker.status.critDamage || 1.5));
         logMessage('会心の一撃！', 'critical');
     }
-
-    // ダメージパッシブ効果
     damage = applyDamagePassiveEffects(attacker, target, damage);
-
-    // 会心パッシブ効果
     if (isCritical) {
         criticalPassiveEffects(attacker, target, logMessage);
     }
-
     target.status.hp -= damage;
     logMessage(`${target.name}に${damage}のダメージ！`, 'damage');
-
     if (target.status.hp <= 0) {
         target.status.hp = 0;
         logMessage(`${target.name}は倒れた...`, 'fainted');
@@ -614,7 +481,7 @@ async function executeSkill(actor, skill) {
 }
 
 async function executeSpecial(actor, special) {
-    const effectFunc = skillEffects[special.id]; // 必殺技もスキル効果として扱う
+    const effectFunc = skillEffects[special.id];
     if (effectFunc) {
         return await effectFunc(actor, currentPlayerParty, currentEnemies, opponentParty, selectTarget, logMessage);
     }
@@ -628,18 +495,14 @@ function selectTarget() {
     return new Promise(resolve => {
         const enemies = window.isOnlineMode() ? opponentParty : currentEnemies;
         const aliveTargets = enemies.filter(e => e.status.hp > 0);
-
         if (aliveTargets.length === 0) {
-            resolve(null); // ターゲットがいない場合
+            resolve(null);
             return;
         }
-
-        // ターゲット選択UIの表示
         const targetSelectionOverlay = document.createElement('div');
         targetSelectionOverlay.id = 'target-selection-overlay';
         targetSelectionOverlay.innerHTML = '<p>ターゲットを選択してください</p>';
         battleScreenEl.appendChild(targetSelectionOverlay);
-
         const clickHandler = (event) => {
             const targetEl = event.target.closest('.character-card');
             if (targetEl) {
@@ -661,19 +524,14 @@ function selectTarget() {
 function renderParty(partyEl, partyData, isEnemy) {
     partyEl.innerHTML = '';
     if (!partyData) return;
-
     partyData.forEach(member => {
         const memberEl = document.createElement('div');
         memberEl.classList.add('character-card', isEnemy ? 'enemy-character' : 'player-character');
         memberEl.dataset.uniqueId = member.uniqueId;
-
-        // 受信したデータ (images/char01.png) をそのまま使用
         const characterImage = member.image ? `<img src="${member.image}" alt="${member.name}" class="character-image" onerror="this.onerror=null;this.src='images/placeholder.png';">` : '';
-
         const hpBar = `<div class="hp-bar"><div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div></div>`;
         const mpBar = (isEnemy || member.status.maxMp === 0) ? '' : `<div class="mp-bar"><div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div></div>`;
         const mpText = (isEnemy || member.status.maxMp === 0) ? '' : `<p class="mp-text-line">MP: <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span></p>`;
-
         memberEl.innerHTML = `
             <div class="character-info">
                 ${characterImage}
@@ -716,13 +574,11 @@ function processStatusEffects(combatant) {
         logMessage(`${combatant.name}はスタンしていて動けない！`, 'stun');
         actionSkipped = true;
     }
-    // 他の状態異常もここに追加
     return actionSkipped;
 }
 
 function processEndTurnEffects(combatants) {
     combatants.forEach(c => {
-        // 状態異常の持続ターンを減らす
         for (const effectName in c.effects) {
             if (c.effects[effectName].duration !== undefined) {
                 c.effects[effectName].duration--;
@@ -732,10 +588,8 @@ function processEndTurnEffects(combatants) {
                 }
             }
         }
-
-        // 毒などの継続ダメージ
         if (c.effects.poison && c.effects.poison.duration > 0) {
-            const poisonDamage = Math.floor(c.status.maxHp * 0.05); // 最大HPの5%ダメージ
+            const poisonDamage = Math.floor(c.status.maxHp * 0.05);
             c.status.hp -= poisonDamage;
             logMessage(`${c.name}は毒で${poisonDamage}のダメージを受けた！`, 'damage');
             if (c.status.hp <= 0) {
@@ -751,12 +605,11 @@ function processEndTurnEffects(combatants) {
 function isBattleOver() {
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     const aliveEnemies = window.isOnlineMode() ? opponentParty.filter(o => o.status.hp > 0) : currentEnemies.filter(e => e.status.hp > 0);
-
     if (alivePlayers.length === 0) {
-        return true; // プレイヤー全滅
+        return true;
     }
     if (aliveEnemies.length === 0) {
-        return true; // 敵全滅
+        return true;
     }
     return false;
 }
@@ -765,14 +618,12 @@ function handleBattleEnd() {
     isBattleOngoing = false;
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     const aliveEnemies = window.isOnlineMode() ? opponentParty.filter(o => o.status.hp > 0) : currentEnemies.filter(e => e.status.hp > 0);
-
     if (alivePlayers.length === 0) {
         handleGameLose();
     } else if (aliveEnemies.length === 0) {
         if (window.isOnlineMode()) {
-            handleGameWin(); // オンライン対戦では相手全滅で勝利
+            handleGameWin();
         } else {
-            // シングルプレイでは次のグループへ
             currentGroupIndex++;
             if (currentGroupIndex < enemyGroups.length) {
                 logMessage('次の敵グループへ！');
@@ -787,21 +638,18 @@ function handleBattleEnd() {
 function handleGameWin() {
     logMessage('戦闘勝利！', 'win');
     commandAreaEl.classList.add('hidden');
-    // 必要に応じてリザルト画面などへ遷移
 }
 
 function handleGameLose() {
     logMessage('戦闘敗北...', 'lose');
     commandAreaEl.classList.add('hidden');
-    // 必要に応じてゲームオーバー画面などへ遷移
 }
 
 // --- Game State Synchronization ---
 
 function syncGameState() {
     if (window.isOnlineMode()) {
-        window.sendData({
-            type: 'sync_game_state',
+        window.sendData('sync_game_state', {
             playerParty: currentPlayerParty,
             opponentParty: opponentParty,
             currentTurn: currentTurn,
@@ -813,7 +661,6 @@ function syncGameState() {
 // --- Passive Effect Functions (from character_abilities.js) ---
 
 function applyDamagePassiveEffects(attacker, target, damage) {
-    // 例: 特定のキャラクターが特定の相手に与えるダメージを増減させる
     if (damagePassiveEffects[attacker.originalId]) {
         damage = damagePassiveEffects[attacker.originalId](attacker, target, damage);
     }
@@ -830,7 +677,6 @@ window.startOnlineBattle = startOnlineBattle;
 window.executeAction = executeAction;
 window.checkBothPartiesReady = checkBothPartiesReady;
 
-// オンライン同期用のアクションハンドラ
 window.handleBattleAction = (data) => {
     if (data.type === 'sync_game_state') {
         currentPlayerParty = data.playerParty;
