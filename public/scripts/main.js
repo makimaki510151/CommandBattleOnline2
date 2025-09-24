@@ -107,12 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
         copyIdButton.disabled = false;
         connectionStatusEl.textContent = 'ルームIDを相手に伝えて、「接続を開始」ボタンを押してください。';
         isHost = true;
+        console.log(`showHostUiButtonクリック後: isHostの値: ${isHost}`);
     });
 
     if (startHostConnectionButton) {
         startHostConnectionButton.addEventListener('click', () => {
             if (myRoomId) {
                 connectionStatusEl.textContent = '相手の接続を待っています...';
+                console.log(`startHostConnectionButtonクリック時: isHostの値: ${isHost}`);
                 connectToSignalingServer(myRoomId);
             } else {
                 alert('ルームIDがありません。一度タイトルに戻ってやり直してください。');
@@ -215,7 +217,7 @@ async function connectToSignalingServer(roomId) {
         window.logMessage('シグナリングサーバーに接続しました。');
 
         // ホストの場合はここでPeerConnectionのセットアップを開始
-        console.log(`isHostの値: ${isHost}`);
+        console.log(`connectToSignalingServer内のsocket.on('connect')時: isHostの値: ${isHost}`);
         if (isHost) {
             console.log("ホストとしてPeerConnectionのセットアップを開始します。");
             setupPeerConnection();
@@ -406,7 +408,6 @@ function cleanupConnection() {
     }
     isOnlineMode = false;
     myRoomId = null;
-    isHost = false;
 
     // nullチェックを追加
     if (onlinePartyGoButton) {
