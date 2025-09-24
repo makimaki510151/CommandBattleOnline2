@@ -30,9 +30,12 @@ let onlineScreen;
 let messageLogEl;
 let copyIdButton;
 
-// 修正：ホスト側のUI要素を追加
+// ホスト側のUI要素
 let peerIdInputHost;
 let connectButtonHost;
+
+// SDP生成フラグ
+let isSdpGenerated = false;
 
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
@@ -87,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
     messageLogEl = document.getElementById('message-log');
     copyIdButton = document.getElementById('copy-id-button');
 
-    // 修正：ホスト側のUI要素を初期化
     peerIdInputHost = document.getElementById('peer-id-input-host');
     connectButtonHost = document.getElementById('connect-button-host');
 
@@ -118,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(clientUiEl) clientUiEl.classList.add('hidden');
             if(myPeerIdEl) myPeerIdEl.textContent = 'SDPを生成中...';
             window.logMessage('ホストモードに切り替えました。');
-            if(startHostConnectionButton) startHostConnectionButton.click();
+            startPeerConnection();
         });
     }
     
@@ -152,37 +154,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    if(startHostConnectionButton){
-        startHostConnectionButton.addEventListener('click', async () => {
-            if (peerConnection) {
-                window.logMessage('SDPはすでに生成されています。', 'info');
-                return;
-            }
-
-            window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
-            setupPeerConnection();
-
-            peerConnection.onicegatheringstatechange = () => {
-                console.log('ICE Gathering State:', peerConnection.iceGatheringState);
-                if (peerConnection.iceGatheringState === 'complete') {
-                    const compressedOffer = compressSDP(peerConnection.localDescription);
-                    if(myPeerIdEl) myPeerIdEl.textContent = compressedOffer;
-                    window.logMessage('SDPを生成しました。コピーボタンを押して相手に伝えてください。', 'success');
-                }
-            };
-
-            try {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-
-            } catch (error) {
-                console.error('Offer作成エラー:', error);
-                window.logMessage('Offer作成中にエラーが発生しました。', 'error');
-            }
+    
+    // ホスト側の「接続を開始」ボタンのイベントリスナー
+    if (startHostConnectionButton) {
+        startHostConnectionButton.addEventListener('click', () => {
+            startPeerConnection();
         });
     }
-    
 
     // ホスト側の「接続完了」ボタンのイベントリスナー
     if (connectButtonHost) {
@@ -212,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // クライアント側の「接続」ボタンのイベントリスナー
     if(connectButton) {
         connectButton.addEventListener('click', async () => {
             const compressedSdpText = peerIdInput.value;
@@ -236,14 +215,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
-                peerConnection.onicegatheringstatechange = () => {
-                    console.log('ICE Gathering State:', peerConnection.iceGatheringState);
-                    if (peerConnection.iceGatheringState === 'complete') {
+                isSdpGenerated = false; // クライアント側でもフラグをリセット
+                // SDPを生成して表示する
+                const showSdp = () => {
+                    if (!isSdpGenerated) {
                         const compressedAnswer = compressSDP(peerConnection.localDescription);
                         if(myPeerIdEl) myPeerIdEl.textContent = compressedAnswer;
                         window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
+                        isSdpGenerated = true;
                     }
                 };
+
+                peerConnection.onicegatheringstatechange = () => {
+                    console.log('ICE Gathering State:', peerConnection.iceGatheringState);
+                    if (peerConnection.iceGatheringState === 'complete') {
+                        showSdp();
+                    }
+                };
+                
+                // 2秒後にSDPを強制的に表示する（タイムアウト）
+                setTimeout(showSdp, 2000);
             } catch (error) {
                 console.error('Answer作成エラー:', error);
                 window.logMessage('Answer作成中にエラーが発生しました。', 'error');
@@ -271,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.logMessage('パーティー編成画面に移動しました。', 'success');
         });
     }
-
 });
 
 // PeerConnectionのセットアップ
@@ -301,6 +291,45 @@ function setupPeerConnection() {
     } else {
         dataChannel = peerConnection.createDataChannel("game-data");
         handleChannelStatusChange();
+    }
+}
+
+// SDP生成と表示のロジックを分離
+async function startPeerConnection() {
+    if (peerConnection) {
+        window.logMessage('SDPはすでに生成されています。', 'info');
+        return;
+    }
+
+    window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
+    setupPeerConnection();
+    isSdpGenerated = false;
+
+    // SDPを生成して表示する
+    const showSdp = () => {
+        if (!isSdpGenerated) {
+            const compressedOffer = compressSDP(peerConnection.localDescription);
+            if(myPeerIdEl) myPeerIdEl.textContent = compressedOffer;
+            window.logMessage('SDPを生成しました。コピーボタンを押して相手に伝えてください。', 'success');
+            isSdpGenerated = true;
+        }
+    };
+    
+    peerConnection.onicegatheringstatechange = () => {
+        console.log('ICE Gathering State:', peerConnection.iceGatheringState);
+        if (peerConnection.iceGatheringState === 'complete') {
+            showSdp();
+        }
+    };
+
+    try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        // 2秒後にSDPを強制的に表示する（タイムアウト）
+        setTimeout(showSdp, 2000);
+    } catch (error) {
+        console.error('Offer作成エラー:', error);
+        window.logMessage('Offer作成中にエラーが発生しました。', 'error');
     }
 }
 
