@@ -171,18 +171,16 @@ async function startOnlineBattleHostSide() {
 
 function startOnlineBattleClientSide(initialState) {
     isBattleOngoing = true;
-    currentTurn = initialState.currentTurn;
     logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
 
-    // ホストから受け取った初期状態を自分のパーティーと相手のパーティーとして設定
-    // ホストから見たplayerPartyがクライアントから見たopponentPartyになる
-    // ホストから見たopponentPartyがクライアントから見たplayerPartyになる
-    currentPlayerParty = initialState.opponentParty;
-    opponentParty = initialState.playerParty;
+    // ホストから送られてきた相手のパーティーを設定
+    opponentParty = data.opponentParty;
+    // 自分のパーティーはローカルで初期化済みのものを使用
+    currentPlayerParty = window.getPlayerParty();
 
-    // ここでそれぞれのパーティーを再描画する
-    renderParty(playerPartyEl, currentPlayerParty, false); // 自分のパーティーを描画
-    renderParty(enemyPartyEl, opponentParty, true); // 相手のパーティーを描画
+    // パーティーの描画を更新
+    renderParty(playerPartyEl, currentPlayerParty, false);
+    renderParty(enemyPartyEl, opponentParty, true);
 
     // クライアント側はここで待機し、ホストからの指示を待つ
     // これ以上の処理はホストからのイベント（request_actionなど）がトリガーとなる

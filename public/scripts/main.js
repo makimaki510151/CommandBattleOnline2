@@ -138,8 +138,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // クリーンなデータを送信
             const partyToSend = JSON.parse(JSON.stringify(window.getPlayerParty()));
-            // ここで自分のパーティー情報を相手に送信
-            window.sendData('party_ready', { party: partyToSend });
+
+            // ホストとしてルームを作成した場合
+            if (window.isHost()) {
+                // ホストは自分のパーティーを保存し、クライアントにparty_readyイベントを送信
+                // クライアントからの返信（client_party_ready）を待つ
+                window.logMessage("ホストとしてパーティーを準備しました。相手の準備を待っています...", "info");
+                window.sendData('party_ready', { party: partyToSend });
+            } else {
+                // クライアントの場合、自分の準備ができたことをホストに通知
+                window.logMessage("クライアントとしてパーティーを準備しました。ホストに通知します...", "info");
+                window.sendData('client_party_ready', { party: partyToSend });
+            }
         } else {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
@@ -260,6 +270,34 @@ document.addEventListener('DOMContentLoaded', () => {
         channel.bind('client-sync_game_state', (data) => {
             // 修正後のロジック: battle.jsで定義された関数を呼び出す
             window.syncGameStateClientSide(data);
+        });
+
+        // ホスト側でクライアントからの準備完了イベントを待機
+        channel.bind('client_party_ready', (data) => {
+            if (window.isHost()) {
+                window.logMessage("クライアントが準備完了しました。", "info");
+                // クライアントのパーティー情報を取得
+                const clientParty = data.party;
+                // ホストのパーティー情報
+                const hostParty = window.getPlayerParty();
+
+                // 戦闘状態の初期化
+                const initialState = window.startOnlineBattle(hostParty, clientParty);
+
+                // 全員に戦闘開始を通知
+                window.sendData('client-start_battle', { initialState: initialState });
+            }
+        });
+
+        // クライアント側はすでに存在する 'party_ready' イベントでホストのパーティーを受信
+        channel.bind('party_ready', (data) => {
+            if (!window.isHost()) {
+                window.handleOpponentParty(data.party); // ホストのパーティー情報を保存
+                window.logMessage("ホストが準備完了しました。");
+                // ここで、クライアント側は自分のパーティー情報をホストに送り返す必要はありません。
+                // なぜならgoButtonのロジックで既に送っているからです。
+                // このイベントは情報を受け取るだけにします。
+            }
         });
     }
 
