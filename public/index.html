@@ -71,26 +71,40 @@
     </div>
 
     <div id="party-screen" class="hidden">
-        <h2>パーティー編成</h2>
-        <p>対戦相手とのパーティーを編成してください。</p>
-        <div id="party-selection-container">
-            <div id="character-list">
+        <header class="party-header">
+            <div class="header-buttons">
+                <button id="back-button" class="action-button">戻る</button>
             </div>
-            <div id="selected-party">
-                <h3>パーティーメンバー</h3>
-                <ul id="party-members">
-                    <p class="placeholder">メンバーを4人選択してください</p>
-                </ul>
+            <h2 class="header-title">パーティー編成</h2>
+            <div class="header-buttons">
+                <button id="go-button" class="action-button">出かける</button>
             </div>
-            <div id="character-details">
-                <h3>詳細情報</h3>
-                <div id="details-content">
-                    <p class="placeholder">キャラクターを選択してください</p>
+        </header>
+
+        <div class="main-content">
+            <div class="character-pane">
+                <h3>キャラクター一覧</h3>
+                <div id="character-list">
+                </div>
+            </div>
+            <div class="right-pane">
+                <div id="party-slots-container">
+                    <h3>パーティー</h3>
+                    <div class="party-slots">
+                        <div class="party-slot" data-slot-id="0"></div>
+                        <div class="party-slot" data-slot-id="1"></div>
+                        <div class="party-slot" data-slot-id="2"></div>
+                        <div class="party-slot" data-slot-id="3"></div>
+                    </div>
+                </div>
+                <div id="character-details">
+                    <h3>詳細情報</h3>
+                    <div id="details-content">
+                        <p class="placeholder">キャラクターを選択してください</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <button id="go-button" class="disabled" disabled>決定</button>
-        <button id="party-back-to-title-button">タイトルへ戻る</button>
     </div>
 
     <div id="battle-screen" class="hidden">

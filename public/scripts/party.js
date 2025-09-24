@@ -7,7 +7,7 @@ let partyMembers = [];
 
 const characterListEl = document.getElementById('character-list');
 const characterDetailsEl = document.getElementById('details-content');
-const partySlotsEl = document.getElementById('party-members');
+const partySlotsEl = document.querySelector('.party-slots');
 
 // キャラクターカードの描画
 function renderCharacterCards() {
