@@ -34,6 +34,10 @@ let copyIdButton;
 let peerIdInputHost;
 let connectButtonHost;
 
+// クライアント側のUI要素 (追加)
+let myPeerIdElClient;
+let copyIdButtonClient;
+
 // SDP生成フラグ
 let isSdpGenerated = false;
 
@@ -73,23 +77,6 @@ function decompressSDP(compressedSdp) {
     return JSON.parse(textDecoder.decode(decompressed));
 }
 
-// キャラクターIDの配列からパーティーオブジェクトを生成する
-function createPartyFromIds(characterIds) {
-    // characters.js から import された characters 配列が必要
-    if (typeof window.characters === 'undefined') {
-        throw new Error("characters.js が先にロードされているか確認してください。");
-    }
-    return characterIds.map(id => {
-        const charData = window.characters.find(c => c.id === id);
-        if (!charData) {
-            console.error(`Character data not found for ID: ${id}`);
-            return null;
-        }
-        return JSON.parse(JSON.stringify(charData)); // ディープコピー
-    }).filter(c => c !== null);
-}
-
-
 // DOMが読み込まれた後に初期化
 document.addEventListener('DOMContentLoaded', () => {
     onlinePartyGoButton = document.getElementById('online-party-go-button');
@@ -109,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     peerIdInputHost = document.getElementById('peer-id-input-host');
     connectButtonHost = document.getElementById('connect-button-host');
+
+    // クライアント側のUI要素を取得 (追加)
+    myPeerIdElClient = document.getElementById('my-peer-id-client');
+    copyIdButtonClient = document.getElementById('copy-id-button-client');
 
     // イベントリスナー設定
     if (document.getElementById('online-button')) {
@@ -146,12 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isHost = false;
             if(hostUiEl) hostUiEl.classList.add('hidden');
             if(clientUiEl) clientUiEl.classList.remove('hidden');
-            if(myPeerIdEl) myPeerIdEl.textContent = 'SDPをここに貼り付けてください。';
+            // クライアントモードに切り替えたときに myPeerIdElClient もクリア
+            if(myPeerIdElClient) myPeerIdElClient.textContent = '';
             window.logMessage('クライアントモードに切り替えました。');
         });
     }
 
-    // コピーボタンのイベントリスナー（フィードバックを追加）
+    // コピーボタンのイベントリスナー（ホスト側）
     if(copyIdButton) {
         copyIdButton.addEventListener('click', async () => {
             const sdpText = myPeerIdEl.textContent;
@@ -162,6 +154,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     copyIdButton.textContent = 'コピーしました！';
                     setTimeout(() => {
                         copyIdButton.textContent = originalText;
+                    }, 1500);
+                    window.logMessage('SDPがクリップボードにコピーされました！', 'info');
+                } catch (err) {
+                    console.error('コピー失敗:', err);
+                    window.logMessage('SDPのコピーに失敗しました。ブラウザの権限を確認してください。', 'error');
+                }
+            }
+        });
+    }
+
+    // クライアント側のコピーボタンのイベントリスナー (追加)
+    if(copyIdButtonClient) {
+        copyIdButtonClient.addEventListener('click', async () => {
+            const sdpText = myPeerIdElClient.textContent;
+            if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。' && sdpText !== '') {
+                try {
+                    await navigator.clipboard.writeText(sdpText);
+                    const originalText = copyIdButtonClient.textContent;
+                    copyIdButtonClient.textContent = 'コピーしました！';
+                    setTimeout(() => {
+                        copyIdButtonClient.textContent = originalText;
                     }, 1500);
                     window.logMessage('SDPがクリップボードにコピーされました！', 'info');
                 } catch (err) {
@@ -237,7 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const showSdp = () => {
                     if (!isSdpGenerated) {
                         const compressedAnswer = compressSDP(peerConnection.localDescription);
-                        if(myPeerIdEl) myPeerIdEl.textContent = compressedAnswer;
+                        // クライアント側の myPeerIdElClient に表示するように変更
+                        if(myPeerIdElClient) myPeerIdElClient.textContent = compressedAnswer;
                         window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
                         isSdpGenerated = true;
                     }
@@ -271,13 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // パーティー編成に進むボタンのイベントリスナー
     if (onlinePartyGoButton) {
         onlinePartyGoButton.addEventListener('click', () => {
-            // キャラクターIDの配列をキャラクターオブジェクトの配列に変換して渡すように変更
-            const myParty = createPartyFromIds(['char-a', 'char-b', 'char-c']);
-            const opponentParty = createPartyFromIds(['char-d', 'char-e', 'char-f']);
-
-            window.initializePlayerParty(myParty);
-            window.handleOpponentParty(opponentParty);
-
+            window.initializePlayerParty(['char-a', 'char-b', 'char-c']);
+            window.handleOpponentParty(['char-d', 'char-e', 'char-f']);
             if(onlineScreen) onlineScreen.classList.add('hidden');
             if(document.getElementById('party-screen')) document.getElementById('party-screen').classList.remove('hidden');
             if(goButton) goButton.disabled = false;
@@ -418,12 +427,12 @@ function cleanupConnection() {
     if (peerIdInput) {
         peerIdInput.value = '';
     }
-    if (goButton) {
-        goButton.disabled = true;
-    }
-    // 修正：ホスト側の入力フィールドもリセット
+    // 修正：ホストとクライアント両方の入力フィールドをリセット
     if (peerIdInputHost) {
         peerIdInputHost.value = '';
+    }
+    if (myPeerIdElClient) {
+        myPeerIdElClient.textContent = '';
     }
 }
 
