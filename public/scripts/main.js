@@ -13,6 +13,10 @@ let isHost = false;
 
 // グローバルスコープでDOM要素を宣言
 let onlinePartyGoButton;
+let myPeerIdEl;
+let connectionStatusEl;
+let peerIdInput;
+let goButton;
 
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
@@ -38,10 +42,10 @@ window.logMessage = (message, type) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
+    // DOM Elements をグローバル変数に代入
     const startButton = document.getElementById('start-button');
     const backButton = document.getElementById('back-button');
-    const goButton = document.getElementById('go-button');
+    goButton = document.getElementById('go-button');
     const onlineButton = document.getElementById('online-button');
     const backToTitleButton = document.getElementById('back-to-title-button');
     const showHostUiButton = document.getElementById('show-host-ui-button');
@@ -49,9 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectButton = document.getElementById('connect-button');
     const startHostConnectionButton = document.getElementById('start-host-connection-button');
     const copyIdButton = document.getElementById('copy-id-button');
-    const peerIdInput = document.getElementById('peer-id-input');
-    const myPeerIdEl = document.getElementById('my-peer-id');
-    const connectionStatusEl = document.getElementById('connection-status');
+    peerIdInput = document.getElementById('peer-id-input');
+    myPeerIdEl = document.getElementById('my-peer-id');
+    connectionStatusEl = document.getElementById('connection-status');
     const titleScreen = document.getElementById('title-screen');
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
