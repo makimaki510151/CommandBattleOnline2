@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // クリーンなデータを送信
             const partyToSend = JSON.parse(JSON.stringify(window.getPlayerParty()));
+            // ここで自分のパーティー情報を相手に送信
             window.sendData('party_ready', { party: partyToSend });
         } else {
             partyScreen.classList.add('hidden');
@@ -214,13 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ホスト側は自分が送ったメッセージを処理しないように修正
         channel.bind('client-party_ready', (data) => {
-            // ホストとして、クライアントから送られてきたパーティー情報を処理
-            if (window.isHost() && data.party[0].partyType === 'client') {
+            // ホストの場合、クライアントから送られてきたパーティー情報を処理
+            if (window.isHost()) {
                 window.handleOpponentParty(data.party);
-            }
-            // クライアントとして、ホストから送られてきた自分のパーティー情報を受信
-            else if (!window.isHost() && data.party[0].partyType === 'host') {
-                // クライアントのパーティーは自分で初期化済みなのでここでは何もしない
             }
         });
 
@@ -251,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         channel.bind('client-sync_game_state', (data) => {
+            // 修正後のロジック: battle.jsで定義された関数を呼び出す
             window.syncGameStateClientSide(data);
         });
     }
@@ -271,10 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
         goButton.disabled = false;
     }
 
-    // クライアント側でゲーム状態を同期する関数を実装し、bindで呼び出す
-    window.syncGameStateClientSide = (data) => {
-        window.syncState(data.playerParty, data.opponentParty);
-    };
 
     window.sendData = function (eventType, data) {
         if (!channel) {

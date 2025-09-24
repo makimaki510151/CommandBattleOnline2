@@ -172,14 +172,17 @@ async function startOnlineBattleHostSide() {
 function startOnlineBattleClientSide(initialState) {
     isBattleOngoing = true;
     currentTurn = initialState.currentTurn;
+    logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
+
     // ホストから受け取った初期状態を自分のパーティーと相手のパーティーとして設定
+    // ホストから見たplayerPartyがクライアントから見たopponentPartyになる
+    // ホストから見たopponentPartyがクライアントから見たplayerPartyになる
     currentPlayerParty = initialState.opponentParty;
     opponentParty = initialState.playerParty;
 
-    renderParty(playerPartyEl, currentPlayerParty, false);
-    renderParty(enemyPartyEl, opponentParty, true);
-
-    logMessage("戦闘開始！ホストからの行動を待っています...", 'turn-start');
+    // ここでそれぞれのパーティーを再描画する
+    renderParty(playerPartyEl, currentPlayerParty, false); // 自分のパーティーを描画
+    renderParty(enemyPartyEl, opponentParty, true); // 相手のパーティーを描画
 
     // クライアント側はここで待機し、ホストからの指示を待つ
     // これ以上の処理はホストからのイベント（request_actionなど）がトリガーとなる
@@ -656,6 +659,24 @@ function syncState(myParty, opponentParty) {
     logMessage('ゲーム状態をホストと同期しました。', 'sync');
 }
 
+function syncGameStateClientSide(data) {
+    // ホストから送られてきたデータを使用して、自分のパーティーと相手のパーティーを更新
+    // ホストのplayerPartyは、クライアントのopponentParty
+    // ホストのopponentPartyは、クライアントのplayerParty
+    currentPlayerParty = data.opponentParty;
+    opponentParty = data.playerParty;
+
+    // 表示を更新
+    updateAllDisplays();
+    logMessage('ゲーム状態をホストと同期しました。', 'sync');
+
+    // クライアント側のターンが来た場合に待機Promiseを解決
+    const actor = currentPlayerParty.find(c => c.uniqueId === data.actorUniqueId);
+    if (actor && resolveClientActionPromise) {
+        resolveClientActionPromise();
+        resolveClientActionPromise = null;
+    }
+}
 
 function handleBattleEnd() {
     isBattleOngoing = false;
@@ -670,6 +691,7 @@ function handleBattleEnd() {
 
 // グローバルアクセス
 window.syncState = syncState;
+window.syncGameStateClientSide = syncGameStateClientSide;
 window.getPlayerParty = () => currentPlayerParty;
 window.initializePlayerParty = initializePlayerParty;
 window.handleOpponentParty = handleOpponentParty;
