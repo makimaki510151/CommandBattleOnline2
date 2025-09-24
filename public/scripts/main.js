@@ -292,7 +292,7 @@ async function connectToSignalingServer(roomId) {
 function setupPeerConnection() {
     console.log("PeerConnectionのセットアップを開始します。");
     peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: STUN_SERVERS }]
+        iceServers: STUN_SERVERS
     });
     console.log("PeerConnectionが初期化されました。");
 
