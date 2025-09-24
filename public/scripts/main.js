@@ -1,5 +1,5 @@
 // main.js (手動SDP交換版 - UI表示)
-
+import { characters } from './characters.js';
 // グローバル変数と定数
 const STUN_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cleanupConnection();
             isOnlineMode = true;
             document.getElementById('title-screen').classList.add('hidden');
-            if(onlineScreen) onlineScreen.classList.remove('hidden');
+            if (onlineScreen) onlineScreen.classList.remove('hidden');
         });
     }
 
@@ -115,8 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('back-to-title-button').addEventListener('click', () => {
             cleanupConnection();
             isOnlineMode = false;
-            if(onlineScreen) onlineScreen.classList.add('hidden');
-            if(document.getElementById('title-screen')) document.getElementById('title-screen').classList.remove('hidden');
+            if (onlineScreen) onlineScreen.classList.add('hidden');
+            if (document.getElementById('title-screen')) document.getElementById('title-screen').classList.remove('hidden');
         });
     }
 
@@ -124,27 +124,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showHostUiButton) {
         showHostUiButton.addEventListener('click', () => {
             isHost = true;
-            if(hostUiEl) hostUiEl.classList.remove('hidden');
-            if(clientUiEl) clientUiEl.classList.add('hidden');
-            if(myPeerIdEl) myPeerIdEl.textContent = 'SDPを生成中...';
+            if (hostUiEl) hostUiEl.classList.remove('hidden');
+            if (clientUiEl) clientUiEl.classList.add('hidden');
+            if (myPeerIdEl) myPeerIdEl.textContent = 'SDPを生成中...';
             window.logMessage('ホストモードに切り替えました。');
             startPeerConnection();
         });
     }
-    
+
     if (showClientUiButton) {
         showClientUiButton.addEventListener('click', () => {
             isHost = false;
-            if(hostUiEl) hostUiEl.classList.add('hidden');
-            if(clientUiEl) clientUiEl.classList.remove('hidden');
+            if (hostUiEl) hostUiEl.classList.add('hidden');
+            if (clientUiEl) clientUiEl.classList.remove('hidden');
             // クライアントモードに切り替えたときに myPeerIdElClient もクリア
-            if(myPeerIdElClient) myPeerIdElClient.textContent = '';
+            if (myPeerIdElClient) myPeerIdElClient.textContent = '';
             window.logMessage('クライアントモードに切り替えました。');
         });
     }
 
     // コピーボタンのイベントリスナー（ホスト側）
-    if(copyIdButton) {
+    if (copyIdButton) {
         copyIdButton.addEventListener('click', async () => {
             const sdpText = myPeerIdEl.textContent;
             if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。') {
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // クライアント側のコピーボタンのイベントリスナー (追加)
-    if(copyIdButtonClient) {
+    if (copyIdButtonClient) {
         copyIdButtonClient.addEventListener('click', async () => {
             const sdpText = myPeerIdElClient.textContent;
             if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。' && sdpText !== '') {
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     // ホスト側の「接続を開始」ボタンのイベントリスナー
     if (startHostConnectionButton) {
         startHostConnectionButton.addEventListener('click', () => {
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const answerSdp = decompressSDP(compressedSdpText);
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
                 window.logMessage('接続確立！', 'success');
-                if(connectionStatusEl) connectionStatusEl.textContent = `接続状態: connected`;
+                if (connectionStatusEl) connectionStatusEl.textContent = `接続状態: connected`;
             } catch (error) {
                 console.error('Answer処理エラー:', error);
                 window.logMessage('相手のSDPの処理中にエラーが発生しました。', 'error');
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // クライアント側の「接続」ボタンのイベントリスナー
-    if(connectButton) {
+    if (connectButton) {
         connectButton.addEventListener('click', async () => {
             const compressedSdpText = peerIdInput.value;
             if (!compressedSdpText) {
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!isSdpGenerated) {
                         const compressedAnswer = compressSDP(peerConnection.localDescription);
                         // クライアント側の myPeerIdElClient に表示するように変更
-                        if(myPeerIdElClient) myPeerIdElClient.textContent = compressedAnswer;
+                        if (myPeerIdElClient) myPeerIdElClient.textContent = compressedAnswer;
                         window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
                         isSdpGenerated = true;
                     }
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         showSdp();
                     }
                 };
-                
+
                 // 2秒後にSDPを強制的に表示する（タイムアウト）
                 setTimeout(showSdp, 2000);
             } catch (error) {
@@ -281,15 +281,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
         });
     }
-    
+
     // パーティー編成に進むボタンのイベントリスナー
     if (onlinePartyGoButton) {
         onlinePartyGoButton.addEventListener('click', () => {
-            window.initializePlayerParty(['char-a', 'char-b', 'char-c']);
-            window.handleOpponentParty(['char-d', 'char-e', 'char-f']);
-            if(onlineScreen) onlineScreen.classList.add('hidden');
-            if(document.getElementById('party-screen')) document.getElementById('party-screen').classList.remove('hidden');
-            if(goButton) goButton.disabled = false;
+            // キャラクターIDから実際のキャラクターオブジェクトを取得する
+            const playerPartyData = ['char01', 'char02', 'char03'].map(id => characters[id]);
+            const opponentPartyData = ['char04', 'char05', 'char06'].map(id => characters[id]);
+
+            window.initializePlayerParty(playerPartyData);
+            window.handleOpponentParty(opponentPartyData);
+            if (onlineScreen) onlineScreen.classList.add('hidden');
+            if (document.getElementById('party-screen')) document.getElementById('party-screen').classList.remove('hidden');
+            if (goButton) goButton.disabled = false;
             window.logMessage('パーティー編成画面に移動しました。', 'success');
         });
     }
@@ -340,12 +344,12 @@ async function startPeerConnection() {
     const showSdp = () => {
         if (!isSdpGenerated) {
             const compressedOffer = compressSDP(peerConnection.localDescription);
-            if(myPeerIdEl) myPeerIdEl.textContent = compressedOffer;
+            if (myPeerIdEl) myPeerIdEl.textContent = compressedOffer;
             window.logMessage('SDPを生成しました。コピーボタンを押して相手に伝えてください。', 'success');
             isSdpGenerated = true;
         }
     };
-    
+
     peerConnection.onicegatheringstatechange = () => {
         console.log('ICE Gathering State:', peerConnection.iceGatheringState);
         if (peerConnection.iceGatheringState === 'complete') {
