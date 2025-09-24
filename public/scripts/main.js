@@ -125,6 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (isOnlineMode) {
+            if (!pusher || pusher.connection.state !== 'connected') {
+                logMessage('Pusherの接続が完了していません。接続状態を確認してください。', 'error');
+                return;
+            }
+
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
 
@@ -168,7 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function connectToPusher(roomId) {
-        if (pusher) return;
+        // 既存の接続がある場合は、まず切断してから再接続する
+        if (pusher && pusher.connection.state !== 'disconnected') {
+            console.warn('既存のPusher接続を切断します。');
+            cleanupPusher();
+        }
+
         isOnlineMode = true;
 
         pusher = new Pusher(PUSHER_APP_KEY, {
