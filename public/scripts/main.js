@@ -234,57 +234,60 @@ async function connectToSignalingServer(roomId) {
     });
 
     socket.on('signal', async (data) => {
-        console.log(`ルーム ${data.roomId} からシグナルを受信しました:`, data.sdp ? data.sdp.type : 'ICE candidate');
-        socket.to(data.roomId).emit('signal', data);
-        console.log(`ルーム ${data.roomId} の他のユーザーにシグナルを転送しました。`);
+        console.log('シグナル受信:', data);
+        window.logMessage(`シグナル受信: ${JSON.stringify(data)}`, 'info');
 
-        if (data.sdp) {
-            try {
-                if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
-                    console.log("クライアントとしてPeerConnectionのセットアップを開始します。");
-                    setupPeerConnection();
-                    console.log("setupPeerConnection()が呼び出されました。(クライアント側)");
-                    peerConnection.onconnectionstatechange = () => {
-                        console.log('PeerConnection State:', peerConnection.connectionState);
-                        connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
-                        if (peerConnection.connectionState === 'connected') {
-                            window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                            onlinePartyGoButton.classList.remove('hidden');
-                            if (goButton) {
-                                goButton.disabled = false;
-                            }
-                        } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-                            window.logMessage('接続が切断されました。', 'error');
-                            cleanupConnection();
-                        }
-                    };
-                }
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                window.logMessage(`RemoteDescriptionを設定しました (${data.sdp.type})`, 'info');
-
-                // クライアント側でofferを受信した場合、answerを作成して送信
+        try {
+            if (data.sdp) {
+                // offerシグナルを受信した場合の処理
                 if (data.sdp.type === 'offer' && !isHost) {
+                    // peerConnectionがまだ存在しない場合のみセットアップ
+                    if (!peerConnection) {
+                        console.log("クライアントとしてPeerConnectionのセットアップを開始します。");
+                        setupPeerConnection();
+                        console.log("setupPeerConnection()が呼び出されました。(クライアント側)");
+
+                        // 接続状態の監視は一度だけセットアップ
+                        peerConnection.onconnectionstatechange = () => {
+                            console.log('PeerConnection State:', peerConnection.connectionState);
+                            connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
+                            if (peerConnection.connectionState === 'connected') {
+                                window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                                onlinePartyGoButton.classList.remove('hidden');
+                                if (goButton) {
+                                    goButton.disabled = false;
+                                }
+                            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                                window.logMessage('接続が切断されました。', 'error');
+                                cleanupConnection();
+                            }
+                        };
+                    }
+
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                    window.logMessage(`RemoteDescriptionを設定しました (${data.sdp.type})`, 'info');
+
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
                     socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
-                }
-                // ホスト側でanswerを受信した場合
-                else if (data.sdp.type === 'answer' && isHost) {
-                    window.logMessage('Answerを受信しました。', 'info');
-                    // ホスト側では何もしない（setRemoteDescriptionはすでに実行済み）
-                }
+                    window.logMessage('Answerを作成し、送信しました。', 'info');
 
-            } catch (e) {
-                console.error('setRemoteDescriptionエラー:', e);
+                    // answerシグナルを受信した場合の処理
+                } else if (data.sdp.type === 'answer' && isHost) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                    window.logMessage('Answerを受信し、RemoteDescriptionを設定しました。', 'info');
+                }
+            } else if (data.candidate) {
+                // ICE候補を受信した場合の処理
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    window.logMessage('ICE候補を追加しました。', 'info');
+                } else {
+                    console.warn("PeerConnectionが初期化されていないため、ICE候補をスキップしました。");
+                }
             }
-        } else if (data.candidate) {
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-                window.logMessage('ICE候補を追加しました。', 'info');
-            } catch (e) {
-                console.error('addIceCandidateエラー:', e);
-            }
+        } catch (e) {
+            console.error('シグナル処理中にエラーが発生しました:', e);
         }
     });
 }
