@@ -1,6 +1,6 @@
 // main.js (手動SDP交換版 - UI表示)
 
-// pakoライブラリのimport文を削除
+// pakoライブラリのimport文は不要
 
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -49,20 +49,21 @@ window.logMessage = (message, type) => {
     }
 };
 
-// SDPの圧縮・伸長関数
+// SDPの圧縮・伸長関数 (バイナリデータを正しく扱うように修正)
 function compressSDP(sdp) {
     const jsonSdp = JSON.stringify(sdp);
-    const compressed = pako.deflate(jsonSdp, { to: 'string' });
-    return btoa(compressed);
+    const compressed = pako.deflate(jsonSdp);
+    const binaryString = String.fromCharCode.apply(null, compressed);
+    return btoa(binaryString);
 }
 
 function decompressSDP(compressedSdp) {
     const binaryString = atob(compressedSdp);
-    const charData = binaryString.split('').map(function (x) {
-        return x.charCodeAt(0);
-    });
-    const binData = new Uint8Array(charData);
-    const decompressed = pako.inflate(binData, { to: 'string' });
+    const uint8Array = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+    }
+    const decompressed = pako.inflate(uint8Array, { to: 'string' });
     return JSON.parse(decompressed);
 }
 
@@ -114,13 +115,18 @@ document.addEventListener('DOMContentLoaded', () => {
         window.logMessage('クライアントモードに切り替えました。');
     });
 
-    // コピーボタンのイベントリスナー
+    // コピーボタンのイベントリスナー（フィードバックを追加）
     copyIdButton.addEventListener('click', async () => {
         const sdpText = myPeerIdEl.textContent;
         if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。') {
             try {
                 await navigator.clipboard.writeText(sdpText);
-                window.logMessage('コピーしました！', 'info');
+                const originalText = copyIdButton.textContent;
+                copyIdButton.textContent = 'コピーしました！';
+                setTimeout(() => {
+                    copyIdButton.textContent = originalText;
+                }, 1500);
+                window.logMessage('SDPがクリップボードにコピーされました！', 'info');
             } catch (err) {
                 console.error('コピー失敗:', err);
                 window.logMessage('SDPのコピーに失敗しました。ブラウザの権限を確認してください。', 'error');
