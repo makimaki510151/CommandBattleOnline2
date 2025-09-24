@@ -48,52 +48,43 @@
                 </div>
             </div>
             <div id="client-ui" class="hidden">
-                <div class="connection-controls">
-                    <p>相手のSDPを入力</p>
-                    <input type="text" id="peer-id-input" placeholder="SDP">
+                <p>相手のSDPをここに貼り付けて接続を開始します。</p>
+                <div id="peer-id-input-container">
+                    <textarea id="peer-id-input" placeholder="相手のSDPをここに貼り付け"></textarea>
                     <button id="connect-button">接続</button>
                 </div>
+                <div class="status-box">
+                    <p>状態：<span id="connection-status">未接続</span></p>
+                </div>
             </div>
-            <div class="connection-status">
-                <p id="connection-status"></p>
+            <div class="go-to-party-container">
+                <button id="online-party-go-button" class="hidden">パーティー編成へ</button>
             </div>
-            <button id="online-party-go-button" class="hidden">パーティー編成へ</button>
+            <button id="back-to-title-button">タイトルへ戻る</button>
         </div>
-        <button id="back-to-title-button">タイトルに戻る</button>
     </div>
 
     <div id="party-screen" class="hidden">
-        <header class="party-header">
-            <h1>パーティー編成</h1>
-            <div class="header-buttons">
-                <button id="back-button" class="action-button">戻る</button>
-                <button id="go-button" class="action-button">冒険へ</button>
+        <h2>パーティー編成</h2>
+        <p>対戦相手とのパーティーを編成してください。</p>
+        <div id="party-selection-container">
+            <div id="character-list">
             </div>
-        </header>
-        <div class="main-content">
-            <div class="character-pane">
-                <h3>キャラクターリスト</h3>
-                <div id="character-list">
-                </div>
+            <div id="selected-party">
+                <h3>パーティーメンバー</h3>
+                <ul id="party-members">
+                    <p class="placeholder">メンバーを4人選択してください</p>
+                </ul>
             </div>
-            <div class="right-pane">
-                <div class="party-pane">
-                    <h3>パーティーメンバー</h3>
-                    <div class="party-slots">
-                        <div class="party-slot" data-slot-id="0"></div>
-                        <div class="party-slot" data-slot-id="1"></div>
-                        <div class="party-slot" data-slot-id="2"></div>
-                        <div class="party-slot" data-slot-id="3"></div>
-                    </div>
-                </div>
-                <div id="character-details">
-                    <h3>詳細情報</h3>
-                    <div id="details-content">
-                        <p class="placeholder">キャラクターを選択してください</p>
-                    </div>
+            <div id="character-details">
+                <h3>詳細情報</h3>
+                <div id="details-content">
+                    <p class="placeholder">キャラクターを選択してください</p>
                 </div>
             </div>
         </div>
+        <button id="go-button" class="disabled">決定</button>
+        <button id="party-back-to-title-button">タイトルへ戻る</button>
     </div>
 
     <div id="battle-screen" class="hidden">
@@ -117,14 +108,13 @@
         </main>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <script defer type="module" src="/scripts/main.js"></script>
     <script type="module" src="/scripts/characters.js"></script>
     <script type="module" src="/scripts/enemies.js"></script>
     <script type="module" src="/scripts/party.js"></script>
     <script type="module" src="/scripts/battle.js"></script>
-    <script type="module" src="/scripts/character_abilities.js"></script>
+
 </body>
 
 </html>

@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 修正：ホスト側の「接続完了」ボタンのイベントリスナー
+    // ホスト側の「接続完了」ボタンのイベントリスナー
     if (connectButtonHost) {
         connectButtonHost.addEventListener('click', async () => {
             const compressedSdpText = peerIdInputHost.value;
@@ -190,9 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
                 window.logMessage('接続確立！', 'success');
                 connectionStatusEl.textContent = `接続状態: connected`;
-                if (onlinePartyGoButton) {
-                    onlinePartyGoButton.classList.remove('hidden');
-                }
             } catch (error) {
                 console.error('Answer処理エラー:', error);
                 window.logMessage('相手のSDPの処理中にエラーが発生しました。', 'error');
@@ -239,12 +236,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // クライアント側でペーストしたら自動接続
-    peerIdInput.addEventListener('paste', () => {
-        setTimeout(() => {
-            connectButton.click();
-        }, 100);
-    });
-
+    if (peerIdInput) {
+        peerIdInput.addEventListener('paste', () => {
+            setTimeout(() => {
+                connectButton.click();
+            }, 100);
+        });
+    }
+    
     // パーティー編成に進むボタンのイベントリスナー
     onlinePartyGoButton.addEventListener('click', () => {
         window.initializePlayerParty(['char-a', 'char-b', 'char-c']);
