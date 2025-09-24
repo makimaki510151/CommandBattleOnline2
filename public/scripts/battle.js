@@ -729,15 +729,19 @@ function renderParty(containerEl, party, isOpponent = false) {
 function updateCommandMenu(player) {
     commandAreaEl.innerHTML = `
         <button class="command-button action-attack">攻撃</button>
-        <button class="command-button action-defend">防御</button>
         <button class="command-button action-skill">スキル</button>
-        <button class="command-button action-special">必殺技</button>
         <div class="skill-menu hidden">
             ${player.active.map(skill => `<button class="skill-button">${skill.name}</button>`).join('')}
         </div>
+        <button class="command-button action-special">必殺技</button>
+        <button class="command-button action-defend">防御</button>
     `;
+
     const specialButton = commandAreaEl.querySelector('.action-special');
-    if (player.special) {
+
+    // 必殺技の条件をチェック
+    // プレイヤーのオリジナルIDがspecialAbilityConditionsに存在するかどうかを確認
+    if (specialAbilityConditions[player.originalId]) {
         specialButton.classList.remove('hidden');
     } else {
         specialButton.classList.add('hidden');
