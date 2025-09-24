@@ -230,14 +230,13 @@ async function connectToSignalingServer(roomId) {
     socket.on('signal', async (data) => {
         console.log('シグナル受信:', data);
         window.logMessage(`シグナル受信: ${JSON.stringify(data)}`, 'info');
+
         if (data.sdp) {
             try {
-                // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
                 if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
                     console.log("クライアントとしてPeerConnectionのセットアップを開始します。");
                     setupPeerConnection();
                     console.log("setupPeerConnection()が呼び出されました。(クライアント側)");
-                    // クライアント側でPeerConnectionがセットアップされたら、接続状態を監視し始める
                     peerConnection.onconnectionstatechange = () => {
                         console.log('PeerConnection State:', peerConnection.connectionState);
                         connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
@@ -257,12 +256,18 @@ async function connectToSignalingServer(roomId) {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
                 window.logMessage(`RemoteDescriptionを設定しました (${data.sdp.type})`, 'info');
 
-                // answerを作成して送信
+                // クライアント側でofferを受信した場合、answerを作成して送信
                 if (data.sdp.type === 'offer' && !isHost) {
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
                     socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
                 }
+                // ホスト側でanswerを受信した場合
+                else if (data.sdp.type === 'answer' && isHost) {
+                    window.logMessage('Answerを受信しました。', 'info');
+                    // ホスト側では何もしない（setRemoteDescriptionはすでに実行済み）
+                }
+
             } catch (e) {
                 console.error('setRemoteDescriptionエラー:', e);
             }
@@ -287,8 +292,12 @@ function setupPeerConnection() {
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
             console.log('ICE候補を送信:', event.candidate);
-            window.logMessage(`ICE候補を送信: ${JSON.stringify(event.candidate)}`, 'info');
-            socket.emit('signal', { roomId: myRoomId, candidate: event.candidate });
+            socket.emit('signal', {
+                roomId: myRoomId,
+                candidate: event.candidate
+            });
+        } else {
+            console.log('ICE候補収集完了');
         }
     };
 
@@ -298,7 +307,18 @@ function setupPeerConnection() {
 
         peerConnection.onnegotiationneeded = async () => {
             try {
-                const offer = await peerConnection.createOffer();
+                const offer = await peerConnection.createOffer()
+                    .then(offer => peerConnection.setLocalDescription(offer))
+                    .then(() => {
+                        console.log('Offerを作成し、LocalDescriptionに設定しました。');
+                        socket.emit('signal', {
+                            roomId: myRoomId,
+                            sdp: peerConnection.localDescription
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Offer作成エラー:', error);
+                    });
                 await peerConnection.setLocalDescription(offer);
                 window.logMessage('Offerを作成し、LocalDescriptionに設定しました。', 'info');
                 socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
