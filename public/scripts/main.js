@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUiEl.classList.remove('hidden');
         clientUiEl.classList.add('hidden');
         window.logMessage('ホストモードに切り替えました。');
-        myPeerIdEl.textContent = 'ホストのSDPをここに表示';
+        myPeerIdEl.textContent = 'ホストのSDPをコピーしてください';
     });
 
     showClientUiButton.addEventListener('click', () => {
@@ -88,12 +88,28 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUiEl.classList.add('hidden');
         clientUiEl.classList.remove('hidden');
         window.logMessage('クライアントモードに切り替えました。');
-        myPeerIdEl.textContent = 'クライアントのSDPをここに表示';
+        myPeerIdEl.textContent = 'クライアントのSDPをコピーしてください';
     });
 
     startHostConnectionButton.addEventListener('click', async () => {
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
+
+        // 接続状態の監視
+        peerConnection.onconnectionstatechange = () => {
+            console.log('PeerConnection State:', peerConnection.connectionState);
+            connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
+            if (peerConnection.connectionState === 'connected') {
+                window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                onlinePartyGoButton.classList.remove('hidden');
+                if (goButton) {
+                    goButton.disabled = false;
+                }
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                window.logMessage('接続が切断されました。', 'error');
+                cleanupConnection();
+            }
+        };
 
         try {
             const offer = await peerConnection.createOffer();
@@ -120,6 +136,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
         setupPeerConnection();
+
+        // 接続状態の監視
+        peerConnection.onconnectionstatechange = () => {
+            console.log('PeerConnection State:', peerConnection.connectionState);
+            connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
+            if (peerConnection.connectionState === 'connected') {
+                window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                onlinePartyGoButton.classList.remove('hidden');
+                if (goButton) {
+                    goButton.disabled = false;
+                }
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                window.logMessage('接続が切断されました。', 'error');
+                cleanupConnection();
+            }
+        };
 
         try {
             const offerSdp = JSON.parse(offerSdpText);
@@ -181,22 +213,6 @@ function setupPeerConnection() {
         dataChannel = peerConnection.createDataChannel("game-data");
         handleChannelStatusChange();
     }
-    
-    // 接続状態が変化したときの処理
-    peerConnection.onconnectionstatechange = () => {
-        console.log('PeerConnection State:', peerConnection.connectionState);
-        connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
-        if (peerConnection.connectionState === 'connected') {
-            window.logMessage('✅ プレイヤーが接続しました！', 'success');
-            onlinePartyGoButton.classList.remove('hidden');
-            if (goButton) {
-                goButton.disabled = false;
-            }
-        } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-            window.logMessage('接続が切断されました。', 'error');
-            cleanupConnection();
-        }
-    };
 }
 
 // データチャネルの状態が変化したときの処理
@@ -251,7 +267,7 @@ function cleanupConnection() {
         onlinePartyGoButton.classList.add('hidden');
     }
     if (myPeerIdEl) {
-        myPeerIdEl.textContent = '';
+        myPeerIdEl.textContent = 'ホストのSDPをコピーしてください'; // 初期状態に戻す
     }
     if (connectionStatusEl) {
         connectionStatusEl.textContent = '';
