@@ -1,5 +1,4 @@
-// main.js (Pusher版)
-
+// main.js (オンライン同期強化版)
 const PUSHER_APP_KEY = 'a2fd55b8bc4f266ae242';
 const PUSHER_CLUSTER = 'ap3';
 
@@ -8,11 +7,9 @@ let channel = null;
 let isOnlineMode = false;
 let myRoomId = null;
 
-// グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
-window.isHost = () => channel.name === myRoomId; // チャンネル名とIDが一致すればホスト
+window.isHost = () => channel && channel.name === myRoomId;
 
-// ログ表示関数をグローバルに公開
 window.logMessage = (message, type) => {
     const p = document.createElement('p');
     p.textContent = message;
@@ -35,13 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const showHostUiButton = document.getElementById('show-host-ui-button');
     const showClientUiButton = document.getElementById('show-client-ui-button');
     const connectButton = document.getElementById('connect-button');
+    const startHostConnectionButton = document.getElementById('start-host-connection-button'); // 追加
     const copyIdButton = document.getElementById('copy-id-button');
     const onlinePartyGoButton = document.createElement('button');
     const peerIdInput = document.getElementById('peer-id-input');
     const myPeerIdEl = document.getElementById('my-peer-id');
     const connectionStatusEl = document.getElementById('connection-status');
-    const startHostConnectionButton = document.getElementById('start-host-connection-button');
-
     const titleScreen = document.getElementById('title-screen');
     const partyScreen = document.getElementById('party-screen');
     const battleScreen = document.getElementById('battle-screen');
@@ -50,13 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostUi = document.getElementById('host-ui');
     const clientUi = document.getElementById('client-ui');
 
-
     onlinePartyGoButton.id = 'online-party-go-button';
     onlinePartyGoButton.textContent = 'パーティー編成へ';
     onlinePartyGoButton.className = 'proceed-button hidden';
     document.querySelector('.online-controls').appendChild(onlinePartyGoButton);
 
-    // === イベントリスナー ===
     startButton.addEventListener('click', () => {
         isOnlineMode = false;
         titleScreen.classList.add('hidden');
@@ -87,11 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUi.classList.remove('hidden');
         const roomId = 'private-' + Math.random().toString(36).substring(2, 9);
         myRoomId = roomId;
-        myPeerIdEl.textContent = myRoomId.replace('private-', ''); // IDの表示から'private-'を削除
+        myPeerIdEl.textContent = myRoomId.replace('private-', '');
         copyIdButton.disabled = false;
         connectionStatusEl.textContent = 'ルームIDを相手に伝えて、「接続を開始」ボタンを押してください。';
-
-        // ★★★ ここから connectToPusher(roomId); の呼び出しを削除 ★★★
     });
 
     if (startHostConnectionButton) {
@@ -145,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.sendData('party_ready', { party: partyDataForSend });
             window.logMessage('パーティー情報を送信しました。相手の準備を待っています...');
-
         } else {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
@@ -154,11 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     connectButton.addEventListener('click', () => {
-        const remoteRoomId = 'private-' + peerIdInput.value; // ルームIDに'private-'を付与
+        const remoteRoomId = 'private-' + peerIdInput.value;
         if (remoteRoomId) {
             myRoomId = remoteRoomId;
             connectToPusher(remoteRoomId);
-            connectionStatusEl.textContent = '接続中...'; // 接続中の表示を追加
+            connectionStatusEl.textContent = '接続中...';
         } else {
             alert('接続先のIDを入力してください。');
         }
@@ -206,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('チャンネル購読成功');
             connectionStatusEl.textContent = '✅ 接続完了！';
             onlinePartyGoButton.classList.remove('hidden');
+            // 接続完了後、ホストがクライアントへ接続完了を通知する
             if (window.isHost()) {
                 window.sendData('connection_established', {});
             }
@@ -221,11 +213,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Received data:", data);
             if (data.type === 'connection_established') {
                 onlinePartyGoButton.classList.remove('hidden');
+                // クライアント側でホストの接続完了を受け取った際に、ホストへの通知を返す
+                if (!window.isHost()) {
+                    window.sendData('connection_established', {});
+                }
             } else if (data.type === 'party_ready') {
                 console.log('相手のパーティー情報を受信:', data.party);
                 window.logMessage('対戦相手のパーティー情報を受信しました。');
                 window.handleOpponentParty(data.party);
-                window.checkBothPartiesReady();
             } else if (data.type === 'log_message') {
                 window.logMessage(data.message, data.messageType);
             } else if (data.type === 'execute_action') {
@@ -253,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         channel = null;
         isOnlineMode = false;
         myRoomId = null;
-
+        
         onlinePartyGoButton.classList.add('hidden');
         myPeerIdEl.textContent = '';
         connectionStatusEl.textContent = '';
@@ -267,10 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('チャンネルがまだ準備できていないか、許可されていないタイプです。');
             return false;
         }
-
-        // イベント名に 'client-' プレフィックスを付けて送信
+        
         const eventName = `client-${eventType}`;
-
+        
         try {
             channel.trigger(eventName, data);
             console.log('Sent data:', eventName, data);

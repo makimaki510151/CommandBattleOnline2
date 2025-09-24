@@ -1,4 +1,4 @@
-// battle.js (Pusher版)
+// battle.js (デバッグログ追加版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
@@ -114,16 +114,20 @@ async function startBattle(partyMembers) {
 }
 
 function initializePlayerParty(partyData) {
+    console.log('✅ initializePlayerParty: 自分のパーティーを初期化します。');
     const partyType = window.isHost() ? 'host' : 'client';
     currentPlayerParty = initializeParty(partyData, partyType);
     renderParty(playerPartyEl, currentPlayerParty, false);
     enemyPartyEl.innerHTML = '<p class="waiting-message">相手の準備を待っています...</p>';
     myPartyReady = true;
     logMessage('自分のパーティーの準備が完了しました。');
+    console.log('myPartyReady:', myPartyReady);
+    checkBothPartiesReady();
 }
 
 function handleOpponentParty(partyData) {
-    if (!partyData || !Array.isArray(partyData)) {
+    console.log('✅ handleOpponentParty: 相手のパーティー情報を受信しました。');
+    if (!partyData || !Array.isArray(partyData) || partyData.length === 0) {
         console.error('受信した相手のパーティーデータが無効です。', partyData);
         logMessage('エラー: 相手のパーティー情報の受信に失敗しました。', 'error');
         return;
@@ -146,18 +150,22 @@ function handleOpponentParty(partyData) {
     logMessage('相手のパーティー情報を受信しました！');
     renderParty(enemyPartyEl, opponentParty, true);
     opponentPartyReady = true;
+    console.log('opponentPartyReady:', opponentPartyReady);
     checkBothPartiesReady();
 }
 
 function checkBothPartiesReady() {
+    console.log('✅ checkBothPartiesReady: 自分の準備:', myPartyReady, '相手の準備:', opponentPartyReady);
     if (myPartyReady && opponentPartyReady) {
         logMessage('両者の準備が完了しました。');
-        if (window.isHost()) {
-            logMessage('ホストとして戦闘開始処理を実行。');
-            window.sendData('start_battle', {});
-            startOnlineBattle();
-        } else {
-            logMessage('クライアントとしてホストの戦闘開始を待機。');
+        if (window.isOnlineMode()) {
+            if (window.isHost()) {
+                logMessage('ホストとして戦闘開始処理を実行。');
+                window.sendData('start_battle', {});
+                startOnlineBattle();
+            } else {
+                logMessage('クライアントとしてホストの戦闘開始を待機。');
+            }
         }
     }
 }
@@ -177,7 +185,7 @@ function startBattleClientSide() {
     battleLoop();
 }
 
-async function startNextGroup() {
+function startNextGroup() {
     if (currentGroupIndex >= enemyGroups.length) {
         handleGameWin();
         return;
@@ -186,7 +194,7 @@ async function startNextGroup() {
     logMessage(`${group.name}との戦闘！`);
     currentEnemies = initializeParty(group.enemies.map(id => enemyData.find(e => e.id === id)), 'enemy');
     renderParty(enemyPartyEl, currentEnemies, true);
-    await battleLoop();
+    battleLoop();
 }
 
 // --- Core Battle Logic ---
@@ -522,8 +530,12 @@ function selectTarget() {
 // --- UI Rendering ---
 
 function renderParty(partyEl, partyData, isEnemy) {
+    console.log(`✅ renderParty: パーティーをレンダリングします。 (isEnemy: ${isEnemy})`, partyData);
     partyEl.innerHTML = '';
-    if (!partyData) return;
+    if (!partyData || partyData.length === 0) {
+        console.warn('レンダリングするパーティーデータがありません。');
+        return;
+    }
     partyData.forEach(member => {
         const memberEl = document.createElement('div');
         memberEl.classList.add('character-card', isEnemy ? 'enemy-character' : 'player-character');
