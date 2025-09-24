@@ -1,4 +1,4 @@
-// battle.js (デバッグログ追加版)
+// battle.js (完成版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
@@ -475,6 +475,24 @@ function performAttack(attacker, target) {
         logMessage(`${target.name}は倒れた...`, 'fainted');
     }
     updateAllDisplays();
+}
+
+// --- Passive Ability Functions ---
+
+function applyPassiveAbilities(combatants) {
+    combatants.forEach(c => {
+        if (c.passive && c.passive.id && passiveAbilities[c.passive.id]) {
+            passiveAbilities[c.passive.id](c, combatants, logMessage);
+        }
+    });
+}
+
+function applyEndTurnPassiveAbilities(combatants) {
+    combatants.forEach(c => {
+        if (c.passive && c.passive.id && endTurnPassiveAbilities[c.passive.id]) {
+            endTurnPassiveAbilities[c.passive.id](c, combatants, logMessage);
+        }
+    });
 }
 
 // --- Skill and Special Abilities ---
