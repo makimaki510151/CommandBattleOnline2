@@ -25,8 +25,8 @@ window.logMessage = (message, type) => {
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
 
-    // ホストの場合、ログをクライアントに送信
-    if (window.isOnlineMode() && window.isHost()) {
+    // ホストの場合、ログをクライアントに送信 (ホスト側では二重表示しない)
+    if (window.isOnlineMode() && window.isHost() && type !== 'from-host') {
         window.sendData('log_message', { message: message, messageType: type });
     }
 };
