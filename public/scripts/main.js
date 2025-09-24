@@ -34,6 +34,10 @@ let copyIdButton;
 let peerIdInputHost;
 let connectButtonHost;
 
+// クライアント側のUI要素 (追加)
+let myPeerIdElClient;
+let copyIdButtonClient;
+
 // SDP生成フラグ
 let isSdpGenerated = false;
 
@@ -93,6 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
     peerIdInputHost = document.getElementById('peer-id-input-host');
     connectButtonHost = document.getElementById('connect-button-host');
 
+    // クライアント側のUI要素を取得 (追加)
+    myPeerIdElClient = document.getElementById('my-peer-id-client');
+    copyIdButtonClient = document.getElementById('copy-id-button-client');
+
     // イベントリスナー設定
     if (document.getElementById('online-button')) {
         document.getElementById('online-button').addEventListener('click', () => {
@@ -129,12 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isHost = false;
             if(hostUiEl) hostUiEl.classList.add('hidden');
             if(clientUiEl) clientUiEl.classList.remove('hidden');
-            if(myPeerIdEl) myPeerIdEl.textContent = 'SDPをここに貼り付けてください。';
+            // クライアントモードに切り替えたときに myPeerIdElClient もクリア
+            if(myPeerIdElClient) myPeerIdElClient.textContent = '';
             window.logMessage('クライアントモードに切り替えました。');
         });
     }
 
-    // コピーボタンのイベントリスナー（フィードバックを追加）
+    // コピーボタンのイベントリスナー（ホスト側）
     if(copyIdButton) {
         copyIdButton.addEventListener('click', async () => {
             const sdpText = myPeerIdEl.textContent;
@@ -145,6 +154,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     copyIdButton.textContent = 'コピーしました！';
                     setTimeout(() => {
                         copyIdButton.textContent = originalText;
+                    }, 1500);
+                    window.logMessage('SDPがクリップボードにコピーされました！', 'info');
+                } catch (err) {
+                    console.error('コピー失敗:', err);
+                    window.logMessage('SDPのコピーに失敗しました。ブラウザの権限を確認してください。', 'error');
+                }
+            }
+        });
+    }
+
+    // クライアント側のコピーボタンのイベントリスナー (追加)
+    if(copyIdButtonClient) {
+        copyIdButtonClient.addEventListener('click', async () => {
+            const sdpText = myPeerIdElClient.textContent;
+            if (sdpText && sdpText !== 'SDPを生成中...' && sdpText !== 'SDPをここに貼り付けてください。' && sdpText !== '') {
+                try {
+                    await navigator.clipboard.writeText(sdpText);
+                    const originalText = copyIdButtonClient.textContent;
+                    copyIdButtonClient.textContent = 'コピーしました！';
+                    setTimeout(() => {
+                        copyIdButtonClient.textContent = originalText;
                     }, 1500);
                     window.logMessage('SDPがクリップボードにコピーされました！', 'info');
                 } catch (err) {
@@ -220,7 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const showSdp = () => {
                     if (!isSdpGenerated) {
                         const compressedAnswer = compressSDP(peerConnection.localDescription);
-                        if(myPeerIdEl) myPeerIdEl.textContent = compressedAnswer;
+                        // クライアント側の myPeerIdElClient に表示するように変更
+                        if(myPeerIdElClient) myPeerIdElClient.textContent = compressedAnswer;
                         window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
                         isSdpGenerated = true;
                     }
@@ -396,12 +427,12 @@ function cleanupConnection() {
     if (peerIdInput) {
         peerIdInput.value = '';
     }
-    if (goButton) {
-        goButton.disabled = true;
-    }
-    // 修正：ホスト側の入力フィールドもリセット
+    // 修正：ホストとクライアント両方の入力フィールドをリセット
     if (peerIdInputHost) {
         peerIdInputHost.value = '';
+    }
+    if (myPeerIdElClient) {
+        myPeerIdElClient.textContent = '';
     }
 }
 
