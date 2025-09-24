@@ -163,6 +163,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 修正：ホスト側のAnswer処理を追加
+    myPeerIdEl.addEventListener('paste', async (event) => {
+        if (isHost && peerConnection) {
+            event.preventDefault();
+            const compressedSdpText = (event.clipboardData || window.clipboardData).getData('text');
+            window.logMessage('クライアントのSDPを検出しました。接続を試みます...', 'info');
+            try {
+                const answerSdp = decompressSDP(compressedSdpText);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
+                window.logMessage('接続確立！', 'success');
+                connectionStatusEl.textContent = `接続状態: connected`;
+                if (onlinePartyGoButton) {
+                    onlinePartyGoButton.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Answer処理エラー:', error);
+                window.logMessage('クライアントSDPの処理中にエラーが発生しました。', 'error');
+                cleanupConnection();
+            }
+        }
+    });
+
     connectButton.addEventListener('click', async () => {
         const compressedSdpText = peerIdInput.value;
         if (!compressedSdpText) {
@@ -186,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            // 修正: ICE候補が収集完了するまで待機
+            // ICE候補が収集完了するまで待機
             peerConnection.onicegatheringstatechange = () => {
                 console.log('ICE Gathering State:', peerConnection.iceGatheringState);
                 if (peerConnection.iceGatheringState === 'complete') {
@@ -217,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('go-button').disabled = false;
         window.logMessage('パーティー編成画面に移動しました。', 'success');
     });
-
 });
 
 // PeerConnectionのセットアップ
@@ -255,7 +276,9 @@ function handleChannelStatusChange() {
     if (dataChannel) {
         dataChannel.onopen = () => {
             window.logMessage('データチャネルが開かれました。', 'success');
-            // 修正: データチャネルが開かれたらボタンを表示
+            if (!isHost) {
+                window.logMessage('ホストが接続しました。パーティー編成へボタンが有効になりました。', 'info');
+            }
             if (onlinePartyGoButton) {
                 onlinePartyGoButton.classList.remove('hidden');
             }
