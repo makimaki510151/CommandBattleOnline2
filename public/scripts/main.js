@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onlinePartyGoButton.addEventListener('click', () => {
         onlineScreen.classList.add('hidden');
         partyScreen.classList.remove('hidden');
-        goButton.disabled = false;
+        goButton.disabled = true;
     });
 });
 
@@ -219,6 +219,21 @@ async function connectToSignalingServer(roomId) {
                 // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
                 if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
                     setupPeerConnection();
+                    // クライアント側でPeerConnectionがセットアップされたら、接続状態を監視し始める
+                    peerConnection.onconnectionstatechange = () => {
+                        console.log('PeerConnection State:', peerConnection.connectionState);
+                        connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
+                        if (peerConnection.connectionState === 'connected') {
+                            window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                            onlinePartyGoButton.classList.remove('hidden');
+                            if (goButton) {
+                                goButton.disabled = false;
+                            }
+                        } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                            window.logMessage('接続が切断されました。', 'error');
+                            cleanupConnection();
+                        }
+                    };
                 }
 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
@@ -290,7 +305,7 @@ function setupPeerConnection() {
             onlinePartyGoButton.classList.remove('hidden');
             // 接続成功時にgoButtonも有効にする
             if (goButton) {
-                goButton.disabled = false;
+                goButton.disabled = true;
             }
         } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
             window.logMessage('接続が切断されました。', 'error');
@@ -389,7 +404,7 @@ function cleanupConnection() {
         peerIdInput.value = '';
     }
     if (goButton) {
-        goButton.disabled = false;
+        goButton.disabled = true;
     }
 }
 
