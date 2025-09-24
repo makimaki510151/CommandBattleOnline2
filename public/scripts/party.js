@@ -1,137 +1,176 @@
 // party.js (修正版)
 
 import { characters } from './characters.js';
+import { deepCopy } from './utils.js';
 
-let selectedCharacterId = null;
-let partyMembers = [];
-
+// DOM Elements
+const partyScreen = document.getElementById('party-screen');
 const characterListEl = document.getElementById('character-list');
-const characterDetailsEl = document.getElementById('details-content');
-const partySlotsEl = document.querySelector('.party-slots');
+const selectedPartyEl = document.getElementById('party-members');
+const detailsContentEl = document.getElementById('details-content');
+const goButton = document.getElementById('go-button');
+const partyBackButton = document.getElementById('party-back-to-title-button');
 
-// キャラクターカードの描画
-function renderCharacterCards() {
+// Game State
+let selectedParty = [];
+
+// グローバルに公開する関数
+window.initializePlayerParty = initializePlayerParty;
+window.checkBothPartiesReady = checkBothPartiesReady;
+window.getPlayerParty = () => selectedParty;
+window.setMyPartyReady = () => {
+    window.myPartyReady = true;
+    checkBothPartiesReady();
+};
+
+function logMessage(message, type = '') {
+    if (window.logMessage) {
+        window.logMessage(message, type);
+    }
+}
+
+// パーティー編成画面の初期化
+function initializePlayerParty(initialPartyIds = []) {
+    selectedParty = [];
+    selectedPartyEl.innerHTML = '<p class="placeholder">メンバーを4人選択してください</p>';
+    renderCharacterList();
+    if (initialPartyIds.length > 0) {
+        initialPartyIds.forEach(id => {
+            const char = characters.find(c => c.id === id);
+            if (char) {
+                selectCharacter(char);
+            }
+        });
+    }
+
+    // プレイヤーがオンラインモードでない場合、決定ボタンを有効化
+    if (!window.isOnlineMode()) {
+        if(goButton) {
+            goButton.disabled = false;
+        }
+    }
+}
+
+// キャラクターリストの表示
+function renderCharacterList() {
+    if(!characterListEl) return;
     characterListEl.innerHTML = '';
     characters.forEach(char => {
-        const card = document.createElement('div');
-        card.className = 'character-card';
-        card.dataset.id = char.id;
-        card.innerHTML = `
-            <img src="${char.image}" alt="${char.name}" class="char-thumb">
-            <div class="char-info">
-                <h4>${char.name}</h4>
-                <p>${char.role}</p>
-            </div>
+        const charEl = document.createElement('div');
+        charEl.classList.add('character-card');
+        charEl.innerHTML = `
+            <img src="${char.image}" alt="${char.name}">
+            <p>${char.name}</p>
         `;
-        characterListEl.appendChild(card);
+        charEl.addEventListener('click', () => {
+            if (selectedParty.length < 4) {
+                selectCharacter(char);
+                renderDetails(char);
+            }
+        });
+        characterListEl.appendChild(charEl);
     });
 }
 
-// キャラクター詳細の描画
-function renderCharacterDetails(char) {
-    if (!char) {
-        characterDetailsEl.innerHTML = '<p class="placeholder">キャラクターを選択してください</p>';
+// キャラクター選択の処理
+function selectCharacter(char) {
+    if (selectedParty.length >= 4 || selectedParty.some(c => c.id === char.id)) {
         return;
     }
-    characterDetailsEl.innerHTML = `
-        <img src="${char.image}" alt="${char.name}" class="char-image">
-        <h4>${char.name} <small>(${char.role})</small></h4>
-        <div class="status-list">
-            <p><strong>HP:</strong> ${char.status.hp} / ${char.status.maxHp}</p>
-            <p><strong>MP:</strong> ${char.status.mp} / ${char.status.maxMp}</p>
-            <p><strong>攻撃力:</strong> ${char.status.atk}</p>
-            <p><strong>魔法力:</strong> ${char.status.matk}</p>
-            <p><strong>防御力:</strong> ${char.status.def}</p>
-            <p><strong>魔法防御力:</strong> ${char.status.mdef}</p>
-            <p><strong>速度:</strong> ${char.status.spd}</p>
-            <p><strong>補助力:</strong> ${char.status.support}</p>
-            <p><strong>会心率:</strong> ${char.status.criticalRate * 100}%</p>
-            <p><strong>回避率:</strong> ${char.status.dodgeRate * 100}%</p>
-            <p><strong>会心倍率:</strong> ${char.status.criticalMultiplier}倍</p>
-        </div>
-        <h5>パッシブスキル</h5>
-        <p>
-            <strong class="skill-name" data-description="${char.passive.flavor}">${char.passive.name}</strong>: ${char.passive.desc}
-        </p>
-        <h5>アクティブスキル</h5>
+
+    if (selectedParty.length === 0) {
+        selectedPartyEl.innerHTML = ''; // プレースホルダーを削除
+    }
+
+    const newChar = deepCopy(char);
+    selectedParty.push(newChar);
+    renderSelectedParty();
+
+    if (selectedParty.length === 4) {
+        if(goButton) goButton.disabled = false;
+        logMessage('パーティーメンバーが決定しました！', 'info');
+    }
+}
+
+// 選択済みパーティーの表示
+function renderSelectedParty() {
+    if(!selectedPartyEl) return;
+    selectedPartyEl.innerHTML = '';
+    selectedParty.forEach(char => {
+        const partyMemberEl = document.createElement('li');
+        partyMemberEl.classList.add('party-member');
+        partyMemberEl.textContent = char.name;
+        partyMemberEl.addEventListener('click', () => {
+            removeCharacter(char);
+        });
+        selectedPartyEl.appendChild(partyMemberEl);
+    });
+    if (selectedParty.length === 0) {
+        selectedPartyEl.innerHTML = '<p class="placeholder">メンバーを4人選択してください</p>';
+    }
+}
+
+// パーティーメンバーの削除
+function removeCharacter(charToRemove) {
+    selectedParty = selectedParty.filter(char => char.uniqueId !== charToRemove.uniqueId);
+    renderSelectedParty();
+    if (selectedParty.length < 4) {
+        if(goButton) goButton.disabled = true;
+    }
+}
+
+// キャラクター詳細の表示
+function renderDetails(char) {
+    if(!detailsContentEl) return;
+    detailsContentEl.innerHTML = `
+        <h3>${char.name}</h3>
+        <p>HP: ${char.maxHp}</p>
+        <p>攻撃: ${char.atk}</p>
+        <p>防御: ${char.def}</p>
+        <p>素早さ: ${char.speed}</p>
+        <h4>スキル</h4>
         <ul>
-            ${char.active.map(skill => `
-            <li>
-                <strong class="skill-name" data-description="${skill.flavor}">${skill.name}</strong>: ${skill.desc}
-            </li>
-            `).join('')}
+            ${char.skills.map(skill => `<li>${skill.name}</li>`).join('')}
         </ul>
-        <h5>必殺技</h5>
-        <p>
-            <strong class="skill-name" data-description="${char.special.flavor}">${char.special.name}</strong>: ${char.special.desc}
-        </p>
     `;
 }
 
-// キャラクターカード選択イベント
-characterListEl.addEventListener('click', (event) => {
-    const card = event.target.closest('.character-card');
-    if (!card) return;
-
-    document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-
-    selectedCharacterId = card.dataset.id;
-    const selectedChar = characters.find(c => c.id === selectedCharacterId);
-    renderCharacterDetails(selectedChar);
-});
-
-// パーティースロット配置イベント
-partySlotsEl.addEventListener('click', (event) => {
-    const slot = event.target.closest('.party-slot');
-    if (!slot) return;
-
-    const char = characters.find(c => c.id === selectedCharacterId);
-
-    if (selectedCharacterId && !slot.classList.contains('filled')) {
-        const isAlreadyInParty = partyMembers.some(member => member.id === selectedCharacterId);
-        if (isAlreadyInParty) {
-            alert('そのキャラクターはすでにパーティーにいます。');
-            return;
-        }
-
-        if (char) {
-            slot.innerHTML = '';
-            const imgEl = document.createElement('img');
-            imgEl.src = char.image;
-            imgEl.alt = char.name;
-            imgEl.className = 'char-icon';
-            slot.appendChild(imgEl);
-
-            slot.dataset.charId = char.id;
-            slot.classList.add('filled');
-
-            // Deep copyでキャラクターをパーティーに追加
-            const partyChar = JSON.parse(JSON.stringify(char));
-            partyMembers.push(partyChar);
-
-            selectedCharacterId = null;
-            document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
-            renderCharacterDetails(null);
-        }
-    } else if (slot.classList.contains('filled')) {
-        const charIdToRemove = slot.dataset.charId;
-        slot.innerHTML = '';
-        slot.classList.remove('filled');
-        delete slot.dataset.charId;
-
-        partyMembers = partyMembers.filter(member => member.id !== charIdToRemove);
+// オンラインモードでのパーティー準備チェック
+function checkBothPartiesReady() {
+    logMessage(`パーティー準備状況: 自分(${window.myPartyReady}), 相手(${window.opponentPartyReady})`, 'info');
+    if (window.myPartyReady && window.opponentPartyReady) {
+        if(goButton) goButton.disabled = false;
+        logMessage('両方のパーティーが準備完了しました！決定ボタンを押して対戦を開始してください。', 'success');
     }
-});
-
-// パーティー編成データを取得する関数
-function getSelectedParty() {
-    return partyMembers;
 }
 
-// グローバルスコープに公開
-window.getSelectedParty = getSelectedParty;
-
-// 初期描画
-renderCharacterCards();
-renderCharacterDetails(null);
+// イベントリスナーのセットアップ
+if (goButton) {
+    goButton.addEventListener('click', () => {
+        if (selectedParty.length === 4) {
+            logMessage('対戦準備中...', 'info');
+            goButton.disabled = true;
+            if (window.isOnlineMode()) {
+                window.myPartyReady = true;
+                if (window.isHost()) {
+                    window.sendData('sync_party', selectedParty.map(c => c.id));
+                    checkBothPartiesReady();
+                }
+            } else {
+                // オフラインモードの場合
+                window.startBattleWithMyParty(selectedParty);
+            }
+        } else {
+            logMessage('パーティーメンバーを4人選択してください。', 'error');
+        }
+    });
+}
+if (partyBackButton) {
+    partyBackButton.addEventListener('click', () => {
+        partyScreen.classList.add('hidden');
+        document.getElementById('title-screen').classList.remove('hidden');
+        if (window.isOnlineMode()) {
+            window.cleanupConnection();
+        }
+    });
+}
