@@ -209,30 +209,41 @@ document.addEventListener('DOMContentLoaded', () => {
             cleanupPusher();
         });
 
-        channel.bind('client-data', (data) => {
-            console.log("Received data:", data);
-            if (data.type === 'connection_established') {
-                onlinePartyGoButton.classList.remove('hidden');
-                // クライアント側でホストの接続完了を受け取った際に、ホストへの通知を返す
-                if (!window.isHost()) {
-                    window.sendData('connection_established', {});
-                }
-            } else if (data.type === 'party_ready') {
-                console.log('相手のパーティー情報を受信:', data.party);
-                window.logMessage('対戦相手のパーティー情報を受信しました。');
-                window.handleOpponentParty(data.party);
-            } else if (data.type === 'log_message') {
-                window.logMessage(data.message, data.messageType);
-            } else if (data.type === 'execute_action') {
-                window.executeAction(data);
-            } else if (data.type === 'sync_game_state') {
-                window.handleBattleAction(data);
-            } else if (data.type === 'battle_end') {
-                window.handleBattleAction(data);
-            } else if (data.type === 'start_battle') {
-                window.handleBattleAction(data);
+        // ★★★ 修正箇所: 各イベントを個別に購読するように変更 ★★★
+        channel.bind('client-connection_established', (data) => {
+            console.log('Received data: client-connection_established', data);
+            onlinePartyGoButton.classList.remove('hidden');
+            if (!window.isHost()) {
+                window.sendData('connection_established', {});
             }
         });
+
+        channel.bind('client-party_ready', (data) => {
+            console.log('相手のパーティー情報を受信:', data.party);
+            window.logMessage('対戦相手のパーティー情報を受信しました！');
+            window.handleOpponentParty(data.party);
+        });
+
+        channel.bind('client-log_message', (data) => {
+            window.logMessage(data.message, data.messageType);
+        });
+
+        channel.bind('client-execute_action', (data) => {
+            window.executeAction(data);
+        });
+
+        channel.bind('client-sync_game_state', (data) => {
+            window.handleBattleAction(data);
+        });
+
+        channel.bind('client-battle_end', (data) => {
+            window.handleBattleAction(data);
+        });
+
+        channel.bind('client-start_battle', (data) => {
+            window.handleBattleAction(data);
+        });
+        // ★★★ 修正箇所ここまで ★★★
     }
 
     function cleanupPusher() {
@@ -248,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         channel = null;
         isOnlineMode = false;
         myRoomId = null;
-        
+
         onlinePartyGoButton.classList.add('hidden');
         myPeerIdEl.textContent = '';
         connectionStatusEl.textContent = '';
@@ -262,9 +273,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('チャンネルがまだ準備できていないか、許可されていないタイプです。');
             return false;
         }
-        
+
         const eventName = `client-${eventType}`;
-        
+
         try {
             channel.trigger(eventName, data);
             console.log('Sent data:', eventName, data);
