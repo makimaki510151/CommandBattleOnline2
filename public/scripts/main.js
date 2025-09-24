@@ -1,4 +1,4 @@
-// main.js (手動SDP交換版 - UI表示)
+// main.js (修正版)
 import { characters } from './characters.js';
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -118,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('title-screen')) document.getElementById('title-screen').classList.remove('hidden');
         });
     }
-
 
     if (showHostUiButton) {
         showHostUiButton.addEventListener('click', () => {
@@ -285,10 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // オンラインモードに応じて戦闘を開始
             if (window.isOnlineMode()) {
                 const myPartyData = window.getSelectedParty();
-                // この行を削除することで重複呼び出しを防ぎます
-                // window.initializePlayerParty(myPartyData);
+                window.initializePlayerParty(myPartyData);
                 // 相手にパーティー情報を同期するための信号を送る
-                window.sendData('sync_party', myPartyData);
+                window.sendData('sync_party', { partyData: myPartyData });
             } else {
                 // シングルプレイの場合の戦闘開始ロジック（既存の関数を呼び出す）
                 window.startBattle(selectedParty);
@@ -324,6 +322,7 @@ function setupPeerConnection() {
     if (isHost) {
         dataChannel = peerConnection.createDataChannel("game-data");
         handleChannelStatusChange();
+        dataChannel.onmessage = handleDataChannelMessage;
     }
 }
 
@@ -383,10 +382,8 @@ function handleDataChannelMessage(event) {
     const { eventType, eventData } = message;
 
     if (eventType === 'sync_party') {
-        // ホストの場合、相手のパーティー情報を受け取って描画
-        if (isHost) {
-            window.handleOpponentParty(eventData.partyData);
-        }
+        // 相手のパーティー情報を受け取って処理
+        window.handleOpponentParty(eventData.partyData);
     } else if (eventType === 'start_battle') {
         if (!isHost) {
             window.startOnlineBattleClientSide(eventData.initialState);

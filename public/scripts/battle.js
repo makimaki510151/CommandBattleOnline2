@@ -1,4 +1,4 @@
-// battle.js (オンライン同期強化版・最終版)
+// battle.js (修正版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { characters } from './characters.js';
@@ -121,9 +121,6 @@ function initializePlayerParty(partyData) {
     const partyType = window.isHost() ? 'host' : 'client';
     currentPlayerParty = initializeParty(partyData, partyType);
 
-    // 自分のパーティーを描画
-    renderParty(playerPartyEl, currentPlayerParty, false);
-
     myPartyReady = true;
     logMessage('自分のパーティーの準備が完了しました。');
 
@@ -140,9 +137,6 @@ function handleOpponentParty(partyData) {
     const partyType = window.isHost() ? 'client' : 'host';
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
-
-    // 相手のパーティーを描画
-    renderParty(enemyPartyEl, opponentParty, true);
 
     opponentPartyReady = true;
     // 両者の準備完了をチェック
@@ -165,6 +159,10 @@ async function startOnlineBattleHostSide() {
     currentTurn = 0;
     logMessage("戦闘開始！", 'system');
 
+    // ホスト側も自分のパーティーと相手のパーティーを描画
+    renderParty(playerPartyEl, currentPlayerParty, false);
+    renderParty(enemyPartyEl, opponentParty, true);
+
     // クライアントに戦闘開始を通知
     window.sendData('start_battle', {
         initialState: {
@@ -174,10 +172,6 @@ async function startOnlineBattleHostSide() {
             isBattleOngoing: true
         }
     });
-
-    // ホスト側も自分のパーティーと相手のパーティーを描画
-    renderParty(playerPartyEl, currentPlayerParty, false);
-    renderParty(enemyPartyEl, opponentParty, true);
 
     // 戦闘ループを開始
     await battleLoop();
@@ -478,22 +472,18 @@ function calculateDamage(attacker, target, isMagic = false) {
     let isCritical = false;
     let isDodged = false;
 
+    // 攻撃力と防御力の決定
     if (isMagic) {
-        attackPower = attacker.status.matk;
-        defensePower = target.status.mdef;
+        attackPower = attacker.status.mag;
+        defensePower = target.status.mdf;
     } else {
         attackPower = attacker.status.atk;
         defensePower = target.status.def;
     }
 
-    // 防御状態の処理
-    if (target.isDefending) {
-        defensePower *= 2;
-        target.isDefending = false;
-    }
-
     // 回避判定
-    if (Math.random() < target.status.dodgeRate) {
+    const dodgeRate = target.status.dodgeRate || 0;
+    if (Math.random() < dodgeRate) {
         isDodged = true;
         return { damage: 0, critical: false, dodged: true };
     }
@@ -580,16 +570,20 @@ function renderParty(containerEl, party, isOpponent = false) {
 
     party.forEach(char => {
         const charEl = document.createElement('div');
-        charEl.className = 'party-member';
+        charEl.className = 'character-card';
         charEl.dataset.uniqueId = char.uniqueId;
 
         charEl.innerHTML = `
             <img src="${char.image}" alt="${char.name}" class="char-icon">
             <p class="char-name">${char.name}</p>
             <div class="hp-bar-container">
-                <div class="hp-bar" style="width: ${Math.max(0, char.status.hp / char.status.maxHp) * 100}%"></div>
+                <div class="hp-bar-fill" style="width: ${Math.max(0, char.status.hp / char.status.maxHp) * 100}%"></div>
             </div>
             <p class="hp-text">${char.status.hp} / ${char.status.maxHp}</p>
+            <div class="mp-bar-container">
+                <div class="mp-bar-fill" style="width: ${Math.max(0, char.status.mp / char.status.maxMp) * 100}%"></div>
+            </div>
+            <p class="mp-text">${char.status.mp} / ${char.status.maxMp}</p>
         `;
         containerEl.appendChild(charEl);
     });
