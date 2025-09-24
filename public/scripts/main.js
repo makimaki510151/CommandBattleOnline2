@@ -1,7 +1,13 @@
 // main.js (Socket.io + WebRTC版)
 
 // グローバル変数と定数
-const STUN_SERVER = 'stun:stun.l.google.com:19302';
+const STUN_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.ekiga.net' },
+    { urls: 'stun:stun.xten.com' }
+];
 const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com'; // 末尾のスラッシュを削除
 
 let socket = null;
@@ -228,8 +234,9 @@ async function connectToSignalingServer(roomId) {
     });
 
     socket.on('signal', async (data) => {
-        console.log('シグナル受信:', data);
-        window.logMessage(`シグナル受信: ${JSON.stringify(data)}`, 'info');
+        console.log(`ルーム ${data.roomId} からシグナルを受信しました:`, data.sdp ? data.sdp.type : 'ICE candidate');
+        socket.to(data.roomId).emit('signal', data);
+        console.log(`ルーム ${data.roomId} の他のユーザーにシグナルを転送しました。`);
 
         if (data.sdp) {
             try {
@@ -285,7 +292,7 @@ async function connectToSignalingServer(roomId) {
 function setupPeerConnection() {
     console.log("PeerConnectionのセットアップを開始します。");
     peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: STUN_SERVER }]
+        iceServers: [{ urls: STUN_SERVERS }]
     });
     console.log("PeerConnectionが初期化されました。");
 
