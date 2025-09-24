@@ -398,15 +398,19 @@ window.handleActionRequest = async (data) => {
 
 window.executeAction = (data) => {
     // オンラインモードか否かで戦闘参加者の配列を正しく生成
-    let allCombatants;
+    let allCombatants = [];
     if (window.isOnlineMode()) {
+        // オンラインモードでは、自分のパーティーと相手のパーティーを使用
         allCombatants = [...currentPlayerParty, ...opponentParty];
     } else {
+        // 非オンラインモードでは、自分のパーティーと敵のグループを使用
         allCombatants = [...currentPlayerParty, ...currentEnemies];
     }
 
     const actor = allCombatants.find(c => c.uniqueId === data.actorUniqueId);
     if (!actor) {
+        // ログにデバッグ情報を追加すると原因特定に役立ちます
+        console.error('Actor not found:', data.actorUniqueId, allCombatants);
         return;
     }
 
