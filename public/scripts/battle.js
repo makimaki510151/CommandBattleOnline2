@@ -1,6 +1,7 @@
 // battle.js (オンライン同期強化版・最終版)
 
 import { enemyData, enemyGroups } from './enemies.js';
+import { characters } from './characters.js';
 import { passiveAbilities, endTurnPassiveAbilities, specialAbilityConditions, skillEffects, damagePassiveEffects, criticalPassiveEffects } from './character_abilities.js';
 
 // DOM Elements
@@ -689,6 +690,18 @@ function handleBattleEnd() {
         logMessage('戦闘勝利！', 'win');
     }
     commandAreaEl.classList.add('hidden');
+}
+
+// キャラクターIDの配列からパーティーオブジェクトを生成する
+function createPartyFromIds(characterIds) {
+    return characterIds.map(id => {
+        const charData = characters.find(c => c.id === id);
+        if (!charData) {
+            console.error(`Character data not found for ID: ${id}`);
+            return null;
+        }
+        return deepCopy(charData);
+    }).filter(c => c !== null);
 }
 
 // グローバルアクセス

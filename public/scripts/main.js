@@ -136,17 +136,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // initializePlayerPartyは、party_readyを送る前に呼ぶ
             window.initializePlayerParty(selectedParty);
 
-            // クリーンなデータを送信
-            const partyToSend = JSON.parse(JSON.stringify(window.getPlayerParty()));
+            // 送信するデータをキャラクターのIDリストに限定
+            const partyToSend = selectedParty.map(member => member.originalId);
 
             // ホストとしてルームを作成した場合
             if (window.isHost()) {
-                // ホストは自分のパーティーを保存し、クライアントにparty_readyイベントを送信
-                // クライアントからの返信（client_party_ready）を待つ
                 window.logMessage("ホストとしてパーティーを準備しました。相手の準備を待っています...", "info");
                 window.sendData('party_ready', { party: partyToSend });
             } else {
-                // クライアントの場合、自分の準備ができたことをホストに通知
                 window.logMessage("クライアントとしてパーティーを準備しました。ホストに通知します...", "info");
                 window.sendData('client_party_ready', { party: partyToSend });
             }
@@ -276,9 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
         channel.bind('client_party_ready', (data) => {
             if (window.isHost()) {
                 window.logMessage("クライアントが準備完了しました。", "info");
-                // クライアントのパーティー情報を取得
-                const clientParty = data.party;
-                // ホストのパーティー情報
+                // キャラクターIDリストからパーティーを再構築
+                const clientParty = window.createPartyFromIds(data.party);
                 const hostParty = window.getPlayerParty();
 
                 // 戦闘状態の初期化
