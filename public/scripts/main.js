@@ -11,6 +11,9 @@ let isOnlineMode = false;
 let myRoomId = null;
 let isHost = false;
 
+// グローバルスコープでDOM要素を宣言
+let onlinePartyGoButton;
+
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => isHost;
@@ -46,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectButton = document.getElementById('connect-button');
     const startHostConnectionButton = document.getElementById('start-host-connection-button');
     const copyIdButton = document.getElementById('copy-id-button');
-    const onlinePartyGoButton = document.createElement('button');
     const peerIdInput = document.getElementById('peer-id-input');
     const myPeerIdEl = document.getElementById('my-peer-id');
     const connectionStatusEl = document.getElementById('connection-status');
@@ -58,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostUi = document.getElementById('host-ui');
     const clientUi = document.getElementById('client-ui');
 
+    onlinePartyGoButton = document.createElement('button'); // グローバル変数に代入
     onlinePartyGoButton.id = 'online-party-go-button';
     onlinePartyGoButton.textContent = 'パーティー編成へ';
     onlinePartyGoButton.className = 'proceed-button hidden';
@@ -197,13 +200,25 @@ async function connectToSignalingServer(roomId) {
     socket.on('connect', () => {
         console.log('シグナリングサーバー接続成功');
         socket.emit('joinRoom', roomId);
+        window.logMessage('シグナリングサーバーに接続しました。');
+        
+        // ホストの場合はここでPeerConnectionのセットアップを開始
+        if (isHost) {
+            setupPeerConnection();
+        }
     });
 
     socket.on('signal', async (data) => {
         console.log('シグナル受信:', data);
         if (data.sdp) {
             try {
+                // クライアント側でofferを受信したらPeerConnectionをセットアップ
+                if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
+                    setupPeerConnection();
+                }
+                
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                
                 // answerを作成して送信
                 if (data.sdp.type === 'offer' && !isHost) {
                     const answer = await peerConnection.createAnswer();
@@ -227,9 +242,6 @@ async function connectToSignalingServer(roomId) {
         window.logMessage('シグナリングサーバーへの接続に失敗しました。', 'error');
         cleanupConnection();
     });
-
-    // PeerConnectionのセットアップ
-    setupPeerConnection();
 }
 
 function setupPeerConnection() {
@@ -300,16 +312,23 @@ function setupDataChannelEvents(channel) {
 function handleReceivedData(data) {
     const eventType = data.eventType;
     const eventData = data.data;
-    
+
     // ホストとクライアントでイベントを振り分ける
     if (isHost) {
         if (eventType === 'client_party_ready') {
             window.logMessage("クライアントが準備完了しました。", "info");
             const clientParty = window.createPartyFromIds(eventData.party);
             const hostParty = window.getPlayerParty();
-            const initialState = window.startOnlineBattle(hostParty, clientParty);
+            // Note: window.startOnlineBattle関数は存在しないため、直接ホスト側の開始関数を呼び出す
+            const initialState = {
+                playerParty: hostParty,
+                opponentParty: clientParty,
+                currentTurn: 0,
+                isBattleOngoing: true
+            };
             window.sendData('start_battle', { initialState: initialState });
-        } else if (eventType === 'client-log_message') {
+            window.startOnlineBattleHostSide();
+        } else if (eventType === 'log_message') {
             window.logMessage(eventData.message, eventData.messageType);
         }
     } else { // クライアント
@@ -348,11 +367,22 @@ function cleanupConnection() {
     myRoomId = null;
     isHost = false;
 
-    onlinePartyGoButton.classList.add('hidden');
-    myPeerIdEl.textContent = '';
-    connectionStatusEl.textContent = '';
-    peerIdInput.value = '';
-    goButton.disabled = false;
+    // nullチェックを追加
+    if (onlinePartyGoButton) {
+        onlinePartyGoButton.classList.add('hidden');
+    }
+    if (myPeerIdEl) {
+        myPeerIdEl.textContent = '';
+    }
+    if (connectionStatusEl) {
+        connectionStatusEl.textContent = '';
+    }
+    if (peerIdInput) {
+        peerIdInput.value = '';
+    }
+    if (goButton) {
+        goButton.disabled = false;
+    }
 }
 
 // 送信関数
