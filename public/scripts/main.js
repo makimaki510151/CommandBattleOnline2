@@ -48,6 +48,7 @@ window.logMessage = (message, type) => {
 
 // DOMが読み込まれた後に初期化
 document.addEventListener('DOMContentLoaded', () => {
+    // 修正: 'online-go-button' から 'online-party-go-button' に修正
     onlinePartyGoButton = document.getElementById('online-party-go-button');
     myPeerIdEl = document.getElementById('my-peer-id');
     connectionStatusEl = document.getElementById('connection-status');
@@ -102,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                // 修正: online-party-go-button が正しく取得できるようになったため、ここで表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
@@ -142,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                // 修正: online-party-go-button が正しく取得できるようになったため、ここで表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
