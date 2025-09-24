@@ -1,4 +1,4 @@
-// main.js (Socket.io + WebRTC版)
+// main.js (手動SDP交換版)
 
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -8,13 +8,10 @@ const STUN_SERVERS = [
     { urls: 'stun:stun.ekiga.net' },
     { urls: 'stun:stun.xten.com' }
 ];
-const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com'; // 末尾のスラッシュを削除
 
-let socket = null;
 let peerConnection = null;
 let dataChannel = null;
 let isOnlineMode = false;
-let myRoomId = null;
 let isHost = false;
 
 // グローバルスコープでDOM要素を宣言
@@ -23,6 +20,13 @@ let myPeerIdEl;
 let connectionStatusEl;
 let peerIdInput;
 let goButton;
+let hostUiEl;
+let clientUiEl;
+let showHostUiButton;
+let showClientUiButton;
+let startHostConnectionButton;
+let connectToRoomButton;
+let onlineScreen;
 
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
@@ -40,258 +44,116 @@ window.logMessage = (message, type) => {
         messageLogEl.appendChild(p);
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
-
-    // ホストの場合、ログをクライアントに送信 (ホスト側では二重表示しない)
-    if (window.isOnlineMode() && window.isHost() && type !== 'from-host') {
-        window.sendData('log_message', { message: message, messageType: type });
-    }
 };
 
+// DOMが読み込まれた後に初期化
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements をグローバル変数に代入
-    const startButton = document.getElementById('start-button');
-    const backButton = document.getElementById('back-button');
-    goButton = document.getElementById('go-button');
-    const onlineButton = document.getElementById('online-button');
-    const backToTitleButton = document.getElementById('back-to-title-button');
-    const showHostUiButton = document.getElementById('show-host-ui-button');
-    const showClientUiButton = document.getElementById('show-client-ui-button');
-    const connectButton = document.getElementById('connect-button');
-    const startHostConnectionButton = document.getElementById('start-host-connection-button');
-    const copyIdButton = document.getElementById('copy-id-button');
-    peerIdInput = document.getElementById('peer-id-input');
+    onlinePartyGoButton = document.getElementById('online-party-go-button');
     myPeerIdEl = document.getElementById('my-peer-id');
     connectionStatusEl = document.getElementById('connection-status');
-    const titleScreen = document.getElementById('title-screen');
-    const partyScreen = document.getElementById('party-screen');
-    const battleScreen = document.getElementById('battle-screen');
-    const onlineScreen = document.getElementById('online-screen');
-    const modeSelection = document.getElementById('mode-selection');
-    const hostUi = document.getElementById('host-ui');
-    const clientUi = document.getElementById('client-ui');
+    peerIdInput = document.getElementById('peer-id-input');
+    goButton = document.getElementById('go-button');
+    hostUiEl = document.getElementById('host-ui');
+    clientUiEl = document.getElementById('client-ui');
+    showHostUiButton = document.getElementById('show-host-ui-button');
+    showClientUiButton = document.getElementById('show-client-ui-button');
+    startHostConnectionButton = document.getElementById('start-host-connection-button');
+    connectToRoomButton = document.getElementById('connect-to-room-button');
+    onlineScreen = document.getElementById('online-screen');
 
-    onlinePartyGoButton = document.createElement('button'); // グローバル変数に代入
-    onlinePartyGoButton.id = 'online-party-go-button';
-    onlinePartyGoButton.textContent = 'パーティー編成へ';
-    onlinePartyGoButton.className = 'proceed-button hidden';
-    document.querySelector('.online-controls').appendChild(onlinePartyGoButton);
-
-    // --- イベントリスナー ---
-
-    startButton.addEventListener('click', () => {
-        isOnlineMode = false;
-        titleScreen.classList.add('hidden');
-        partyScreen.classList.remove('hidden');
-    });
-
-    onlineButton.addEventListener('click', () => {
+    // イベントリスナー設定
+    document.getElementById('online-button').addEventListener('click', () => {
         isOnlineMode = true;
-        titleScreen.classList.add('hidden');
+        document.getElementById('title-screen').classList.add('hidden');
         onlineScreen.classList.remove('hidden');
-        modeSelection.classList.remove('hidden');
-        hostUi.classList.add('hidden');
-        clientUi.classList.add('hidden');
-        connectionStatusEl.textContent = 'モードを選択してください';
-        cleanupConnection();
     });
 
-    backButton.addEventListener('click', () => {
-        partyScreen.classList.add('hidden');
-        if (isOnlineMode) {
-            onlineScreen.classList.remove('hidden');
-        } else {
-            titleScreen.classList.remove('hidden');
-        }
+    document.getElementById('back-to-title-button').addEventListener('click', () => {
+        cleanupConnection();
+        isOnlineMode = false;
+        onlineScreen.classList.add('hidden');
+        document.getElementById('title-screen').classList.remove('hidden');
     });
 
     showHostUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        hostUi.classList.remove('hidden');
-        const roomId = Math.random().toString(36).substring(2, 9);
-        myRoomId = roomId;
-        myPeerIdEl.textContent = myRoomId;
-        copyIdButton.disabled = false;
-        connectionStatusEl.textContent = 'ルームIDを相手に伝えて、「接続を開始」ボタンを押してください。';
         isHost = true;
-        console.log(`showHostUiButtonクリック後: isHostの値: ${isHost}`);
+        hostUiEl.classList.remove('hidden');
+        clientUiEl.classList.add('hidden');
+        window.logMessage('ホストモードに切り替えました。');
+        myPeerIdEl.textContent = 'ホストのSDPをここに表示';
     });
-
-    if (startHostConnectionButton) {
-        startHostConnectionButton.addEventListener('click', () => {
-            if (myRoomId) {
-                connectionStatusEl.textContent = '相手の接続を待っています...';
-                console.log(`startHostConnectionButtonクリック時: isHostの値: ${isHost}`);
-                connectToSignalingServer(myRoomId);
-            } else {
-                alert('ルームIDがありません。一度タイトルに戻ってやり直してください。');
-            }
-        });
-    }
 
     showClientUiButton.addEventListener('click', () => {
-        modeSelection.classList.add('hidden');
-        clientUi.classList.remove('hidden');
-        connectionStatusEl.textContent = '相手のルームIDを入力してください';
         isHost = false;
+        hostUiEl.classList.add('hidden');
+        clientUiEl.classList.remove('hidden');
+        window.logMessage('クライアントモードに切り替えました。');
+        myPeerIdEl.textContent = 'クライアントのSDPをここに表示';
     });
 
-    backToTitleButton.addEventListener('click', () => {
-        onlineScreen.classList.add('hidden');
-        titleScreen.classList.remove('hidden');
-        cleanupConnection();
+    startHostConnectionButton.addEventListener('click', async () => {
+        window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
+        setupPeerConnection();
+
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            // SDP offerをコンソールに表示
+            console.log("ホストのSDP offerをコピーしてください:");
+            console.log(JSON.stringify(peerConnection.localDescription));
+
+            window.logMessage('ホストのSDP offerをコンソールに表示しました。コピーしてクライアントに渡してください。', 'success');
+
+        } catch (error) {
+            console.error('Offer作成エラー:', error);
+            window.logMessage('Offer作成中にエラーが発生しました。', 'error');
+        }
     });
 
-    goButton.addEventListener('click', () => {
-        const selectedParty = window.getSelectedParty();
-        if (!selectedParty || selectedParty.length !== 4) {
-            window.logMessage('パーティーメンバーを4人選択してください。', 'error');
+    connectToRoomButton.addEventListener('click', async () => {
+        const offerSdpText = peerIdInput.value;
+        if (!offerSdpText) {
+            window.logMessage('SDP offerを貼り付けてください。', 'error');
             return;
         }
 
-        if (isOnlineMode) {
-            if (!peerConnection || !dataChannel || dataChannel.readyState !== 'open') {
-                window.logMessage('接続が完了していません。接続状態を確認してください。', 'error');
-                return;
-            }
-
-            partyScreen.classList.add('hidden');
-            battleScreen.classList.remove('hidden');
-
-            // initializePlayerPartyは、パーティー準備完了を送信する前に呼ぶ
-            window.initializePlayerParty(selectedParty);
-
-            // 送信するデータをキャラクターのIDリストに限定
-            const partyToSend = selectedParty.map(member => member.originalId);
-
-            if (isHost) {
-                window.logMessage('ホストとしてパーティーを準備しました。相手の準備を待っています...', 'info');
-                window.sendData('party_ready', { party: partyToSend });
-            } else {
-                window.logMessage('クライアントとしてパーティーを準備しました。ホストに通知します...', 'info');
-                window.sendData('client_party_ready', { party: partyToSend });
-            }
-        } else {
-            partyScreen.classList.add('hidden');
-            battleScreen.classList.remove('hidden');
-            window.startBattle(selectedParty);
-        }
-    });
-
-    connectButton.addEventListener('click', () => {
-        const remoteRoomId = peerIdInput.value;
-        if (remoteRoomId && remoteRoomId.length > 0) {
-            myRoomId = remoteRoomId;
-            connectToSignalingServer(remoteRoomId);
-            connectionStatusEl.textContent = '接続中...';
-        } else {
-            alert('接続先のIDを入力してください。');
-        }
-    });
-
-    copyIdButton.addEventListener('click', () => {
-        if (myRoomId) {
-            navigator.clipboard.writeText(myRoomId)
-                .then(() => alert('IDがクリップボードにコピーされました！'))
-                .catch(err => console.error('コピーに失敗しました', err));
-        }
-    });
-
-    onlinePartyGoButton.addEventListener('click', () => {
-        onlineScreen.classList.add('hidden');
-        partyScreen.classList.remove('hidden');
-        goButton.disabled = true;
-    });
-});
-
-// --- WebRTC接続関数群 ---
-
-async function connectToSignalingServer(roomId) {
-    cleanupConnection(); // 既存の接続をクリーンアップ
-    socket = io(SIGNALING_SERVER_URL);
-
-    socket.on('connect_error', (err) => {
-        console.error('シグナリングサーバー接続エラー:', err);
-        window.logMessage('シグナリングサーバーへの接続に失敗しました。', 'error');
-        cleanupConnection();
-    });
-
-    socket.on('connect', () => {
-        console.log('シグナリングサーバー接続成功');
-        socket.emit('joinRoom', roomId);
-        console.log(`ルーム ${roomId} に参加リクエストを送信しました。`);
-        window.logMessage(`ルーム ${roomId} に参加リクエストを送信しました。`, 'info');
-        window.logMessage('シグナリングサーバーに接続しました。');
-
-        // ホストの場合はここでPeerConnectionのセットアップを開始
-        console.log(`connectToSignalingServer内のsocket.on('connect')時: isHostの値: ${isHost}`);
-        if (isHost) {
-            console.log("ホストとしてPeerConnectionのセットアップを開始します。");
-            setupPeerConnection();
-            console.log("setupPeerConnection()が呼び出されました。");
-        } else {
-            console.log("クライアントモードのため、PeerConnectionのセットアップはシグナル受信時に行われます。");
-        }
-    });
-
-    socket.on('signal', async (data) => {
-        console.log('シグナル受信:', data);
-        window.logMessage(`シグナル受信: ${JSON.stringify(data)}`, 'info');
+        window.logMessage('PeerConnectionのセットアップを開始します...', 'info');
+        setupPeerConnection();
 
         try {
-            if (data.sdp) {
-                // offerシグナルを受信した場合の処理
-                if (data.sdp.type === 'offer' && !isHost) {
-                    // peerConnectionがまだ存在しない場合のみセットアップ
-                    if (!peerConnection) {
-                        console.log("クライアントとしてPeerConnectionのセットアップを開始します。");
-                        setupPeerConnection();
-                        console.log("setupPeerConnection()が呼び出されました。(クライアント側)");
+            const offerSdp = JSON.parse(offerSdpText);
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
+            window.logMessage(`RemoteDescriptionを設定しました (offer)`, 'info');
 
-                        // 接続状態の監視は一度だけセットアップ
-                        peerConnection.onconnectionstatechange = () => {
-                            console.log('PeerConnection State:', peerConnection.connectionState);
-                            connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
-                            if (peerConnection.connectionState === 'connected') {
-                                window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                                onlinePartyGoButton.classList.remove('hidden');
-                                if (goButton) {
-                                    goButton.disabled = false;
-                                }
-                            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-                                window.logMessage('接続が切断されました。', 'error');
-                                cleanupConnection();
-                            }
-                        };
-                    }
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
 
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                    window.logMessage(`RemoteDescriptionを設定しました (${data.sdp.type})`, 'info');
+            // SDP answerをコンソールに表示
+            console.log("クライアントのSDP answerをコピーしてください:");
+            console.log(JSON.stringify(peerConnection.localDescription));
 
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
-                    window.logMessage('Answerを作成し、送信しました。', 'info');
+            window.logMessage('クライアントのSDP answerをコンソールに表示しました。これをホストに渡してください。', 'success');
 
-                    // answerシグナルを受信した場合の処理
-                } else if (data.sdp.type === 'answer' && isHost) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                    window.logMessage('Answerを受信し、RemoteDescriptionを設定しました。', 'info');
-                }
-            } else if (data.candidate) {
-                // ICE候補を受信した場合の処理
-                if (peerConnection) {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-                    window.logMessage('ICE候補を追加しました。', 'info');
-                } else {
-                    console.warn("PeerConnectionが初期化されていないため、ICE候補をスキップしました。");
-                }
-            }
-        } catch (e) {
-            console.error('シグナル処理中にエラーが発生しました:', e);
+        } catch (error) {
+            console.error('Answer作成エラー:', error);
+            window.logMessage('Answer作成中にエラーが発生しました。', 'error');
         }
     });
-}
 
+    // パーティー編成に進むボタンのイベントリスナー
+    onlinePartyGoButton.addEventListener('click', () => {
+        window.initializePlayerParty(['char-a', 'char-b', 'char-c']);
+        window.handleOpponentParty(['char-d', 'char-e', 'char-f']);
+        document.getElementById('online-screen').classList.add('hidden');
+        document.getElementById('party-screen').classList.remove('hidden');
+        document.getElementById('go-button').disabled = false;
+        window.logMessage('パーティー編成画面に移動しました。', 'success');
+    });
+
+});
+
+// PeerConnectionのセットアップ
 function setupPeerConnection() {
     console.log("PeerConnectionのセットアップを開始します。");
     peerConnection = new RTCPeerConnection({
@@ -299,63 +161,34 @@ function setupPeerConnection() {
     });
     console.log("PeerConnectionが初期化されました。");
 
+    // ICE候補が利用可能になったら、コンソールに表示
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
             console.log('ICE候補を送信:', event.candidate);
-            socket.emit('signal', {
-                roomId: myRoomId,
-                candidate: event.candidate
-            });
         } else {
             console.log('ICE候補収集完了');
         }
     };
-
-    if (isHost) {
-        dataChannel = peerConnection.createDataChannel('game-data');
-        setupDataChannelEvents(dataChannel);
-
-        peerConnection.onnegotiationneeded = async () => {
-            try {
-                const offer = await peerConnection.createOffer()
-                    .then(offer => peerConnection.setLocalDescription(offer))
-                    .then(() => {
-                        console.log('Offerを作成し、LocalDescriptionに設定しました。');
-                        socket.emit('signal', {
-                            roomId: myRoomId,
-                            sdp: peerConnection.localDescription
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Offer作成エラー:', error);
-                    });
-                await peerConnection.setLocalDescription(offer);
-                window.logMessage('Offerを作成し、LocalDescriptionに設定しました。', 'info');
-                socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
-            } catch (e) {
-                console.error('Offer作成エラー:', e);
-            }
+    
+    // データチャネルの受信
+    if (!isHost) {
+        peerConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            handleChannelStatusChange();
+            dataChannel.onmessage = handleDataChannelMessage;
         };
     } else {
-        peerConnection.ondatachannel = (event) => {
-            console.log('データチャネルを受信');
-            dataChannel = event.channel;
-            if (dataChannel) {
-                setupDataChannelEvents(dataChannel);
-            }
-        };
+        dataChannel = peerConnection.createDataChannel("game-data");
+        handleChannelStatusChange();
     }
-
-    // 接続状態の変化を監視
-    peerConnection.onconnectionstatechange = (event) => {
-        console.log('PeerConnection State (event):', event);
+    
+    // 接続状態が変化したときの処理
+    peerConnection.onconnectionstatechange = () => {
         console.log('PeerConnection State:', peerConnection.connectionState);
-        window.logMessage(`WebRTC接続状態: ${peerConnection.connectionState}`, 'info');
         connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
         if (peerConnection.connectionState === 'connected') {
             window.logMessage('✅ プレイヤーが接続しました！', 'success');
             onlinePartyGoButton.classList.remove('hidden');
-            // 接続成功時にgoButtonも有効にする
             if (goButton) {
                 goButton.disabled = false;
             }
@@ -366,55 +199,32 @@ function setupPeerConnection() {
     };
 }
 
-function setupDataChannelEvents(channel) {
-    channel.onopen = () => {
-        console.log('データチャネルがオープンしました');
-        window.logMessage('データチャネルがオープンしました！', 'success');
-    };
-    channel.onclose = () => {
-        console.log('データチャネルがクローズしました');
-    };
-    channel.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('データ受信:', data);
-        handleReceivedData(data);
-    };
-    channel.onerror = (error) => {
-        console.error('データチャネルエラー:', error);
-    };
+// データチャネルの状態が変化したときの処理
+function handleChannelStatusChange() {
+    if (dataChannel) {
+        dataChannel.onopen = () => {
+            window.logMessage('データチャネルが開かれました。', 'success');
+        };
+        dataChannel.onclose = () => {
+            window.logMessage('データチャネルが閉じられました。', 'error');
+        };
+        dataChannel.onerror = (error) => {
+            console.error('データチャネルエラー:', error);
+            window.logMessage('データチャネルでエラーが発生しました。', 'error');
+        };
+    }
 }
 
-// データ受信を処理する関数
-function handleReceivedData(data) {
-    const eventType = data.eventType;
-    const eventData = data.data;
+// データチャネルでメッセージを受信したときの処理
+function handleDataChannelMessage(event) {
+    if (isOnlineMode && !isHost) {
+        const message = JSON.parse(event.data);
+        const { eventType, eventData } = message;
 
-    // ホストとクライアントでイベントを振り分ける
-    if (isHost) {
-        if (eventType === 'client_party_ready') {
-            window.logMessage('クライアントが準備完了しました。', 'info');
-            const clientParty = window.createPartyFromIds(eventData.party);
-            const hostParty = window.getPlayerParty();
-            // Note: window.startOnlineBattle関数は存在しないため、直接ホスト側の開始関数を呼び出す
-            const initialState = {
-                playerParty: hostParty,
-                opponentParty: clientParty,
-                currentTurn: 0,
-                isBattleOngoing: true
-            };
-            window.sendData('start_battle', { initialState: initialState });
-            window.startOnlineBattleHostSide();
-        } else if (eventType === 'log_message') {
-            window.logMessage(eventData.message, eventData.messageType);
-        }
-    } else { // クライアント
-        if (eventType === 'party_ready') {
-            window.handleOpponentParty(eventData.party);
-            window.logMessage('ホストが準備完了しました。', 'info');
+        if (eventType === 'sync_party') {
+            window.handleOpponentParty(eventData);
         } else if (eventType === 'start_battle') {
-            window.startOnlineBattleClientSide(eventData.initialState);
-        } else if (eventType === 'request_action') {
-            window.handleActionRequest(eventData);
+            window.startBattleWithOpponentParty(eventData.enemies);
         } else if (eventType === 'execute_action') {
             window.executeAction(eventData);
         } else if (eventType === 'sync_game_state') {
@@ -427,10 +237,6 @@ function handleReceivedData(data) {
 
 // 接続のクリーンアップ関数
 function cleanupConnection() {
-    if (socket) {
-        socket.disconnect();
-        socket = null;
-    }
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -440,9 +246,7 @@ function cleanupConnection() {
         dataChannel = null;
     }
     isOnlineMode = false;
-    myRoomId = null;
 
-    // nullチェックを追加
     if (onlinePartyGoButton) {
         onlinePartyGoButton.classList.add('hidden');
     }
@@ -463,18 +267,8 @@ function cleanupConnection() {
 // 送信関数
 window.sendData = function (eventType, data) {
     if (!dataChannel || dataChannel.readyState !== 'open') {
-        return false;
+        window.logMessage('データチャネルが開かれていません。データを送信できません。', 'error');
+        return;
     }
-    try {
-        dataChannel.send(JSON.stringify({ eventType, data }));
-        return true;
-    } catch (error) {
-        console.error('データ送信エラー:', error);
-        return false;
-    }
+    dataChannel.send(JSON.stringify({ eventType, eventData: data }));
 };
-
-window.syncGameStateClientSide = (data) => {
-    window.syncState(data.playerParty, data.opponentParty);
-};
-
