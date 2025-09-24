@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const peerIdInput = document.getElementById('peer-id-input');
     const myPeerIdEl = document.getElementById('my-peer-id');
     const connectionStatusEl = document.getElementById('connection-status');
+    const startHostConnectionButton = document.getElementById('start-host-connection-button');
 
     const titleScreen = document.getElementById('title-screen');
     const partyScreen = document.getElementById('party-screen');
@@ -48,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modeSelection = document.getElementById('mode-selection');
     const hostUi = document.getElementById('host-ui');
     const clientUi = document.getElementById('client-ui');
+
 
     onlinePartyGoButton.id = 'online-party-go-button';
     onlinePartyGoButton.textContent = 'パーティー編成へ';
@@ -85,11 +87,23 @@ document.addEventListener('DOMContentLoaded', () => {
         hostUi.classList.remove('hidden');
         const roomId = 'private-' + Math.random().toString(36).substring(2, 9);
         myRoomId = roomId;
-        myPeerIdEl.textContent = myRoomId;
+        myPeerIdEl.textContent = myRoomId.replace('private-', ''); // IDの表示から'private-'を削除
         copyIdButton.disabled = false;
-        connectionStatusEl.textContent = '相手の接続を待っています...';
-        connectToPusher(roomId);
+        connectionStatusEl.textContent = 'ルームIDを相手に伝えて、「接続を開始」ボタンを押してください。';
+
+        // ★★★ ここから connectToPusher(roomId); の呼び出しを削除 ★★★
     });
+
+    if (startHostConnectionButton) {
+        startHostConnectionButton.addEventListener('click', () => {
+            if (myRoomId) {
+                connectionStatusEl.textContent = '相手の接続を待っています...';
+                connectToPusher(myRoomId);
+            } else {
+                alert('ルームIDがありません。一度タイトルに戻ってやり直してください。');
+            }
+        });
+    }
 
     showClientUiButton.addEventListener('click', () => {
         modeSelection.classList.add('hidden');
@@ -140,10 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     connectButton.addEventListener('click', () => {
-        const remoteRoomId = peerIdInput.value;
+        const remoteRoomId = 'private-' + peerIdInput.value; // ルームIDに'private-'を付与
         if (remoteRoomId) {
             myRoomId = remoteRoomId;
             connectToPusher(remoteRoomId);
+            connectionStatusEl.textContent = '接続中...'; // 接続中の表示を追加
         } else {
             alert('接続先のIDを入力してください。');
         }
