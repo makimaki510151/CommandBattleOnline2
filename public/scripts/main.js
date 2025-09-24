@@ -402,6 +402,12 @@ function handleDataChannelMessage(event) {
         if (!isHost) {
             window.handleActionRequest(eventData);
         }
+    } else if (eventType === 'return_to_party_screen') {
+        // ホストからの通知を受信した場合、クライアントも画面を戻す
+        if (!isHost && window.returnToPartyScreen) {
+            window.returnToPartyScreen();
+            window.cleanupConnection(); // 接続もクリーンアップ
+        }
     }
 }
 

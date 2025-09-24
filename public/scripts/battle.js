@@ -1,4 +1,4 @@
-// battle.js (ハイライト機能強化版)
+// battle.js (戦闘終了機能完全版)
 
 import { enemyData, enemyGroups } from './enemies.js';
 import { characters } from './characters.js';
@@ -39,7 +39,7 @@ function logMessage(message, type = '') {
     if (window.logMessage) {
         window.logMessage(message, type);
     }
-    
+
     // オンラインモードでホストの場合、ログをクライアントに送信
     if (window.isOnlineMode() && window.isHost()) {
         window.sendData('log_message', { message: message, type: type });
@@ -75,7 +75,7 @@ function highlightSelectableTargets(targets) {
     document.querySelectorAll('.character-card, .player-character, .enemy-character').forEach(card => {
         card.classList.remove('selectable');
     });
-    
+
     // 生きているターゲットのみを選択可能にする
     targets.filter(target => target.status.hp > 0).forEach(target => {
         const targetEl = document.querySelector(`[data-unique-id="${target.uniqueId}"]`);
@@ -89,6 +89,91 @@ function getCharacterName(uniqueId) {
     const allCombatants = [...(currentPlayerParty || []), ...(opponentParty || []), ...(currentEnemies || [])];
     const character = allCombatants.find(c => c.uniqueId === uniqueId);
     return character ? character.name : '不明';
+}
+
+// --- Battle End Functions ---
+
+function showBattleEndUI(isVictory, survivors) {
+    const battleEndOverlay = document.createElement('div');
+    battleEndOverlay.id = 'battle-end-overlay';
+    battleEndOverlay.className = 'battle-result-overlay show';
+
+    const survivorNames = survivors.map(char => char.name).join('、');
+    const resultMessage = isVictory
+        ? `勝利したキャラクター: ${survivorNames}`
+        : '全てのキャラクターが倒れました...';
+
+    battleEndOverlay.innerHTML = `
+        <div class="battle-result-container">
+            <h1 class="battle-result-title">${isVictory ? '勝利！' : '敗北...'}</h1>
+            <p class="battle-result-message">${resultMessage}</p>
+            ${window.isHost ? '<button class="battle-result-button" id="return-to-party-button">キャラ選択画面に戻る</button>' : '<p class="waiting-message">ホストがキャラ選択画面に戻るのを待っています...</p>'}
+        </div>
+    `;
+
+    battleScreenEl.appendChild(battleEndOverlay);
+
+    // ホストの場合のみイベントリスナーを設定
+    if (window.isHost) {
+        const returnButton = document.getElementById('return-to-party-button');
+        if (returnButton) {
+            returnButton.addEventListener('click', () => {
+                // ホストが戻るアクションを実行し、その情報をクライアントに送信
+                returnToPartyScreen();
+                // クライアントにパーティー画面に戻るよう通知
+                if (window.sendData) {
+                    window.sendData('return_to_party_screen', {});
+                }
+            });
+        }
+    }
+}
+
+window.returnToPartyScreen = function () {
+    // 戦闘状態をリセット
+    resetBattleState();
+
+    // 画面を切り替え
+    battleScreenEl.classList.add('hidden');
+    if (partyScreen) {
+        partyScreen.classList.remove('hidden');
+    }
+
+    // 戦闘終了オーバーレイを削除
+    const overlay = document.getElementById('battle-end-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+
+    // ログもクリア
+    if (messageLogEl) {
+        messageLogEl.innerHTML = '';
+    }
+
+    logMessage('キャラクター選択画面に戻りました。', 'system');
+};
+
+function resetBattleState() {
+    // 戦闘状態をリセット
+    currentPlayerParty = null;
+    opponentParty = null;
+    currentEnemies = null;
+    currentTurn = 0;
+    isBattleOngoing = false;
+    myPartyReady = false;
+    opponentPartyReady = false;
+
+    // ハイライトをリセット
+    resetHighlights();
+
+    // コマンドエリアを隠す
+    if (commandAreaEl) {
+        commandAreaEl.classList.add('hidden');
+    }
+
+    // パーティー表示をクリア
+    if (playerPartyEl) playerPartyEl.innerHTML = '';
+    if (enemyPartyEl) enemyPartyEl.innerHTML = '';
 }
 
 // --- Display Update Functions ---
@@ -577,7 +662,7 @@ function selectTarget() {
 
         // 選択可能なターゲットをハイライト
         highlightSelectableTargets(targets);
-        
+
         const targetSelectionOverlay = document.createElement('div');
         targetSelectionOverlay.id = 'target-selection-overlay';
         targetSelectionOverlay.innerHTML = '<p>ターゲットを選択してください</p>';
@@ -595,7 +680,7 @@ function selectTarget() {
             font-weight: bold;
         `;
         battleScreenEl.appendChild(targetSelectionOverlay);
-        
+
         const clickHandler = (event) => {
             const targetEl = event.target.closest('.character-card');
             if (targetEl && targetEl.classList.contains('selectable')) {
@@ -768,13 +853,25 @@ function syncGameStateClientSide(data) {
 function handleBattleEnd() {
     isBattleOngoing = false;
     resetHighlights(); // 戦闘終了時にハイライトをリセット
+
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
-    if (alivePlayers.length === 0) {
-        logMessage('戦闘敗北...', 'lose');
-    } else {
+    const aliveEnemies = opponentParty.filter(o => o.status.hp > 0);
+
+    const isVictory = alivePlayers.length > 0;
+    const survivors = isVictory ? alivePlayers : [];
+
+    if (isVictory) {
         logMessage('戦闘勝利！', 'win');
+    } else {
+        logMessage('戦闘敗北...', 'lose');
     }
+
     commandAreaEl.classList.add('hidden');
+
+    // 戦闘終了UIを表示（少し遅延させて表示）
+    setTimeout(() => {
+        showBattleEndUI(isVictory, survivors);
+    }, 2000);
 }
 
 // グローバルアクセス
@@ -788,3 +885,4 @@ window.startOnlineBattleHostSide = startOnlineBattleHostSide;
 window.startOnlineBattleClientSide = startOnlineBattleClientSide;
 window.handleActionRequest = window.handleActionRequest;
 window.executeAction = executeAction;
+window.returnToPartyScreen = returnToPartyScreen;
