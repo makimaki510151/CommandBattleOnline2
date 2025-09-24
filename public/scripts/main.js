@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         hostUiEl.classList.remove('hidden');
         clientUiEl.classList.add('hidden');
+        myPeerIdEl.textContent = '生成されるSDPがここに表示されます。';
         window.logMessage('ホストモードに切り替えました。');
     });
 
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = false;
         hostUiEl.classList.add('hidden');
         clientUiEl.classList.remove('hidden');
+        myPeerIdEl.textContent = '生成されるSDPがここに表示されます。';
         window.logMessage('クライアントモードに切り替えました。');
     });
 
