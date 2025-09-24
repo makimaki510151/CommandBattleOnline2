@@ -202,8 +202,9 @@ async function connectToSignalingServer(roomId) {
     socket = io(SIGNALING_SERVER_URL);
 
     socket.on('connect', () => {
-        console.log('シグナリングサーバー接続成功');
+        console.log('シグナリングサーバー接続成功')
         socket.emit('joinRoom', roomId);
+        window.logMessage(`ルーム ${roomId} に参加リクエストを送信しました。`, 'info');
         window.logMessage('シグナリングサーバーに接続しました。');
 
         // ホストの場合はここでPeerConnectionのセットアップを開始
@@ -212,56 +213,58 @@ async function connectToSignalingServer(roomId) {
         }
     });
 
-    socket.on('signal', async (data) => {
-        console.log('シグナル受信:', data);
-        if (data.sdp) {
-            try {
-                // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
-                if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
-                    setupPeerConnection();
-                    // クライアント側でPeerConnectionがセットアップされたら、接続状態を監視し始める
-                    peerConnection.onconnectionstatechange = () => {
-                        console.log('PeerConnection State:', peerConnection.connectionState);
-                        connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
-                        if (peerConnection.connectionState === 'connected') {
-                            window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                            onlinePartyGoButton.classList.remove('hidden');
-                            if (goButton) {
-                                goButton.disabled = false;
-                            }
-                        } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-                            window.logMessage('接続が切断されました。', 'error');
-                            cleanupConnection();
+    socket.on('signal', async (data) => console.log('シグナル受信:', data));
+    window.logMessage(`シグナル受信: ${JSON.stringify(data)}`, 'info');
+    if (data.sdp) {
+        try {
+            // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
+            if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
+                setupPeerConnection();
+                // クライアント側でPeerConnectionがセットアップされたら、接続状態を監視し始める
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('PeerConnection State:', peerConnection.connectionState);
+                    connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
+                    if (peerConnection.connectionState === 'connected') {
+                        window.logMessage('✅ プレイヤーが接続しました！', 'success');
+                        onlinePartyGoButton.classList.remove('hidden');
+                        if (goButton) {
+                            goButton.disabled = false;
                         }
-                    };
-                }
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-
-                // answerを作成して送信
-                if (data.sdp.type === 'offer' && !isHost) {
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
-                }
-            } catch (e) {
-                console.error('setRemoteDescriptionエラー:', e);
+                    } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                        window.logMessage('接続が切断されました。', 'error');
+                        cleanupConnection();
+                    }
+                };
             }
-        } else if (data.candidate) {
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (e) {
-                console.error('addIceCandidateエラー:', e);
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            window.logMessage(`RemoteDescriptionを設定しました (${data.sdp.type})`, 'info');
+
+            // answerを作成して送信
+            if (data.sdp.type === 'offer' && !isHost) {
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
             }
+        } catch (e) {
+            console.error('setRemoteDescriptionエラー:', e);
         }
-    });
+    } else if (data.candidate) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            window.logMessage("ICE候補を追加しました。", 'info');
+        } catch (e) {
+            console.error('addIceCandidateエラー:', e);
+        }
+    }
+};
 
-    socket.on('connect_error', (err) => {
-        console.error('シグナリングサーバー接続エラー:', err);
-        window.logMessage('シグナリングサーバーへの接続に失敗しました。', 'error');
-        cleanupConnection();
-    });
-}
+socket.on('connect_error', (err) => {
+    console.error('シグナリングサーバー接続エラー:', err);
+    window.logMessage('シグナリングサーバーへの接続に失敗しました。', 'error');
+    cleanupConnection();
+});
+
 
 function setupPeerConnection() {
     peerConnection = new RTCPeerConnection({
@@ -271,7 +274,7 @@ function setupPeerConnection() {
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
             console.log('ICE候補を送信:', event.candidate);
-            socket.emit('signal', { roomId: myRoomId, candidate: event.candidate });
+            window.logMessage(`ICE候補を送信: ${JSON.stringify(event.candidate)}`, 'info'); socket.emit('signal', { roomId: myRoomId, candidate: event.candidate });
         }
     };
 
@@ -283,6 +286,7 @@ function setupPeerConnection() {
             try {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
+                window.logMessage("Offerを作成し、LocalDescriptionに設定しました。", 'info');
                 socket.emit('signal', { roomId: myRoomId, sdp: peerConnection.localDescription });
             } catch (e) {
                 console.error('Offer作成エラー:', e);
@@ -299,6 +303,7 @@ function setupPeerConnection() {
     // 接続状態の変化を監視
     peerConnection.onconnectionstatechange = () => {
         console.log('PeerConnection State:', peerConnection.connectionState);
+        window.logMessage(`WebRTC接続状態: ${peerConnection.connectionState}`, 'info');
         connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
         if (peerConnection.connectionState === 'connected') {
             window.logMessage('✅ プレイヤーが接続しました！', 'success');
@@ -317,6 +322,7 @@ function setupPeerConnection() {
 function setupDataChannelEvents(channel) {
     channel.onopen = () => {
         console.log('データチャネルがオープンしました');
+        window.logMessage('データチャネルがオープンしました！', 'success');
     };
     channel.onclose = () => {
         console.log('データチャネルがクローズしました');
