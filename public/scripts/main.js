@@ -2,7 +2,7 @@
 
 // グローバル変数と定数
 const STUN_SERVER = 'stun:stun.l.google.com:19302';
-const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com'; // ここをあなたのVercelデプロイURLに置き換えてください
+const SIGNALING_SERVER_URL = 'https://online-battle-signaling-server.onrender.com'; // 末尾のスラッシュを削除
 
 let socket = null;
 let peerConnection = null;
@@ -216,7 +216,7 @@ async function connectToSignalingServer(roomId) {
         console.log('シグナル受信:', data);
         if (data.sdp) {
             try {
-                // クライアント側でofferを受信したらPeerConnectionをセットアップ
+                // クライアント側でofferを受信したら、まだPeerConnectionがなければセットアップ
                 if (data.sdp.type === 'offer' && !isHost && !peerConnection) {
                     setupPeerConnection();
                 }
@@ -288,6 +288,10 @@ function setupPeerConnection() {
         if (peerConnection.connectionState === 'connected') {
             window.logMessage('✅ プレイヤーが接続しました！', 'success');
             onlinePartyGoButton.classList.remove('hidden');
+            // 接続成功時にgoButtonも有効にする
+            if (goButton) {
+                goButton.disabled = false;
+            }
         } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
             window.logMessage('接続が切断されました。', 'error');
             cleanupConnection();
