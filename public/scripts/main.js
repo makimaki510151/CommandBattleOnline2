@@ -1,7 +1,6 @@
 // main.js (手動SDP交換版 - UI表示)
 
-// pakoライブラリのインポート (CDNで読み込む場合は不要ですが、モジュールとして扱う場合は必要です)
-import pako from 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.mjs';
+// pakoライブラリのimport文を削除
 
 // グローバル変数と定数
 const STUN_SERVERS = [
@@ -138,12 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                // 修正: 接続完了後にボタンを表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
                 }
-            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionstate === 'disconnected') {
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 window.logMessage('接続が切断されました。', 'error');
                 cleanupConnection();
             }
@@ -153,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
 
-            // SDP offerをUIに表示
             const compressedOffer = compressSDP(peerConnection.localDescription);
             myPeerIdEl.textContent = compressedOffer;
             window.logMessage('SDPを生成しました。コピーボタンを押して相手に伝えてください。', 'success');
@@ -179,12 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionStatusEl.textContent = `接続状態: ${peerConnection.connectionState}`;
             if (peerConnection.connectionState === 'connected') {
                 window.logMessage('✅ プレイヤーが接続しました！', 'success');
-                // 修正: 接続完了後にボタンを表示
                 onlinePartyGoButton.classList.remove('hidden');
                 if (goButton) {
                     goButton.disabled = false;
                 }
-            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionstate === 'disconnected') {
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 window.logMessage('接続が切断されました。', 'error');
                 cleanupConnection();
             }
@@ -198,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            // SDP answerをUIに表示
             const compressedAnswer = compressSDP(peerConnection.localDescription);
             myPeerIdEl.textContent = compressedAnswer;
             window.logMessage('SDPを生成しました。ホストに伝えてください。', 'success');
