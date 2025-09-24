@@ -14,8 +14,8 @@ let dataChannelReadyPromise = new Promise(resolve => {
 });
 
 // ★★★ Pusherの初期化 ★★★
-const PUSHER_APP_KEY = 'YOUR_PUSHER_APP_KEY'; // 環境変数を指定
-const PUSHER_CLUSTER = 'YOUR_PUSHER_CLUSTER'; // 例: 'ap1'
+const PUSHER_APP_KEY = 'a2fd55b8bc4f266ae242'; // 環境変数を指定
+const PUSHER_CLUSTER = 'ap3'; // 例: 'ap1'
 
 const pusher = new Pusher(PUSHER_APP_KEY, {
     cluster: PUSHER_CLUSTER,
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const myPeerIdEl = document.getElementById('my-peer-id');
     const peerIdInput = document.getElementById('peer-id-input');
     const onlinePartyGoButton = document.getElementById('online-party-go-button');
-    
+
     // イベントリスナー
     startButton.addEventListener('click', () => {
         titleScreen.classList.add('hidden');
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         createRoomButton.disabled = true;
         peerIdInput.value = '';
         joinRoomButton.disabled = true;
-        
+
         await connectToPeer(true, peerId);
     });
 
@@ -168,7 +168,7 @@ async function connectToPeer(isCreator, peerId) {
             channel.trigger('client-signal', { type: 'candidate', candidate: event.candidate });
         }
     };
-    
+
     // データチャネルのセットアップ (変更なし)
     if (isHost) {
         dataChannel = peerConnection.createDataChannel('game-data');
@@ -230,7 +230,7 @@ function cleanupWebRTC() {
     }
     isHost = false;
     isOnlineMode = false;
-    
+
     // UIのリセット
     const onlinePartyGoButton = document.getElementById('online-party-go-button');
     const myPeerIdEl = document.getElementById('my-peer-id');
@@ -272,7 +272,7 @@ window.sendData = async function (data) {
         console.warn('データチャネルがまだ開いていません。準備を待機します...');
         await dataChannelReadyPromise;
     }
-    
+
     try {
         const serializedData = JSON.stringify(data);
         dataChannel.send(serializedData);
