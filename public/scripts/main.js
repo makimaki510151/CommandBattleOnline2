@@ -1,4 +1,4 @@
-// main.js (オンライン同期強化版・再修正)
+// main.js (Pusher版 - 最終版)
 
 const PUSHER_APP_KEY = 'a2fd55b8bc4f266ae242';
 const PUSHER_CLUSTER = 'ap3';
@@ -7,18 +7,13 @@ let pusher = null;
 let channel = null;
 let isOnlineMode = false;
 let myRoomId = null;
-let resolveDataStreamReady = null;
-let dataStreamReadyPromise = null;
 
+// グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => channel && channel.name === myRoomId;
 
-window.logMessage = (message, type = '') => {
-    if (window.isOnlineMode() && !window.isHost()) {
-        // クライアントモードの場合は、ログ表示をサーバーからのメッセージに任せる
-        return;
-    }
-
+// ログ表示関数をグローバルに公開
+window.logMessage = (message, type) => {
     const p = document.createElement('p');
     p.textContent = message;
     if (type) {
@@ -30,8 +25,8 @@ window.logMessage = (message, type = '') => {
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
 
+    // ホストの場合、ログをクライアントに送信
     if (window.isOnlineMode() && window.isHost()) {
-        // ホストの場合は、ログをクライアントに送信
         window.sendData('log_message', { message: message, messageType: type });
     }
 };
@@ -124,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     goButton.addEventListener('click', () => {
         const selectedParty = window.getSelectedParty();
-        if (!selectedParty) {
+        if (!selectedParty || selectedParty.length !== 4) {
             window.logMessage('パーティーメンバーを4人選択してください。', 'error');
             return;
         }
@@ -133,23 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
             
+            // initializePlayerPartyは、party_readyを送る前に呼ぶ
             window.initializePlayerParty(selectedParty);
-            const partyToSend = window.getPlayerParty();
             
-            if (!partyToSend) {
-                console.error('パーティー情報が見つかりません。');
-                return;
-            }
-
-            const partyDataForSend = JSON.parse(JSON.stringify(partyToSend));
-            partyDataForSend.forEach(member => {
-                if (member.passive) delete member.passive.desc;
-                if (member.active) member.active.forEach(skill => delete skill.desc);
-                if (member.special) delete member.special.desc;
-            });
-
-            window.sendData('party_ready', { party: partyDataForSend });
-            window.logMessage('パーティー情報を送信しました。相手の準備を待っています...');
+            // クリーンなデータを送信
+            const partyToSend = JSON.parse(JSON.stringify(window.getPlayerParty()));
+            window.sendData('party_ready', { party: partyToSend });
         } else {
             partyScreen.classList.add('hidden');
             battleScreen.classList.remove('hidden');
@@ -159,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectButton.addEventListener('click', () => {
         const remoteRoomId = 'private-' + peerIdInput.value;
-        if (remoteRoomId) {
+        if (remoteRoomId && peerIdInput.value.length > 0) {
             myRoomId = remoteRoomId;
             connectToPusher(remoteRoomId);
             connectionStatusEl.textContent = '接続中...';
@@ -221,8 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cleanupPusher();
         });
         
-        channel.bind('client-connection_established', (data) => {
-            console.log('Received data: client-connection_established', data);
+        channel.bind('client-connection_established', () => {
             onlinePartyGoButton.classList.remove('hidden');
             if (!window.isHost()) {
                 window.sendData('connection_established', {});
@@ -230,11 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         channel.bind('client-party_ready', (data) => {
-            console.log('相手のパーティー情報を受信:', data.party);
             window.handleOpponentParty(data.party);
         });
 
         channel.bind('client-log_message', (data) => {
+            // ホストからのログを受信して表示
             const p = document.createElement('p');
             p.textContent = data.message;
             if (data.messageType) {
@@ -247,29 +230,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        channel.bind('client-execute_action', (data) => {
-            window.executeAction(data);
+        channel.bind('client-start_battle', (data) => {
+            window.startOnlineBattleClientSide(data.initialState);
+        });
+
+        channel.bind('client-request_action', (data) => {
+            window.handleActionRequest(data);
         });
 
         channel.bind('client-sync_game_state', (data) => {
-            window.handleBattleAction(data);
-        });
-
-        channel.bind('client-battle_end', (data) => {
-            window.handleBattleAction(data);
-        });
-
-        channel.bind('client-start_battle', (data) => {
-            window.handleBattleAction(data);
+            window.syncGameStateClientSide(data);
         });
     }
 
     function cleanupPusher() {
-        console.log("🧹 cleanupPusher 実行");
-        if (channel) {
-            channel.unbind();
-            pusher.unsubscribe(channel.name);
-        }
         if (pusher) {
             pusher.disconnect();
         }
@@ -283,12 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = '';
         peerIdInput.value = '';
         goButton.disabled = false;
-        console.log("✅ cleanupPusher 完了");
     }
 
     window.sendData = function (eventType, data) {
-        if (!channel || channel.name.startsWith('presence-')) {
-            console.warn('チャンネルがまだ準備できていないか、許可されていないタイプです。');
+        if (!channel) {
             return false;
         }
         
@@ -296,10 +268,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             channel.trigger(eventName, data);
-            console.log('Sent data:', eventName, data);
             return true;
         } catch (error) {
-            console.error('データ送信に失敗しました:', error);
             return false;
         }
     };
