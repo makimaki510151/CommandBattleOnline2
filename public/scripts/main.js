@@ -378,21 +378,23 @@ function handleChannelStatusChange() {
 
 // データチャネルでメッセージを受信したときの処理
 function handleDataChannelMessage(event) {
-    if (isOnlineMode && !isHost) {
-        const message = JSON.parse(event.data);
-        const { eventType, eventData } = message;
+    const message = JSON.parse(event.data);
+    const { eventType, eventData } = message;
 
-        if (eventType === 'sync_party') {
-            window.handleOpponentParty(eventData);
-        } else if (eventType === 'start_battle') {
+    if (eventType === 'sync_party') {
+        window.handleOpponentParty(eventData);
+    } else if (eventType === 'start_battle') {
+        if (!isHost) {
             window.startOnlineBattleClientSide(eventData.initialState);
-        } else if (eventType === 'execute_action') {
-            window.executeAction(eventData);
-        } else if (eventType === 'sync_game_state') {
-            window.syncGameStateClientSide(eventData);
-        } else if (eventType === 'log_message') {
-            window.logMessage(eventData.message, 'from-host');
         }
+    } else if (eventType === 'execute_action') {
+        window.executeAction(eventData);
+    } else if (eventType === 'sync_game_state') {
+        if (!isHost) {
+            window.syncGameStateClientSide(eventData);
+        }
+    } else if (eventType === 'log_message') {
+        window.logMessage(eventData.message, 'from-host');
     }
 }
 
