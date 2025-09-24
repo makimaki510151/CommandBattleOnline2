@@ -131,9 +131,12 @@ function handleOpponentParty(partyData) {
     const partyType = window.isHost() ? 'client' : 'host';
     opponentParty = initializeParty(partyData, partyType);
     logMessage('対戦相手のパーティー情報を受信しました！');
-    renderParty(enemyPartyEl, opponentParty, true);
+
+    // 相手のパーティーを描画
+    renderParty(enemyPartyEl, opponentParty, true); // ここで renderParty を呼び出す
+
     opponentPartyReady = true;
-    checkBothPartiesReady(); // ここで呼び出す
+    checkBothPartiesReady();
 }
 
 function checkBothPartiesReady() {
@@ -551,32 +554,27 @@ function selectTarget() {
     });
 }
 
-function renderParty(partyEl, partyData, isEnemy) {
-    partyEl.innerHTML = '';
-    if (!partyData || partyData.length === 0) {
+function renderParty(containerEl, party, isOpponent = false) {
+    if (!containerEl) {
+        console.error('Container element for party is null.');
         return;
     }
-    partyData.forEach(member => {
-        const memberEl = document.createElement('div');
-        memberEl.classList.add('character-card', isEnemy ? 'enemy-character' : 'player-character');
-        memberEl.dataset.uniqueId = member.uniqueId;
-        const characterImage = member.image ? `<img src="${member.image}" alt="${member.name}" class="character-image" onerror="this.onerror=null;this.src='images/placeholder.png';">` : '';
-        const hpBar = `<div class="hp-bar"><div class="hp-bar-fill" style="width: ${(member.status.hp / member.status.maxHp) * 100}%;"></div></div>`;
-        const mpBar = (isEnemy || member.status.maxMp === 0) ? '' : `<div class="mp-bar"><div class="mp-bar-fill" style="width: ${(member.status.mp / member.status.maxMp) * 100}%;"></div></div>`;
-        const mpText = (isEnemy || member.status.maxMp === 0) ? '' : `<p class="mp-text-line">MP: <span class="mp-text">${member.status.mp}/${member.status.maxMp}</span></p>`;
-        memberEl.innerHTML = `
-            <div class="character-info">
-                ${characterImage}
-                <div class="character-details">
-                    <h3 class="character-name">${member.name}</h3>
-                    <p class="hp-text-line">HP: <span class="hp-text">${member.status.hp}/${member.status.maxHp}</span></p>
-                    ${hpBar}
-                    ${mpText}
-                    ${mpBar}
-                </div>
+    containerEl.innerHTML = '';
+
+    party.forEach(char => {
+        const charEl = document.createElement('div');
+        charEl.className = 'party-member';
+        charEl.dataset.uniqueId = char.uniqueId;
+
+        charEl.innerHTML = `
+            <img src="${char.image}" alt="${char.name}" class="char-icon">
+            <p class="char-name">${char.name}</p>
+            <div class="hp-bar-container">
+                <div class="hp-bar" style="width: ${Math.max(0, char.status.hp / char.status.maxHp) * 100}%"></div>
             </div>
+            <p class="hp-text">${char.status.hp} / ${char.status.maxHp}</p>
         `;
-        partyEl.appendChild(memberEl);
+        containerEl.appendChild(charEl);
     });
 }
 
