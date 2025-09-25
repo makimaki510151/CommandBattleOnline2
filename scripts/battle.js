@@ -424,12 +424,11 @@ async function playerTurn(actor) {
                     targetUniqueId = targetInfo.target.uniqueId;
                     actionData = { action: 'attack', actorUniqueId: actor.uniqueId, targetUniqueId: targetUniqueId };
                 } else {
-                    // ★ここを修正/確認★：キャンセルされた場合の処理を統一
+                    // キャンセルされた場合の処理
                     isActionInProgress = false;
                     disableCommandButtons(false);
-                    removeCancelButton(); // キャンセルボタンを削除
                     logMessage('行動をキャンセルしました。');
-                    return; // 処理を中断
+                    return; // 処理を中断し、再度行動を選択できるようにする
                 }
             } else if (target.matches('.action-defend')) {
                 actionData = { action: 'defend', actorUniqueId: actor.uniqueId };
@@ -463,17 +462,16 @@ async function playerTurn(actor) {
                         const targetInfo = await selectTarget(skill.target === 'ally_single');
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
-                            actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id, targetUniqueId: targetUniqueId };
+                            actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillName: skill.name, targetUniqueId: targetUniqueId };
                         } else {
-                            // キャンセルボタンを押すとselectTargetはnullを返す
+                            // キャンセルされた場合の処理
                             isActionInProgress = false;
                             disableCommandButtons(false);
-                            removeCancelButton(); // キャンセルボタンを削除
                             logMessage('行動をキャンセルしました。');
                             return; // 処理を中断
                         }
                     } else {
-                        actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id };
+                        actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillName: skill.name };
                     }
                 }
             } else if (target.matches('.action-special')) {
@@ -493,17 +491,16 @@ async function playerTurn(actor) {
                         const targetInfo = await selectTarget(special.target === 'ally_single');
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
-                            actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id, targetUniqueId: targetUniqueId };
+                            actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialName: special.name, targetUniqueId: targetUniqueId };
                         } else {
-                            // ★修正点★：キャンセル時の処理を統一
+                            // キャンセルされた場合の処理
                             isActionInProgress = false;
                             disableCommandButtons(false);
-                            removeCancelButton(); // キャンセルボタンを削除
                             logMessage('行動をキャンセルしました。');
                             return; // 処理を中断
                         }
                     } else {
-                        actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id };
+                        actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialName: special.name };
                     }
                 }
             } else if (target.matches('.action-cancel')) {
@@ -591,6 +588,7 @@ window.handleActionRequest = async (data) => {
                 } else {
                     isActionInProgress = false;
                     disableCommandButtons(false); // コマンドボタンを有効化
+                    logMessage('行動をキャンセルしました。');
                     return; // アクションを中断
                 }
             } else if (target.matches('.action-defend')) {
@@ -625,14 +623,15 @@ window.handleActionRequest = async (data) => {
                         const targetInfo = await selectTarget(skill.target === 'ally_single');
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
-                            actionData = { action: 'skill', skillId: skill.id, targetUniqueId: targetUniqueId };
+                            actionData = { action: 'skill', skillName: skill.name, targetUniqueId: targetUniqueId };
                         } else {
                             isActionInProgress = false;
                             disableCommandButtons(false); // コマンドボタンを有効化
+                            logMessage('行動をキャンセルしました。');
                             return; // アクションを中断
                         }
                     } else {
-                        actionData = { action: 'skill', skillId: skill.id };
+                        actionData = { action: 'skill', skillName: skill.name };
                     }
                 }
             } else if (target.matches('.action-special')) {
@@ -652,14 +651,15 @@ window.handleActionRequest = async (data) => {
                         const targetInfo = await selectTarget(special.target === 'ally_single');
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
-                            actionData = { action: 'special', specialId: special.id, targetUniqueId: targetUniqueId };
+                            actionData = { action: 'special', specialName: special.name, targetUniqueId: targetUniqueId };
                         } else {
                             isActionInProgress = false;
                             disableCommandButtons(false); // コマンドボタンを有効化
+                            logMessage('行動をキャンセルしました。');
                             return; // アクションを中断
                         }
                     } else {
-                        actionData = { action: 'special', specialId: special.id };
+                        actionData = { action: 'special', specialName: special.name };
                     }
                 }
             } else if (target.matches('.action-cancel')) {
@@ -720,18 +720,19 @@ window.executeAction = (data) => {
             logMessage(`${actor.name}は防御した。`);
             break;
         case 'skill':
-            const skill = actor.active.find(s => s.id === data.skillId);
+            const skill = actor.active.find(s => s.name === data.skillName);
             if (skill) {
-                // ターゲットが必要なスキルであれば、data.targetUniqueIdを使用
                 const skillTargets = [];
                 if (skill.target === 'single' || skill.target === 'ally_single') {
                     const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
                     if (targetChar) skillTargets.push(targetChar);
                 } else if (skill.target === 'all_enemies') {
-                    skillTargets.push(...(window.isOnlineMode() ? opponentParty : currentEnemies));
+                    const enemies = actor.partyType === 'host' ? opponentParty : (actor.partyType === 'client' ? opponentParty : currentEnemies);
+                    skillTargets.push(...enemies.filter(e => e.status.hp > 0));
                 } else if (skill.target === 'all_allies') {
-                    skillTargets.push(...currentPlayerParty);
-                } else { // ターゲット指定なしのスキル (例: 自己バフ)
+                    const allies = actor.partyType === 'host' ? currentPlayerParty : (actor.partyType === 'client' ? currentPlayerParty : currentPlayerParty);
+                    skillTargets.push(...allies.filter(a => a.status.hp > 0));
+                } else {
                     skillTargets.push(actor);
                 }
                 executeSkill(actor, skill, skillTargets);
@@ -739,17 +740,18 @@ window.executeAction = (data) => {
             break;
         case 'special':
             const special = actor.special;
-            if (special && special.id === data.specialId) {
-                // ターゲットが必要な必殺技であれば、data.targetUniqueIdを使用
+            if (special && special.name === data.specialName) {
                 const specialTargets = [];
                 if (special.target === 'single' || special.target === 'ally_single') {
                     const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
                     if (targetChar) specialTargets.push(targetChar);
                 } else if (special.target === 'all_enemies') {
-                    specialTargets.push(...(window.isOnlineMode() ? opponentParty : currentEnemies));
+                    const enemies = actor.partyType === 'host' ? opponentParty : (actor.partyType === 'client' ? opponentParty : currentEnemies);
+                    specialTargets.push(...enemies.filter(e => e.status.hp > 0));
                 } else if (special.target === 'all_allies') {
-                    specialTargets.push(...currentPlayerParty);
-                } else { // ターゲット指定なしの必殺技
+                    const allies = actor.partyType === 'host' ? currentPlayerParty : (actor.partyType === 'client' ? currentPlayerParty : currentPlayerParty);
+                    specialTargets.push(...allies.filter(a => a.status.hp > 0));
+                } else {
                     specialTargets.push(actor);
                 }
                 executeSpecial(actor, special, specialTargets);
@@ -788,8 +790,8 @@ function calculateDamage(attacker, target, isMagic = false) {
 
     // 攻撃力と防御力の決定
     if (isMagic) {
-        attackPower = attacker.status.mag;
-        defensePower = target.status.mdf;
+        attackPower = attacker.status.matk;
+        defensePower = target.status.mdef;
     } else {
         attackPower = attacker.status.atk;
         defensePower = target.status.def;
@@ -866,7 +868,7 @@ function selectTarget(selectAlly = false) {
         }
 
         // 選択可能なターゲットをハイライト
-        highlightSelectableTargets(targets);
+        highlightSelectableTargets(aliveTargets);
 
         const targetSelectionOverlay = document.createElement('div');
         targetSelectionOverlay.id = 'target-selection-overlay';
@@ -891,10 +893,7 @@ function selectTarget(selectAlly = false) {
 
         const clickHandler = (event) => {
             if (event.target.id === 'cancel-target-selection') {
-                targetSelectionOverlay.remove();
-                resetHighlights();
-                enemyPartyEl.removeEventListener('click', clickHandler);
-                playerPartyEl.removeEventListener('click', clickHandler); // 味方選択の場合も考慮
+                cleanup();
                 resolve(null); // キャンセルされたことを通知
                 return;
             }
@@ -904,17 +903,20 @@ function selectTarget(selectAlly = false) {
                 const uniqueId = targetEl.dataset.uniqueId;
                 const selectedTarget = aliveTargets.find(t => t.uniqueId === uniqueId);
                 if (selectedTarget) {
-                    targetSelectionOverlay.remove();
-                    resetHighlights();
-                    enemyPartyEl.removeEventListener('click', clickHandler);
-                    playerPartyEl.removeEventListener('click', clickHandler); // 味方選択の場合も考慮
+                    cleanup();
                     resolve({ target: selectedTarget, element: targetEl });
                 }
             }
         };
-        // 敵と味方の両方のクリックイベントを監視
-        enemyPartyEl.addEventListener('click', clickHandler);
-        playerPartyEl.addEventListener('click', clickHandler);
+
+        const cleanup = () => {
+            targetSelectionOverlay.remove();
+            resetHighlights();
+            document.removeEventListener('click', clickHandler, true); // Use capture phase to handle clicks on overlay/buttons
+        };
+        
+        // Use capture phase to ensure clicks on the overlay or its button are caught
+        document.addEventListener('click', clickHandler, true);
     });
 }
 
@@ -972,14 +974,14 @@ function updateCommandMenu(player) {
 
             const skillBtn = document.createElement('button');
             skillBtn.className = 'skill-button';
-            skillBtn.dataset.skillId = skill.id;
+            skillBtn.dataset.skillName = skill.name;
             skillBtn.textContent = skill.name;
 
             // スキル説明の要素を生成
             const skillDesc = document.createElement('div');
             skillDesc.className = 'skill-description hidden';
             // スキルの説明文を直接設定
-            skillDesc.textContent = skill.description || '説明なし';
+            skillDesc.textContent = skill.desc || '説明なし';
 
             skillItem.appendChild(skillBtn);
             skillItem.appendChild(skillDesc);
@@ -1011,10 +1013,10 @@ function updateCommandMenu(player) {
 
     // 必殺技の条件をチェック
     // プレイヤーのオリジナルIDがspecialAbilityConditionsに存在するかどうかを確認
-    if (specialAbilityConditions[player.originalId]) {
-        specialButton.classList.remove('hidden');
+    if (specialAbilityConditions[player.originalId] && specialAbilityConditions[player.originalId](player, currentPlayerParty)) {
+        specialButton.disabled = false;
     } else {
-        specialButton.classList.add('hidden');
+        specialButton.disabled = true;
     }
 
     // スキルメニューが開いている場合はキャンセルボタンを追加
@@ -1025,8 +1027,10 @@ function updateCommandMenu(player) {
 
 function applyPassiveAbilities(combatants) {
     combatants.forEach(c => {
-        if (c.passive && c.passive.id && passiveAbilities[c.passive.id]) {
-            passiveAbilities[c.passive.id](c, combatants, logMessage);
+        if (passiveAbilities[c.originalId]) {
+            const allies = combatants.filter(ally => ally.partyType === c.partyType);
+            const enemies = combatants.filter(enemy => enemy.partyType !== c.partyType);
+            passiveAbilities[c.originalId](c, allies, enemies);
         }
     });
 }
@@ -1035,6 +1039,13 @@ function processStatusEffects(combatant) {
     let actionSkipped = false;
     if (combatant.effects.stun && combatant.effects.stun.duration > 0) {
         logMessage(`${combatant.name}はスタンしていて動けない！`, 'stun');
+        actionSkipped = true;
+    } else if (combatant.effects.freeze && combatant.effects.freeze.duration > 0) {
+        logMessage(`${combatant.name}は凍結していて動けない！`, 'stun');
+        actionSkipped = true;
+    } else if (combatant.effects.confusion && combatant.effects.confusion.duration > 0) {
+        logMessage(`${combatant.name}は混乱している！`, 'stun');
+        // 自分自身か味方を攻撃するロジック（省略）
         actionSkipped = true;
     }
     return actionSkipped;
@@ -1046,18 +1057,25 @@ function processEndTurnEffects(combatants) {
             if (c.effects[effectName].duration !== undefined) {
                 c.effects[effectName].duration--;
                 if (c.effects[effectName].duration <= 0) {
-                    logMessage(`${c.name}の${effectName}が切れた。`);
+                    logMessage(`${c.name}の${effectName}が切れた。`, 'status-effect');
                     delete c.effects[effectName];
                 }
             }
         }
         if (c.effects.poison && c.effects.poison.duration > 0) {
-            const poisonDamage = Math.floor(c.status.maxHp * 0.05);
-            c.status.hp -= poisonDamage;
+            const poisonDamage = c.effects.poison.damage;
+            c.status.hp = Math.max(0, c.status.hp - poisonDamage);
             logMessage(`${c.name}は毒で${poisonDamage}のダメージを受けた！`, 'damage');
             if (c.status.hp <= 0) {
-                c.status.hp = 0;
                 logMessage(`${c.name}は毒で倒れた...`, 'fainted');
+            }
+        }
+        if (c.effects.bleed && c.effects.bleed.duration > 0) {
+            const bleedDamage = c.effects.bleed.damage;
+            c.status.hp = Math.max(0, c.status.hp - bleedDamage);
+            logMessage(`${c.name}は出血で${bleedDamage}のダメージを受けた！`, 'damage');
+            if (c.status.hp <= 0) {
+                logMessage(`${c.name}は出血で倒れた...`, 'fainted');
             }
         }
     });
@@ -1065,15 +1083,15 @@ function processEndTurnEffects(combatants) {
 
 function applyEndTurnPassiveAbilities(combatants) {
     combatants.forEach(c => {
-        if (c.passive && c.passive.id && endTurnPassiveAbilities[c.passive.id]) {
-            const message = endTurnPassiveAbilities[c.passive.id](c, combatants, logMessage);
+        if (endTurnPassiveAbilities[c.originalId]) {
+            const message = endTurnPassiveAbilities[c.originalId](c);
             if (message) logMessage(message, 'status-effect');
         }
     });
 }
 
 function executeSkill(actor, skill, skillTargets) {
-    const effectFunc = skillEffects[skill.id];
+    const effectFunc = skillEffects[skill.name];
     if (effectFunc) {
         actor.status.mp -= skill.mp; // MP消費
         effectFunc(actor, skillTargets, calculateDamage, logMessage);
@@ -1081,7 +1099,7 @@ function executeSkill(actor, skill, skillTargets) {
 }
 
 function executeSpecial(actor, special, specialTargets) {
-    const effectFunc = skillEffects[special.id];
+    const effectFunc = skillEffects[special.name];
     if (effectFunc) {
         actor.status.mp -= special.mp; // MP消費
         effectFunc(actor, specialTargets, calculateDamage, logMessage);
@@ -1089,6 +1107,7 @@ function executeSpecial(actor, special, specialTargets) {
 }
 
 function isBattleOver() {
+    if (!currentPlayerParty || !opponentParty) return false;
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     const aliveEnemies = opponentParty.filter(o => o.status.hp > 0);
     return alivePlayers.length === 0 || aliveEnemies.length === 0;
@@ -1133,6 +1152,10 @@ function handleBattleEnd() {
     if (!currentPlayerParty || currentPlayerParty.length === 0) {
         return;
     }
+    
+    if (!opponentParty || opponentParty.length === 0) {
+        return;
+    }
 
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     const aliveEnemies = opponentParty.filter(o => o.status.hp > 0);
@@ -1173,7 +1196,6 @@ window.handleOpponentParty = handleOpponentParty;
 window.checkBothPartiesReady = checkBothPartiesReady;
 window.startOnlineBattleHostSide = startOnlineBattleHostSide;
 window.startOnlineBattleClientSide = startOnlineBattleClientSide;
-window.handleActionRequest = window.handleActionRequest; // この行は削除または修正が必要
+window.handleActionRequest = window.handleActionRequest;
 window.executeAction = executeAction;
 window.returnToPartyScreen = returnToPartyScreen;
-
