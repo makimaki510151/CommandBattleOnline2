@@ -220,3 +220,46 @@ body {
 #online-party-go-button:hover {
     background-color: #e55337;
 }
+
+#mobile-warning-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8); /* 半透明の黒で背後のUIを暗くする */
+    z-index: 1000; /* 最前面に表示 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#mobile-warning-overlay.hidden {
+    display: none;
+}
+
+.warning-box {
+    background-color: #f8d7da; /* 警告色 */
+    color: #721c24; /* 文字色 */
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 80%;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.warning-box h3 {
+    margin-top: 0;
+}
+
+.warning-box button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #dc3545; /* 閉じるボタンの色 */
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}

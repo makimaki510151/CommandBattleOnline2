@@ -96,6 +96,12 @@ function decompressSDP(compressedSdp) {
     return JSON.parse(textDecoder.decode(decompressed));
 }
 
+function isMobileDevice() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    // 一般的なモバイルOS/デバイスのUserAgent文字列をチェック
+    return /android|webOS|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+}
+
 // DOMが読み込まれた後に初期化
 document.addEventListener('DOMContentLoaded', () => {
     onlinePartyGoButton = document.getElementById('online-party-go-button');
@@ -119,6 +125,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // クライアント側のUI要素を取得 (追加)
     myPeerIdElClient = document.getElementById('my-peer-id-client');
     copyIdButtonClient = document.getElementById('copy-id-button-client');
+    // ★追加: モバイル警告UI要素の取得
+    const mobileWarningOverlay = document.getElementById('mobile-warning-overlay');
+    const closeWarningButton = document.getElementById('close-warning-button');
+
+    // ★追加: 閉じるボタンのイベントリスナー
+    if (closeWarningButton) {
+        closeWarningButton.addEventListener('click', () => {
+            if (mobileWarningOverlay) {
+                mobileWarningOverlay.classList.add('hidden'); // ポップアップを非表示にする
+            }
+        });
+    }
+
+    // ★追加: モバイル端末での警告表示
+    if (isMobileDevice()) {
+        if (mobileWarningOverlay) {
+            mobileWarningOverlay.classList.remove('hidden'); // ポップアップを表示する
+            // 警告ポップアップが表示されている間は、他のUI操作を防ぐため、
+            // ポップアップを閉じる処理以外は特に追加しません。
+            // (CSSのz-indexで背後の要素をクリック不能にしています)
+        }
+    }
+
 
     // イベントリスナー設定
     if (document.getElementById('online-button')) {
