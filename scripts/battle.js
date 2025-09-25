@@ -1006,25 +1006,64 @@ function updateCommandMenu(player) {
             const skillDesc = document.createElement('div');
             skillDesc.className = 'skill-description hidden';
             skillDesc.textContent = skill.desc || '説明なし';
+            // bodyに直接追加することで、親要素の影響を受けずに位置を固定
+            document.body.appendChild(skillDesc);
 
-            skillItem.appendChild(skillBtn);
-            skillItem.appendChild(skillDesc);
-            skillMenuEl.appendChild(skillItem);
+            const moveHandler = (e) => {
+                skillDesc.style.left = `${e.clientX + 15}px`;
+                skillDesc.style.top = `${e.clientY + 15}px`;
+            };
 
-            skillBtn.addEventListener('mouseenter', () => {
+            skillBtn.addEventListener('mouseenter', (e) => {
                 skillDesc.classList.remove('hidden');
+                moveHandler(e);
+                skillBtn.addEventListener('mousemove', moveHandler);
             });
+
             skillBtn.addEventListener('mouseleave', () => {
                 skillDesc.classList.add('hidden');
+                skillBtn.removeEventListener('mousemove', moveHandler);
             });
+
+            skillItem.appendChild(skillBtn);
+            skillMenuEl.appendChild(skillItem);
         });
     }
     commandAreaEl.appendChild(skillMenuEl);
 
+    // 必殺技ボタンと説明文を生成
+    const specialItem = document.createElement('div');
+    specialItem.className = 'skill-item';
+
     const specialButton = document.createElement('button');
     specialButton.className = 'command-button action-special';
     specialButton.textContent = '必殺技';
-    commandAreaEl.appendChild(specialButton);
+    
+    specialItem.appendChild(specialButton);
+
+    if (player.special && player.special.desc) {
+        const specialDesc = document.createElement('div');
+        specialDesc.className = 'skill-description hidden';
+        specialDesc.textContent = player.special.desc;
+        document.body.appendChild(specialDesc);
+
+        const moveHandler = (e) => {
+            specialDesc.style.left = `${e.clientX + 15}px`;
+            specialDesc.style.top = `${e.clientY + 15}px`;
+        };
+        
+        specialButton.addEventListener('mouseenter', (e) => {
+            specialDesc.classList.remove('hidden');
+            moveHandler(e);
+            specialButton.addEventListener('mousemove', moveHandler);
+        });
+
+        specialButton.addEventListener('mouseleave', () => {
+            specialDesc.classList.add('hidden');
+            specialButton.removeEventListener('mousemove', moveHandler);
+        });
+    }
+    commandAreaEl.appendChild(specialItem);
 
     const defendButton = document.createElement('button');
     defendButton.className = 'command-button action-defend';
@@ -1179,6 +1218,9 @@ function handleBattleEnd() {
     }
 
     commandAreaEl.classList.add('hidden');
+
+    // ツールチップが残らないように削除
+    document.querySelectorAll('.skill-description').forEach(el => el.remove());
 
     setTimeout(() => {
         showBattleEndUI(isVictory, survivors);

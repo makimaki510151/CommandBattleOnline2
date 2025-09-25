@@ -186,6 +186,11 @@
     padding-left: 10px;
 }
 
+.skill-item {
+    position: relative;
+    width: 100%;
+}
+
 .skill-button {
     font-size: 0.9em;
     padding: 8px;
@@ -305,11 +310,7 @@
 }
 
 .skill-description {
-    position: absolute;
-    bottom: 100%; /* ボタンの上に表示 */
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 10px;
+    position: fixed; /* 画面基準で位置を決定 */
     padding: 10px;
     background-color: #334e68; /* 見やすい濃い青 */
     color: #fff; /* 白い文字 */
@@ -319,6 +320,7 @@
     text-align: left;
     white-space: normal;
     z-index: 10;
+    pointer-events: none; /* マウスイベントを貫通させる */
 }
 
 .skill-description.hidden {
