@@ -67,11 +67,26 @@ function compressSDP(sdp) {
     const jsonSdp = JSON.stringify(sdp);
     const textEncoder = new TextEncoder();
     const compressed = pako.deflate(textEncoder.encode(jsonSdp));
-    return btoa(String.fromCharCode.apply(null, compressed));
+
+    // 1. Base64エンコード
+    const base64 = btoa(String.fromCharCode.apply(null, compressed));
+
+    // 2. URLセーフなBase64に変換
+    // '+', '/', '=' をそれぞれ '-', '_', '' に置換
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// main.js の decompressSDP 関数の修正案 (逆変換を追加)
 function decompressSDP(compressedSdp) {
-    const binaryString = atob(compressedSdp);
+    // 1. URLセーフなBase64を通常のBase64に戻す
+    let base64 = compressedSdp.replace(/-/g, '+').replace(/_/g, '/');
+
+    // 2. パディング('=')を復元
+    while (base64.length % 4) {
+        base64 += '=';
+    }
+
+    const binaryString = atob(base64);
     const uint8Array = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         uint8Array[i] = binaryString.charCodeAt(i);
