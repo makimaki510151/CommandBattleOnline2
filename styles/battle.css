@@ -121,9 +121,8 @@
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     padding: 15px;
-    margin-top: 20px;
     gap: 20px;
-    min-height: 250px;
+    min-height: 450px;
 }
 
 .log-box {
@@ -132,7 +131,7 @@
     padding: 10px;
     border-radius: 8px;
     overflow-y: auto;
-    height: 220px;
+    height: 430px;
 }
 
 .log-box p {
