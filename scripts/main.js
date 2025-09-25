@@ -29,6 +29,7 @@ let connectButton;
 let onlineScreen;
 let messageLogEl;
 let copyIdButton;
+let modeSelectionEl; // ★修正: mode-selection要素をグローバルで保持
 
 // ホスト側のUI要素
 let peerIdInputHost;
@@ -95,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
     copyIdButton = document.getElementById('copy-id-button');
+    modeSelectionEl = document.getElementById('mode-selection'); // ★修正: DOM要素を取得
 
     peerIdInputHost = document.getElementById('peer-id-input-host');
     connectButtonHost = document.getElementById('connect-button-host');
@@ -125,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showHostUiButton) {
         showHostUiButton.addEventListener('click', () => {
             isHost = true;
+            if (modeSelectionEl) modeSelectionEl.classList.add('hidden'); // ★修正: モード選択を非表示
             if (hostUiEl) hostUiEl.classList.remove('hidden');
             if (clientUiEl) clientUiEl.classList.add('hidden');
             if (myPeerIdEl) myPeerIdEl.textContent = 'SDPを生成中...';
@@ -135,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showClientUiButton) {
         showClientUiButton.addEventListener('click', () => {
             isHost = false;
+            if (modeSelectionEl) modeSelectionEl.classList.add('hidden'); // ★修正: モード選択を非表示
             if (hostUiEl) hostUiEl.classList.add('hidden');
             if (clientUiEl) clientUiEl.classList.remove('hidden');
             // クライアントモードに切り替えたときに myPeerIdElClient もクリア
@@ -475,6 +479,16 @@ function cleanupConnection() {
     }
     if (myPeerIdElClient) {
         myPeerIdElClient.textContent = '';
+    }
+    // ★修正: クリーンアップ時にモード選択UIを再表示し、ホスト/クライアントUIを非表示にする
+    if (modeSelectionEl) {
+        modeSelectionEl.classList.remove('hidden');
+    }
+    if (hostUiEl) {
+        hostUiEl.classList.add('hidden');
+    }
+    if (clientUiEl) {
+        clientUiEl.classList.add('hidden');
     }
 }
 
