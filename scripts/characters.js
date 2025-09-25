@@ -1,7 +1,7 @@
 export const characters = [
     // 1. 仲間一人を強固に守るタンク
     {
-        id: 'new_char01', name: '鉄壁の騎士ゼイド', role: '単体守護者', image: 'images/new_char01.png',
+        id: 'char01', name: '鉄壁の騎士ゼイド', role: '単体守護者', image: 'images/char01.png',
         attackType: 'physical',
         status: {
             maxHp: 320, hp: 320,
@@ -28,7 +28,7 @@ export const characters = [
     },
     // 2. 仲間全体を守り盾になるタンク
     {
-        id: 'new_char02', name: '大地戦士ゴルム', role: '全体守護者', image: 'images/new_char02.png',
+        id: 'char02', name: '大地戦士ゴルム', role: '全体守護者', image: 'images/char02.png',
         attackType: 'physical',
         status: {
             maxHp: 350, hp: 350,
@@ -55,7 +55,7 @@ export const characters = [
     },
     // 3. 様々な支援を行うサポーター
     {
-        id: 'new_char03', name: '風の歌い手ミサ', role: '万能支援', image: 'images/new_char03.png',
+        id: 'char03', name: '風の歌い手ミサ', role: '万能支援', image: 'images/char03.png',
         attackType: 'magic',
         status: {
             maxHp: 180, hp: 180,
@@ -82,7 +82,7 @@ export const characters = [
     },
     // 4. 体力回復特化の回復職
     {
-        id: 'new_char04', name: '慈愛の聖女ルナ', role: 'HPヒーラー', image: 'images/new_char04.png',
+        id: 'char04', name: '慈愛の聖女ルナ', role: 'HPヒーラー', image: 'images/char04.png',
         attackType: 'magic',
         status: {
             maxHp: 200, hp: 200,
@@ -109,7 +109,7 @@ export const characters = [
     },
     // 5. MP回復特化の回復職
     {
-        id: 'new_char05', name: '魔力供給者アルト', role: 'MPバッテリー', image: 'images/new_char05.png',
+        id: 'char05', name: '魔力供給者アルト', role: 'MPバッテリー', image: 'images/char05.png',
         attackType: 'magic',
         status: {
             maxHp: 170, hp: 170,
@@ -136,7 +136,7 @@ export const characters = [
     },
     // 6. 様々なデバフをばら撒くサポーター
     {
-        id: 'new_char06', name: '呪術師アザミ', role: 'デバフ専門', image: 'images/new_char06.png',
+        id: 'char06', name: '呪術師アザミ', role: 'デバフ専門', image: 'images/char06.png',
         attackType: 'magic',
         status: {
             maxHp: 160, hp: 160,
@@ -163,7 +163,7 @@ export const characters = [
     },
     // 7. 単体特化のアタッカー
     {
-        id: 'new_char07', name: '一撃の剣士カイ', role: '単体特化攻撃', image: 'images/new_char07.png',
+        id: 'char07', name: '一撃の剣士カイ', role: '単体特化攻撃', image: 'images/char07.png',
         attackType: 'physical',
         status: {
             maxHp: 220, hp: 220,
@@ -190,7 +190,7 @@ export const characters = [
     },
     // 8. 全体的にじわじわ削っていくアタッカー
     {
-        id: 'new_char08', name: '業火の魔女イヴ', role: '全体削り', image: 'images/new_char08.png',
+        id: 'char08', name: '業火の魔女イヴ', role: '全体削り', image: 'images/char08.png',
         attackType: 'magic',
         status: {
             maxHp: 190, hp: 190,

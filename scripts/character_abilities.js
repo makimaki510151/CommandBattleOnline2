@@ -2,17 +2,17 @@
 
 /**
  * パッシブ能力のロジック
- * キーはキャラクターID (new_char01, new_char02, etc.)
+ * キーはキャラクターID (char01, char02, etc.)
  * 各関数はキャラクターオブジェクトを引数に取り、ターン開始時に適用される効果を処理します。
  */
 export const passiveAbilities = {
-    'new_char01': (character, allies, enemies) => {
+    'char01': (character, allies, enemies) => {
         // 絶対の守護: 自身が受ける単体攻撃のダメージを15%軽減する。（ダメージ計算時に適用）
     },
-    'new_char02': (character, allies, enemies) => {
+    'char02': (character, allies, enemies) => {
         // 広域カバー: 自身以外の味方全体が受ける全体攻撃のダメージを15%軽減する。（ダメージ計算時に適用）
     },
-    'new_char03': (character, allies) => {
+    'char03': (character, allies) => {
         // 調和の旋律: 毎ターン開始時、ランダムな味方単体の攻撃力か魔法攻撃力を上昇させる。
         if (allies) {
             const aliveAllies = allies.filter(ally => ally.status.hp > 0);
@@ -24,20 +24,20 @@ export const passiveAbilities = {
             }
         }
     },
-    'new_char04': (character, allies) => {
+    'char04': (character, allies) => {
         // 祈りの光: 回復魔法の効果が10%上昇する。（スキル効果の計算時に適用）
     },
-    'new_char05': (character) => {
+    'char05': (character) => {
         // 魔力の泉: 自身のMP回復量が15%上昇する。
         character.status.mp = Math.min(character.status.maxMp, character.status.mp + Math.floor(character.status.maxMp * 0.05 * 1.15)); // 基礎MP回復量（仮に最大MPの5%）に15%ボーナス
     },
-    'new_char06': (character, allies, enemies) => {
+    'char06': (character, allies, enemies) => {
         // 怨嗟の波動: 自身のデバフ効果の付与確率が上昇する。（スキル効果の計算時に適用）
     },
-    'new_char07': (character) => {
+    'char07': (character) => {
         // 孤高の刃: 敵単体への攻撃時、ダメージが15%上昇する。（ダメージ計算時に適用）
     },
-    'new_char08': (character, allies, enemies) => {
+    'char08': (character, allies, enemies) => {
         // 炎の残滓: 全体魔法攻撃時、確率で敵全体を火傷状態にする。（スキル効果の計算時に適用）
     }
 };
@@ -53,14 +53,14 @@ export const endTurnPassiveAbilities = {
  * 必殺技の発動条件
  */
 export const specialAbilityConditions = {
-    'new_char01': (player) => player.status.mp >= 50,
-    'new_char02': (player) => player.status.mp >= 40,
-    'new_char03': (player) => player.status.mp >= 60,
-    'new_char04': (player) => player.status.mp >= 80,
-    'new_char05': (player) => player.status.mp >= 60,
-    'new_char06': (player) => player.status.mp >= 70,
-    'new_char07': (player) => player.status.mp >= 60,
-    'new_char08': (player) => player.status.mp >= 75
+    'char01': (player) => player.status.mp >= 50,
+    'char02': (player) => player.status.mp >= 40,
+    'char03': (player) => player.status.mp >= 60,
+    'char04': (player) => player.status.mp >= 80,
+    'char05': (player) => player.status.mp >= 60,
+    'char06': (player) => player.status.mp >= 70,
+    'char07': (player) => player.status.mp >= 60,
+    'char08': (player) => player.status.mp >= 75
 };
 
 /**
@@ -145,13 +145,13 @@ export const skillEffects = {
     // 慈愛の聖女ルナ
     'ハイヒール': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        const passiveBonus = caster.originalId === 'new_char04' ? 1.1 : 1.0;
+        const passiveBonus = caster.originalId === 'char04' ? 1.1 : 1.0;
         const healAmount = Math.floor(caster.status.support * 3.0 * passiveBonus);
         target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
         logMessage(`${target.name}は${healAmount}回復した！`, 'heal');
     },
     'エリアヒール': (caster, targets, calculateDamage, logMessage) => {
-        const passiveBonus = caster.originalId === 'new_char04' ? 1.1 : 1.0;
+        const passiveBonus = caster.originalId === 'char04' ? 1.1 : 1.0;
         const healAmount = Math.floor(caster.status.support * 1.8 * passiveBonus);
         targets.forEach(target => {
             target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
@@ -208,7 +208,7 @@ export const skillEffects = {
         logMessage(`${target.name}の物理・魔法攻撃力が低下した！`, 'status-effect');
     },
     'スローカース': (attacker, targets, calculateDamage, logMessage) => {
-        const debuffChance = attacker.originalId === 'new_char06' ? 0.45 : 0.3; // 怨嗟の波動適用
+        const debuffChance = attacker.originalId === 'char06' ? 0.45 : 0.3; // 怨嗟の波動適用
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.8);
             if (!dodged) {
@@ -227,7 +227,7 @@ export const skillEffects = {
     'ヴェノムボム': (attacker, targets, calculateDamage, logMessage) => {
         const target = targets[0];
         const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-        const poisonChance = attacker.originalId === 'new_char06' ? 0.75 : 0.5; // 怨嗟の波動適用
+        const poisonChance = attacker.originalId === 'char06' ? 0.75 : 0.5; // 怨嗟の波動適用
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
@@ -275,7 +275,7 @@ export const skillEffects = {
 
     // 業火の魔女イヴ
     'ファイアストーム': (attacker, targets, calculateDamage, logMessage) => {
-        const burnChance = attacker.originalId === 'new_char08' ? 0.35 : 0.2; // 炎の残滓適用
+        const burnChance = attacker.originalId === 'char08' ? 0.35 : 0.2; // 炎の残滓適用
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, true);
             if (!dodged) {
@@ -406,25 +406,25 @@ export const skillEffects = {
  * ダメージ計算時のパッシブ効果適用
  */
 export const damagePassiveEffects = {
-    'new_char01': (attacker, target, damage, isPhysical, skillTarget) => {
+    'char01': (attacker, target, damage, isPhysical, skillTarget) => {
         // 絶対の守護: 自身が受ける単体攻撃のダメージを15%軽減
-        if (target.originalId === 'new_char01' && skillTarget === 'single') {
+        if (target.originalId === 'char01' && skillTarget === 'single') {
             return Math.floor(damage * 0.85); // 15%軽減
         }
         return damage;
     },
-    'new_char02': (attacker, target, damage, isPhysical, skillTarget) => {
+    'char02': (attacker, target, damage, isPhysical, skillTarget) => {
         // 広域カバー: 自身以外の味方全体が受ける全体攻撃のダメージを15%軽減
-        if (target.originalId !== 'new_char02' && skillTarget === 'all_enemies') {
+        if (target.originalId !== 'char02' && skillTarget === 'all_enemies') {
             // 同じパーティに大地戦士ゴルムがいるかチェック（ここは実際のゲームロジックに依存）
             // 仮にゴルムが生存していれば発動とします
             return Math.floor(damage * 0.85); // 15%軽減
         }
         return damage;
     },
-    'new_char07': (attacker, target, damage, isPhysical, skillTarget) => {
+    'char07': (attacker, target, damage, isPhysical, skillTarget) => {
         // 孤高の刃: 敵単体への攻撃時、ダメージが15%上昇する
-        if (attacker.originalId === 'new_char07' && skillTarget === 'single') {
+        if (attacker.originalId === 'char07' && skillTarget === 'single') {
             return Math.floor(damage * 1.15); // 15%上昇
         }
         return damage;
