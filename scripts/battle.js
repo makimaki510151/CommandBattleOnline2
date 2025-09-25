@@ -28,6 +28,11 @@ let uniqueIdCounter = 0;
 // クライアント側で行動を待機するためのPromise
 let resolveClientActionPromise = null;
 
+// 攻撃ボタンの連打防止用フラグ
+let isActionInProgress = false;
+// スキルメニュー表示状態を管理するフラグ
+let isSkillMenuOpen = false;
+
 // --- Utility Functions ---
 
 function generateUniqueId() {
@@ -107,14 +112,14 @@ function showBattleEndUI(isVictory, survivors) {
         <div class="battle-result-container">
             <h1 class="battle-result-title">${isVictory ? '勝利！' : '敗北...'}</h1>
             <p class="battle-result-message">${resultMessage}</p>
-            ${window.isHost ? '<button class="battle-result-button" id="return-to-party-button">キャラ選択画面に戻る</button>' : '<p class="waiting-message">ホストがキャラ選択画面に戻るのを待っています...</p>'}
+            ${window.isHost() ? '<button class="battle-result-button" id="return-to-party-button">キャラ選択画面に戻る</button>' : '<p class="waiting-message">ホストがキャラ選択画面に戻るのを待っています...</p>'}
         </div>
     `;
 
     battleScreenEl.appendChild(battleEndOverlay);
 
     // ホストの場合のみイベントリスナーを設定
-    if (window.isHost) {
+    if (window.isHost()) {
         const returnButton = document.getElementById('return-to-party-button');
         if (returnButton) {
             returnButton.addEventListener('click', () => {
@@ -174,6 +179,9 @@ function resetBattleState() {
     // パーティー表示をクリア
     if (playerPartyEl) playerPartyEl.innerHTML = '';
     if (enemyPartyEl) enemyPartyEl.innerHTML = '';
+
+    isActionInProgress = false; // フラグをリセット
+    isSkillMenuOpen = false; // フラグをリセット
 }
 
 // --- Display Update Functions ---
@@ -191,13 +199,13 @@ function updatePartyDisplay(partyEl, partyData) {
 
         const hpPercentage = (member.status.hp / member.status.maxHp) * 100;
         if (hpFill) hpFill.style.width = `${hpPercentage}%`;
-        if (hpText) hpText.textContent = `${member.status.hp}/${member.status.maxHp}`;
+        if (hpText) hpText.textContent = `${member.status.hp} / ${member.status.maxHp}`;
 
         if (mpFill && member.status.maxMp > 0) {
             const mpPercentage = (member.status.mp / member.status.maxMp) * 100;
             mpFill.style.width = `${mpPercentage}%`;
         }
-        if (mpText) mpText.textContent = `${member.status.mp}/${member.status.maxMp}`;
+        if (mpText) mpText.textContent = `${member.status.mp} / ${member.status.maxMp}`;
 
         if (member.status.hp <= 0) {
             memberEl.classList.add('fainted');
@@ -275,6 +283,10 @@ function handleOpponentParty(partyData) {
 function checkBothPartiesReady() {
     if (myPartyReady && opponentPartyReady) {
         logMessage("両者の準備が完了しました。", 'system');
+
+        // ★修正★
+        // ここでフラグを立てることで、handleBattleEndが実行可能になる
+        isBattleOngoing = true;
 
         // ホストの場合のみ戦闘開始イベントを送信
         if (window.isHost()) {
@@ -397,16 +409,27 @@ async function playerTurn(actor) {
 
     return new Promise(resolve => {
         const handleCommand = async (event) => {
+            if (isActionInProgress) return;
+
             const target = event.target;
             let actionData = null;
             let targetUniqueId = null;
 
             if (target.matches('.action-attack')) {
+                isActionInProgress = true;
+                disableCommandButtons(true);
                 logMessage('攻撃対象を選んでください。');
                 const targetInfo = await selectTarget();
                 if (targetInfo) {
                     targetUniqueId = targetInfo.target.uniqueId;
                     actionData = { action: 'attack', actorUniqueId: actor.uniqueId, targetUniqueId: targetUniqueId };
+                } else {
+                    // ★ここを修正/確認★：キャンセルされた場合の処理を統一
+                    isActionInProgress = false;
+                    disableCommandButtons(false);
+                    removeCancelButton(); // キャンセルボタンを削除
+                    logMessage('行動をキャンセルしました。');
+                    return; // 処理を中断
                 }
             } else if (target.matches('.action-defend')) {
                 actionData = { action: 'defend', actorUniqueId: actor.uniqueId };
@@ -414,40 +437,128 @@ async function playerTurn(actor) {
                 const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
                 if (skillMenuEl) {
                     skillMenuEl.classList.toggle('hidden');
+                    isSkillMenuOpen = !skillMenuEl.classList.contains('hidden');
+                    if (isSkillMenuOpen) {
+                        addCancelButton(actor, resolve, handleCommand);
+                    } else {
+                        removeCancelButton();
+                    }
                 }
                 return;
             } else if (target.matches('.skill-button')) {
+                isActionInProgress = true;
+                disableCommandButtons(true);
                 const skillName = target.textContent;
                 const skill = actor.active.find(s => s.name === skillName);
                 if (skill) {
                     let mpCost = skill.mp;
                     if (actor.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
+                        isActionInProgress = false;
+                        disableCommandButtons(false);
                         return;
                     }
-                    actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id };
+                    if (skill.target === 'single' || skill.target === 'ally_single') {
+                        logMessage('スキル対象を選んでください。');
+                        const targetInfo = await selectTarget(skill.target === 'ally_single');
+                        if (targetInfo) {
+                            targetUniqueId = targetInfo.target.uniqueId;
+                            actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id, targetUniqueId: targetUniqueId };
+                        } else {
+                            // キャンセルボタンを押すとselectTargetはnullを返す
+                            isActionInProgress = false;
+                            disableCommandButtons(false);
+                            removeCancelButton(); // キャンセルボタンを削除
+                            logMessage('行動をキャンセルしました。');
+                            return; // 処理を中断
+                        }
+                    } else {
+                        actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillId: skill.id };
+                    }
                 }
             } else if (target.matches('.action-special')) {
+                isActionInProgress = true;
+                disableCommandButtons(true);
                 const special = actor.special;
                 if (special) {
                     let mpCost = special.mp;
                     if (actor.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
+                        isActionInProgress = false;
+                        disableCommandButtons(false);
                         return;
                     }
-                    actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id };
+                    if (special.target === 'single' || special.target === 'ally_single') {
+                        logMessage('必殺技の対象を選んでください。');
+                        const targetInfo = await selectTarget(special.target === 'ally_single');
+                        if (targetInfo) {
+                            targetUniqueId = targetInfo.target.uniqueId;
+                            actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id, targetUniqueId: targetUniqueId };
+                        } else {
+                            // ★修正点★：キャンセル時の処理を統一
+                            isActionInProgress = false;
+                            disableCommandButtons(false);
+                            removeCancelButton(); // キャンセルボタンを削除
+                            logMessage('行動をキャンセルしました。');
+                            return; // 処理を中断
+                        }
+                    } else {
+                        actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialId: special.id };
+                    }
                 }
+            } else if (target.matches('.action-cancel')) {
+                isActionInProgress = false;
+                disableCommandButtons(false);
+                removeCancelButton();
+                const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
+                if (skillMenuEl && !skillMenuEl.classList.contains('hidden')) {
+                    skillMenuEl.classList.add('hidden');
+                    isSkillMenuOpen = false;
+                }
+                logMessage('行動をキャンセルしました。');
+                return;
             }
 
             if (actionData) {
+                isActionInProgress = false;
                 commandAreaEl.removeEventListener('click', handleCommand);
                 commandAreaEl.classList.add('hidden');
+                removeCancelButton();
                 executeAction(actionData);
                 resolve();
             }
         };
         commandAreaEl.addEventListener('click', handleCommand);
     });
+}
+
+// コマンドボタンの有効/無効を切り替える関数
+function disableCommandButtons(disable) {
+    const buttons = commandAreaEl.querySelectorAll('.command-button, .skill-button');
+    buttons.forEach(button => {
+        // スキルメニューの表示/非表示を切り替えるボタンは無効化しない
+        if (!button.classList.contains('action-skill')) {
+            button.disabled = disable;
+        }
+    });
+}
+
+// キャンセルボタンを追加する関数
+function addCancelButton(actor, resolve, handleCommand) {
+    if (!commandAreaEl.querySelector('.action-cancel')) {
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'command-button action-cancel';
+        cancelButton.textContent = 'キャンセル';
+        commandAreaEl.appendChild(cancelButton);
+    }
+}
+
+// キャンセルボタンを削除する関数
+function removeCancelButton() {
+    const cancelButton = commandAreaEl.querySelector('.action-cancel');
+    if (cancelButton) {
+        cancelButton.remove();
+    }
 }
 
 // クライアントからのアクション実行要求
@@ -463,16 +574,24 @@ window.handleActionRequest = async (data) => {
 
     await new Promise(resolve => {
         const handleCommand = async (event) => {
+            if (isActionInProgress) return; // アクション処理中は無視
+
             const target = event.target;
             let actionData = null;
             let targetUniqueId = null;
 
             if (target.matches('.action-attack')) {
+                isActionInProgress = true;
+                disableCommandButtons(true); // コマンドボタンを無効化
                 logMessage('攻撃対象を選んでください。');
                 const targetInfo = await selectTarget();
                 if (targetInfo) {
                     targetUniqueId = targetInfo.target.uniqueId;
                     actionData = { action: 'attack', targetUniqueId: targetUniqueId };
+                } else {
+                    isActionInProgress = false;
+                    disableCommandButtons(false); // コマンドボタンを有効化
+                    return; // アクションを中断
                 }
             } else if (target.matches('.action-defend')) {
                 actionData = { action: 'defend' };
@@ -480,34 +599,87 @@ window.handleActionRequest = async (data) => {
                 const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
                 if (skillMenuEl) {
                     skillMenuEl.classList.toggle('hidden');
+                    isSkillMenuOpen = !skillMenuEl.classList.contains('hidden');
+                    if (isSkillMenuOpen) {
+                        addCancelButton(actor, resolve, handleCommand); // キャンセルボタンを追加
+                    } else {
+                        removeCancelButton(); // キャンセルボタンを削除
+                    }
                 }
                 return;
             } else if (target.matches('.skill-button')) {
+                isActionInProgress = true;
+                disableCommandButtons(true); // コマンドボタンを無効化
                 const skillName = target.textContent;
                 const skill = actor.active.find(s => s.name === skillName);
                 if (skill) {
                     let mpCost = skill.mp;
                     if (actor.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
+                        isActionInProgress = false;
+                        disableCommandButtons(false); // コマンドボタンを有効化
                         return;
                     }
-                    actionData = { action: 'skill', skillId: skill.id };
+                    if (skill.target === 'single' || skill.target === 'ally_single') {
+                        logMessage('スキル対象を選んでください。');
+                        const targetInfo = await selectTarget(skill.target === 'ally_single');
+                        if (targetInfo) {
+                            targetUniqueId = targetInfo.target.uniqueId;
+                            actionData = { action: 'skill', skillId: skill.id, targetUniqueId: targetUniqueId };
+                        } else {
+                            isActionInProgress = false;
+                            disableCommandButtons(false); // コマンドボタンを有効化
+                            return; // アクションを中断
+                        }
+                    } else {
+                        actionData = { action: 'skill', skillId: skill.id };
+                    }
                 }
             } else if (target.matches('.action-special')) {
+                isActionInProgress = true;
+                disableCommandButtons(true); // コマンドボタンを無効化
                 const special = actor.special;
                 if (special) {
                     let mpCost = special.mp;
                     if (actor.status.mp < mpCost) {
                         logMessage(`MPが足りません！`);
+                        isActionInProgress = false;
+                        disableCommandButtons(false); // コマンドボタンを有効化
                         return;
                     }
-                    actionData = { action: 'special', specialId: special.id };
+                    if (special.target === 'single' || special.target === 'ally_single') {
+                        logMessage('必殺技の対象を選んでください。');
+                        const targetInfo = await selectTarget(special.target === 'ally_single');
+                        if (targetInfo) {
+                            targetUniqueId = targetInfo.target.uniqueId;
+                            actionData = { action: 'special', specialId: special.id, targetUniqueId: targetUniqueId };
+                        } else {
+                            isActionInProgress = false;
+                            disableCommandButtons(false); // コマンドボタンを有効化
+                            return; // アクションを中断
+                        }
+                    } else {
+                        actionData = { action: 'special', specialId: special.id };
+                    }
                 }
+            } else if (target.matches('.action-cancel')) {
+                isActionInProgress = false;
+                disableCommandButtons(false); // コマンドボタンを有効化
+                removeCancelButton(); // キャンセルボタンを削除
+                const skillMenuEl = commandAreaEl.querySelector('.skill-menu');
+                if (skillMenuEl && !skillMenuEl.classList.contains('hidden')) {
+                    skillMenuEl.classList.add('hidden'); // スキルメニューを隠す
+                    isSkillMenuOpen = false;
+                }
+                logMessage('行動をキャンセルしました。');
+                return; // アクションを中断
             }
 
             if (actionData) {
+                isActionInProgress = false;
                 commandAreaEl.removeEventListener('click', handleCommand);
                 commandAreaEl.classList.add('hidden');
+                removeCancelButton(); // キャンセルボタンを削除
                 // クライアント側は自分のユニークIDを付加して送信
                 actionData.actorUniqueId = actor.uniqueId;
                 window.sendData('execute_action', actionData);
@@ -550,13 +722,37 @@ window.executeAction = (data) => {
         case 'skill':
             const skill = actor.active.find(s => s.id === data.skillId);
             if (skill) {
-                executeSkill(actor, skill);
+                // ターゲットが必要なスキルであれば、data.targetUniqueIdを使用
+                const skillTargets = [];
+                if (skill.target === 'single' || skill.target === 'ally_single') {
+                    const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
+                    if (targetChar) skillTargets.push(targetChar);
+                } else if (skill.target === 'all_enemies') {
+                    skillTargets.push(...(window.isOnlineMode() ? opponentParty : currentEnemies));
+                } else if (skill.target === 'all_allies') {
+                    skillTargets.push(...currentPlayerParty);
+                } else { // ターゲット指定なしのスキル (例: 自己バフ)
+                    skillTargets.push(actor);
+                }
+                executeSkill(actor, skill, skillTargets);
             }
             break;
         case 'special':
             const special = actor.special;
             if (special && special.id === data.specialId) {
-                executeSpecial(actor, special);
+                // ターゲットが必要な必殺技であれば、data.targetUniqueIdを使用
+                const specialTargets = [];
+                if (special.target === 'single' || special.target === 'ally_single') {
+                    const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
+                    if (targetChar) specialTargets.push(targetChar);
+                } else if (special.target === 'all_enemies') {
+                    specialTargets.push(...(window.isOnlineMode() ? opponentParty : currentEnemies));
+                } else if (special.target === 'all_allies') {
+                    specialTargets.push(...currentPlayerParty);
+                } else { // ターゲット指定なしの必殺技
+                    specialTargets.push(actor);
+                }
+                executeSpecial(actor, special, specialTargets);
             }
             break;
     }
@@ -600,7 +796,16 @@ function calculateDamage(attacker, target, isMagic = false) {
     }
 
     // 回避判定
-    const dodgeRate = target.status.dodgeRate || 0;
+    let dodgeRate = target.status.dodgeRate || 0;
+    // 敵の命中率デバフ効果を考慮
+    if (target.effects.accuracyDebuff) {
+        dodgeRate /= target.effects.accuracyDebuff.value; // 命中率低下は回避率上昇として扱う
+    }
+    // 自身の回避率デバフ効果を考慮
+    if (attacker.effects.dodgeDebuff) {
+        dodgeRate *= attacker.effects.dodgeDebuff.value; // 自身の回避率低下は相手の命中率上昇として扱う
+    }
+
     if (Math.random() < dodgeRate) {
         isDodged = true;
         return { damage: 0, critical: false, dodged: true };
@@ -646,9 +851,9 @@ function performAttack(attacker, target) {
     updateAllDisplays();
 }
 
-function selectTarget() {
+function selectTarget(selectAlly = false) {
     return new Promise(resolve => {
-        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
+        const targets = selectAlly ? currentPlayerParty : (window.isOnlineMode() ? opponentParty : currentEnemies);
         if (!targets) {
             resolve(null);
             return;
@@ -665,7 +870,7 @@ function selectTarget() {
 
         const targetSelectionOverlay = document.createElement('div');
         targetSelectionOverlay.id = 'target-selection-overlay';
-        targetSelectionOverlay.innerHTML = '<p>ターゲットを選択してください</p>';
+        targetSelectionOverlay.innerHTML = '<p>ターゲットを選択してください</p><button id="cancel-target-selection" class="command-button action-cancel">キャンセル</button>';
         targetSelectionOverlay.style.cssText = `
             position: fixed;
             top: 20px;
@@ -678,10 +883,22 @@ function selectTarget() {
             z-index: 1000;
             font-size: 1.2em;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         `;
         battleScreenEl.appendChild(targetSelectionOverlay);
 
         const clickHandler = (event) => {
+            if (event.target.id === 'cancel-target-selection') {
+                targetSelectionOverlay.remove();
+                resetHighlights();
+                enemyPartyEl.removeEventListener('click', clickHandler);
+                playerPartyEl.removeEventListener('click', clickHandler); // 味方選択の場合も考慮
+                resolve(null); // キャンセルされたことを通知
+                return;
+            }
+
             const targetEl = event.target.closest('.character-card');
             if (targetEl && targetEl.classList.contains('selectable')) {
                 const uniqueId = targetEl.dataset.uniqueId;
@@ -690,11 +907,14 @@ function selectTarget() {
                     targetSelectionOverlay.remove();
                     resetHighlights();
                     enemyPartyEl.removeEventListener('click', clickHandler);
+                    playerPartyEl.removeEventListener('click', clickHandler); // 味方選択の場合も考慮
                     resolve({ target: selectedTarget, element: targetEl });
                 }
             }
         };
+        // 敵と味方の両方のクリックイベントを監視
         enemyPartyEl.addEventListener('click', clickHandler);
+        playerPartyEl.addEventListener('click', clickHandler);
     });
 }
 
@@ -727,17 +947,67 @@ function renderParty(containerEl, party, isOpponent = false) {
 }
 
 function updateCommandMenu(player) {
-    commandAreaEl.innerHTML = `
-        <button class="command-button action-attack">攻撃</button>
-        <button class="command-button action-skill">スキル</button>
-        <div class="skill-menu hidden">
-            ${player.active.map(skill => `<button class="skill-button">${skill.name}</button>`).join('')}
-        </div>
-        <button class="command-button action-special">必殺技</button>
-        <button class="command-button action-defend">防御</button>
-    `;
+    // 既存のコンテンツを一旦クリア
+    commandAreaEl.innerHTML = '';
 
-    const specialButton = commandAreaEl.querySelector('.action-special');
+    // スキルメニュー以外のボタンを生成
+    const attackButton = document.createElement('button');
+    attackButton.className = 'command-button action-attack';
+    attackButton.textContent = '攻撃';
+    commandAreaEl.appendChild(attackButton);
+
+    const skillButton = document.createElement('button');
+    skillButton.className = 'command-button action-skill';
+    skillButton.textContent = 'スキル';
+    commandAreaEl.appendChild(skillButton);
+
+    // スキルメニューを動的に生成
+    const skillMenuEl = document.createElement('div');
+    skillMenuEl.className = `skill-menu ${isSkillMenuOpen ? '' : 'hidden'}`;
+
+    if (player.active) {
+        player.active.forEach(skill => {
+            const skillItem = document.createElement('div');
+            skillItem.className = 'skill-item';
+
+            const skillBtn = document.createElement('button');
+            skillBtn.className = 'skill-button';
+            skillBtn.dataset.skillId = skill.id;
+            skillBtn.textContent = skill.name;
+
+            // スキル説明の要素を生成
+            const skillDesc = document.createElement('div');
+            skillDesc.className = 'skill-description hidden';
+            // スキルの説明文を直接設定
+            skillDesc.textContent = skill.description || '説明なし';
+
+            skillItem.appendChild(skillBtn);
+            skillItem.appendChild(skillDesc);
+            skillMenuEl.appendChild(skillItem);
+
+            // マウスイベントを設定して説明文の表示/非表示を切り替え
+            skillBtn.addEventListener('mouseenter', () => {
+                skillDesc.classList.remove('hidden');
+            });
+            skillBtn.addEventListener('mouseleave', () => {
+                skillDesc.classList.add('hidden');
+            });
+        });
+    }
+
+    commandAreaEl.appendChild(skillMenuEl);
+
+    // 必殺技と防御ボタンを生成
+    const specialButton = document.createElement('button');
+    specialButton.className = 'command-button action-special';
+    specialButton.textContent = '必殺技';
+    commandAreaEl.appendChild(specialButton);
+
+    const defendButton = document.createElement('button');
+    defendButton.className = 'command-button action-defend';
+    defendButton.textContent = '防御';
+    commandAreaEl.appendChild(defendButton);
+
 
     // 必殺技の条件をチェック
     // プレイヤーのオリジナルIDがspecialAbilityConditionsに存在するかどうかを確認
@@ -745,6 +1015,11 @@ function updateCommandMenu(player) {
         specialButton.classList.remove('hidden');
     } else {
         specialButton.classList.add('hidden');
+    }
+
+    // スキルメニューが開いている場合はキャンセルボタンを追加
+    if (isSkillMenuOpen) {
+        addCancelButton();
     }
 }
 
@@ -791,34 +1066,26 @@ function processEndTurnEffects(combatants) {
 function applyEndTurnPassiveAbilities(combatants) {
     combatants.forEach(c => {
         if (c.passive && c.passive.id && endTurnPassiveAbilities[c.passive.id]) {
-            endTurnPassiveAbilities[c.passive.id](c, combatants, logMessage);
+            const message = endTurnPassiveAbilities[c.passive.id](c, combatants, logMessage);
+            if (message) logMessage(message, 'status-effect');
         }
     });
 }
 
-function executeSkill(actor, skill) {
+function executeSkill(actor, skill, skillTargets) {
     const effectFunc = skillEffects[skill.id];
     if (effectFunc) {
-        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-        return effectFunc(actor, targets, calculateDamage, logMessage);
+        actor.status.mp -= skill.mp; // MP消費
+        effectFunc(actor, skillTargets, calculateDamage, logMessage);
     }
-    return false;
 }
 
-function executeSpecial(actor, special) {
+function executeSpecial(actor, special, specialTargets) {
     const effectFunc = skillEffects[special.id];
     if (effectFunc) {
-        const targets = window.isOnlineMode() ? opponentParty : currentEnemies;
-        return effectFunc(actor, targets, calculateDamage, logMessage);
+        actor.status.mp -= special.mp; // MP消費
+        effectFunc(actor, specialTargets, calculateDamage, logMessage);
     }
-    return false;
-}
-
-function applyDamagePassiveEffects(attacker, target, damage) {
-    if (damagePassiveEffects[attacker.originalId]) {
-        damage = damagePassiveEffects[attacker.originalId](attacker, target, damage);
-    }
-    return damage;
 }
 
 function isBattleOver() {
@@ -838,7 +1105,7 @@ function syncState(myParty, opponentParty) {
 function syncGameStateClientSide(data) {
     // ホストから送られてきたデータを使用して、自分のパーティーと相手のパーティーを更新
     // ホストのplayerPartyは、クライアントのopponentParty
-    // ホストのopponentPartyは、クライアントのplayerParty
+    // ホストのopponentPartyは、クライアントのcurrentPlayerParty
     currentPlayerParty = data.opponentParty;
     opponentParty = data.playerParty;
 
@@ -855,11 +1122,31 @@ function syncGameStateClientSide(data) {
 }
 
 function handleBattleEnd() {
-    isBattleOngoing = false;
-    resetHighlights(); // 戦闘終了時にハイライトをリセット
+    // ★最も重要なガード句★: 
+    // 戦闘が完全に開始されていない、または既に終了している場合は、
+    // どのような状況であっても以降の処理を中断する。
+    if (!isBattleOngoing) {
+        return;
+    }
+
+    // 自分のパーティが空の場合は、まだ同期が完了していないと見なし中断する
+    if (!currentPlayerParty || currentPlayerParty.length === 0) {
+        return;
+    }
 
     const alivePlayers = currentPlayerParty.filter(p => p.status.hp > 0);
     const aliveEnemies = opponentParty.filter(o => o.status.hp > 0);
+
+    // どちらのパーティも生き残っている場合は、戦闘続行
+    if (alivePlayers.length > 0 && aliveEnemies.length > 0) {
+        return;
+    }
+
+    // 敗北/勝利判定に進む
+
+    // 戦闘終了フラグを立てる
+    isBattleOngoing = false;
+    resetHighlights();
 
     const isVictory = alivePlayers.length > 0;
     const survivors = isVictory ? alivePlayers : [];
@@ -872,7 +1159,6 @@ function handleBattleEnd() {
 
     commandAreaEl.classList.add('hidden');
 
-    // 戦闘終了UIを表示（少し遅延させて表示）
     setTimeout(() => {
         showBattleEndUI(isVictory, survivors);
     }, 2000);
@@ -887,6 +1173,7 @@ window.handleOpponentParty = handleOpponentParty;
 window.checkBothPartiesReady = checkBothPartiesReady;
 window.startOnlineBattleHostSide = startOnlineBattleHostSide;
 window.startOnlineBattleClientSide = startOnlineBattleClientSide;
-window.handleActionRequest = window.handleActionRequest;
+window.handleActionRequest = window.handleActionRequest; // この行は削除または修正が必要
 window.executeAction = executeAction;
 window.returnToPartyScreen = returnToPartyScreen;
+

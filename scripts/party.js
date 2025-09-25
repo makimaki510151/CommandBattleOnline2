@@ -58,12 +58,14 @@ function renderCharacterDetails(char) {
             ${char.active.map(skill => `
             <li>
                 <strong class="skill-name" data-description="${skill.flavor}">${skill.name}</strong>: ${skill.desc}
+                <span class="skill-tooltip">${skill.flavor}</span>
             </li>
-            `).join('')}
+            `).join("")}
         </ul>
         <h5>必殺技</h5>
         <p>
             <strong class="skill-name" data-description="${char.special.flavor}">${char.special.name}</strong>: ${char.special.desc}
+            <span class="skill-tooltip">${char.special.flavor}</span>
         </p>
     `;
 }

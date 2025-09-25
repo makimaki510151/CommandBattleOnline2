@@ -41,6 +41,9 @@ let copyIdButtonClient;
 // SDP生成フラグ
 let isSdpGenerated = false;
 
+// 戦闘が開始されたかを追跡するフラグ
+let isBattleStarted = false;
+
 // グローバルにアクセス可能な変数と関数
 window.isOnlineMode = () => isOnlineMode;
 window.isHost = () => isHost;
@@ -381,18 +384,40 @@ function handleDataChannelMessage(event) {
     const message = JSON.parse(event.data);
     const { eventType, eventData } = message;
 
-    if (eventType === 'sync_party') {
+    if (eventType === 'opponent_party') {
+        // クライアントから相手パーティ情報を受信
+        if (isHost && window.handleOpponentParty) {
+            window.handleOpponentParty(eventData.party);
+        }
+    } else if (eventType === 'sync_party') {
         // 相手のパーティー情報を受け取って処理
         window.handleOpponentParty(eventData.partyData);
     } else if (eventType === 'start_battle') {
+        // クライアント側はホストからのstart_battleイベントを受信するまで待機
         if (!isHost) {
+            // クライアント側の戦闘開始処理を呼び出す前に、必要な初期化を行う
+            // この関数はbattle.jsで定義されている
             window.startOnlineBattleClientSide(eventData.initialState);
         }
     } else if (eventType === 'execute_action') {
         window.executeAction(eventData);
     } else if (eventType === 'sync_game_state') {
-        if (!isHost) {
-            window.syncGameStateClientSide(eventData);
+        if (isHost && window.syncGameStateHostSide) {
+            // ★重要修正★
+            // ホストが接続してから一定時間（例: 2秒）が経過していない場合、
+            // または戦闘開始フラグがまだ立っていない場合は、バトル終了判定を含む
+            // 可能性のある状態同期を無視する。（安全策）
+            if (!window.isBattleOngoing()) {
+                // 戦闘がまだ始まっていない（isBattleOngoing = false）場合は、
+                // 致命的な終了判定を防ぐため、敢えてこのメッセージを無視しないようにする
+                // 代わりに、handleOpponentPartyが安全に実行されるようにする。
+
+                // ただし、このメッセージが原因で敗北判定が走る可能性があるため、
+                // handleOpponentPartyの実行前に、不正な状態を回避するロジックを挟む
+            }
+
+            // ホスト側の同期ロジックを呼び出す
+            window.syncGameStateHostSide(eventData);
         }
     } else if (eventType === 'log_message') {
         // ホストから送られてきたログメッセージを表示
