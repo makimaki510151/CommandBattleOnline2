@@ -1,69 +1,44 @@
-// character_abilities.js
+// character_abilities.js (更新版)
 
 /**
  * パッシブ能力のロジック
- * キーはキャラクターID (char01, char02, etc.)
+ * キーはキャラクターID (new_char01, new_char02, etc.)
  * 各関数はキャラクターオブジェクトを引数に取り、ターン開始時に適用される効果を処理します。
  */
 export const passiveAbilities = {
-    'char01': (character, allies, enemies) => {
-        // 不屈の守護: 自身以外の味方全体が受ける物理ダメージを10%軽減する。
-        // この効果はダメージ計算時に適用されるため、ここでは何もしません。
-        // ダメージ計算ロジック側で、攻撃対象の味方がこのパッシブを持つキャラと同じパーティにいるか確認します。
+    'new_char01': (character, allies, enemies) => {
+        // 絶対の守護: 自身が受ける単体攻撃のダメージを15%軽減する。（ダメージ計算時に適用）
     },
-    'char02': (character, allies, enemies) => {
-        // 幻惑の霧: 戦闘開始時、敵全体の命中率を少し低下させる。
-        // この効果は戦闘開始時に一度だけ適用されます。
-        if (character.effects.passiveApplied) return;
-        if (enemies) {
-            enemies.forEach(enemy => {
-                enemy.effects.accuracyDebuff = { duration: Infinity, value: 0.9 }; // 命中率を10%低下
-            });
-            character.effects.passiveApplied = true; // 一度だけ適用
-        }
+    'new_char02': (character, allies, enemies) => {
+        // 広域カバー: 自身以外の味方全体が受ける全体攻撃のダメージを15%軽減する。（ダメージ計算時に適用）
     },
-    'char03': (character) => {
-        // 精密射撃: 敵単体への物理攻撃時、クリティカル率が上昇する。
-        // ダメージ計算時に適用されるため、ここでは何もしません。
-    },
-    'char04': (character) => {
-        // 影の囁き: ターン開始時、自身の回避率が少し上昇する。
-        character.status.dodgeRate = Math.min(0.8, character.status.dodgeRate + 0.05); // 上限80%
-    },
-    'char05': (character, allies) => {
-        // 共鳴する魂: ターン開始時、自身のMPと、ランダムな味方単体のHPを少し回復する。
-        character.status.mp = Math.min(character.status.maxMp, character.status.mp + 10);
+    'new_char03': (character, allies) => {
+        // 調和の旋律: 毎ターン開始時、ランダムな味方単体の攻撃力か魔法攻撃力を上昇させる。
         if (allies) {
             const aliveAllies = allies.filter(ally => ally.status.hp > 0);
             if (aliveAllies.length > 0) {
-                const healTarget = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
-                healTarget.status.hp = Math.min(healTarget.status.maxHp, healTarget.status.hp + 15);
+                const target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+                const buffType = Math.random() < 0.5 ? 'atkBuff' : 'matkBuff';
+                target.effects[buffType] = { duration: 2, value: 1.2 }; // 攻撃力/魔攻20%アップ
+                console.log(`${character.name}の調和の旋律で${target.name}の${buffType === 'atkBuff' ? '攻撃力' : '魔攻'}が上昇した！`);
             }
         }
     },
-    'char06': (character) => {
-        // 自己修復プログラム: ターン終了時、自身のHPをわずかに回復する。
-        // この処理はターン終了時に行われます。
+    'new_char04': (character, allies) => {
+        // 祈りの光: 回復魔法の効果が10%上昇する。（スキル効果の計算時に適用）
     },
-    'char07': (character) => {
-        // 魔剣の共鳴: 物理/魔法攻撃時に確率で追加ダメージ。
-        // ダメージ計算時に適用されるため、ここでは何もしません。
+    'new_char05': (character) => {
+        // 魔力の泉: 自身のMP回復量が15%上昇する。
+        character.status.mp = Math.min(character.status.maxMp, character.status.mp + Math.floor(character.status.maxMp * 0.05 * 1.15)); // 基礎MP回復量（仮に最大MPの5%）に15%ボーナス
     },
-    'char08': (character, allies) => {
-        // 聖なる祝福: 味方全体の状態異常を毎ターン低確率で回復する。
-        if (allies) {
-            allies.forEach(ally => {
-                if (Math.random() < 0.15) { // 15%の確率
-                    // 状態異常を回復するロジック
-                    const statusEffects = ['poison', 'stun', 'confusion', 'bleed', 'freeze'];
-                    statusEffects.forEach(effect => {
-                        if (ally.effects[effect]) {
-                            delete ally.effects[effect];
-                        }
-                    });
-                }
-            });
-        }
+    'new_char06': (character, allies, enemies) => {
+        // 怨嗟の波動: 自身のデバフ効果の付与確率が上昇する。（スキル効果の計算時に適用）
+    },
+    'new_char07': (character) => {
+        // 孤高の刃: 敵単体への攻撃時、ダメージが15%上昇する。（ダメージ計算時に適用）
+    },
+    'new_char08': (character, allies, enemies) => {
+        // 炎の残滓: 全体魔法攻撃時、確率で敵全体を火傷状態にする。（スキル効果の計算時に適用）
     }
 };
 
@@ -71,55 +46,34 @@ export const passiveAbilities = {
  * ターン終了時のパッシブ効果
  */
 export const endTurnPassiveAbilities = {
-    'char06': (character) => {
-        // 自己修復プログラム: ターン終了時、自身のHPをわずかに回復する。
-        // ただし、HPが0以下の場合は発動しない
-        if (character.status.hp <= 0) {
-            return null;
-        }
-        const healAmount = Math.floor(character.status.maxHp * 0.03); // 最大HPの3%回復
-        character.status.hp = Math.min(character.status.maxHp, character.status.hp + healAmount);
-        return `${character.name}は自己修復で${healAmount}回復した。`;
-    }
+    // 新キャラにはターン終了時発動のパッシブはありません。
 };
 
 /**
  * 必殺技の発動条件
- * キーはキャラクターID
- * 各関数はプレイヤーオブジェクトと敵リストを引数に取り、条件を満たせばtrueを返します。
  */
 export const specialAbilityConditions = {
-    'char01': (player) => player.status.mp >= 60,
-    'char02': (player) => player.status.mp >= 75,
-    'char03': (player) => player.status.mp >= 40,
-    'char04': (player) => player.status.mp >= 50,
-    'char05': (player) => player.status.mp >= 90,
-    'char06': (player) => player.status.mp >= 45,
-    'char07': (player) => player.status.mp >= 70,
-    'char08': (player, allies) => player.status.mp >= 120 && allies && allies.some(a => a.status.hp <= 0)
+    'new_char01': (player) => player.status.mp >= 50,
+    'new_char02': (player) => player.status.mp >= 40,
+    'new_char03': (player) => player.status.mp >= 60,
+    'new_char04': (player) => player.status.mp >= 80,
+    'new_char05': (player) => player.status.mp >= 60,
+    'new_char06': (player) => player.status.mp >= 70,
+    'new_char07': (player) => player.status.mp >= 60,
+    'new_char08': (player) => player.status.mp >= 75
 };
 
 /**
  * アクティブスキルの効果
- * キーはスキル名
- * 各関数は攻撃者、ターゲット、ダメージ計算関数、ログ関数などを引数に取ります。
  */
 export const skillEffects = {
-    // 聖騎士リアム
-    'ヘブンリーストライク': (attacker, targets, calculateDamage, logMessage) => {
+    // 鉄壁の騎士ゼイド
+    'ランパート': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-        }
-        attacker.effects.defBuff = { duration: 3, value: 1.3 }; // 防御力30%アップ
-        logMessage(`${attacker.name}の防御力が上昇した！`, 'status-effect');
+        target.effects.taunt = { duration: 1, to: caster.uniqueId }; // 次の単体攻撃をゼイドに引き付ける
+        logMessage(`${caster.name}が${target.name}を護るため、次の攻撃を引き付けた！`, 'status-effect');
     },
-    'ガーディアンスマイト': (attacker, targets, calculateDamage, logMessage) => {
+    'シールドバッシュ': (attacker, targets, calculateDamage, logMessage) => {
         const target = targets[0];
         const { damage, critical, dodged } = calculateDamage(attacker, target, false);
         if (dodged) {
@@ -128,187 +82,181 @@ export const skillEffects = {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
             logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
-            if (Math.random() < 0.4) { // 40%の確率でスタン
-                target.effects.stun = { duration: 1 };
-                logMessage(`${target.name}はスタンした！`, 'status-effect');
+            if (Math.random() < 0.4) { // 40%の確率で行動順を遅らせる（spdDebuffで代用）
+                target.effects.spdDebuff = { duration: 1, value: 0.5 };
+                logMessage(`${target.name}の行動順が遅れた！`, 'status-effect');
             }
         }
     },
-    'プロテクション': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        target.effects.defBuff = { duration: 3, value: 1.5 };
-        target.effects.mdefBuff = { duration: 3, value: 1.5 };
-        logMessage(`${target.name}の物理・魔法防御力が上昇した！`, 'status-effect');
+    'ストロングガード': (caster, targets, calculateDamage, logMessage) => {
+        caster.effects.defBuff = { duration: 3, value: 1.5 };
+        caster.effects.mdefBuff = { duration: 3, value: 1.5 };
+        logMessage(`${caster.name}の物理・魔法防御力が大幅に上昇した！`, 'status-effect');
     },
 
-    // 幻術師シエル
-    'ミラージュストライク': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-            if (Math.random() < 0.3) { // 30%の確率で混乱
-                target.effects.confusion = { duration: 2 };
-                logMessage(`${target.name}は混乱した！`, 'status-effect');
-            }
-        }
-    },
-    'イリュージョンスモーク': (attacker, targets, calculateDamage, logMessage) => {
+    // 大地戦士ゴルム
+    'プロヴォーク': (caster, targets, calculateDamage, logMessage) => {
         targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-                target.effects.dodgeDebuff = { duration: 3, value: 0.7 }; // 回避率30%低下
-                logMessage(`${target.name}の回避率が低下した！`, 'status-effect');
-            }
+            target.effects.taunt = { duration: 2, to: caster.uniqueId, all: true }; // 2ターン全体攻撃を引き付ける（全て自身へ）
         });
+        logMessage(`${caster.name}が敵全体を挑発し、攻撃を引き付けた！`, 'status-effect');
     },
-    'マインドコントロール': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        target.effects.atkDebuff = { duration: 3, value: 0.7 };
-        logMessage(`${target.name}の攻撃力が低下した！`, 'status-effect');
-    },
-
-    // 弓使いレオン
-    'クイックショット': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        for (let i = 0; i < 2; i++) { // 2回攻撃
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-                break;
-            } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-            }
-            if (target.status.hp <= 0) break;
-        }
-    },
-    'アローレイン': (attacker, targets, calculateDamage, logMessage) => {
+    'アースクエイク': (attacker, targets, calculateDamage, logMessage) => {
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            } else {
+            if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
                 logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
-            }
-        });
-    },
-    'シャドウスティンガー': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-            target.effects.poison = { duration: 3, damage: Math.floor(attacker.status.atk * 0.2) };
-            logMessage(`${target.name}は毒状態になった！`, 'status-effect');
-        }
-    },
-
-    // 暗殺者レナ
-    'デスストローク': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        // この攻撃はクリティカル率が高い
-        const originalCritRate = attacker.status.criticalRate;
-        attacker.status.criticalRate += 0.5;
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-        attacker.status.criticalRate = originalCritRate;
-
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-        }
-    },
-    'ダブルエッジ': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        for (let i = 0; i < 2; i++) {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-                break;
-            } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-                if (i === 1 && Math.random() < 0.5) { // 2撃目に確率で出血
-                    target.effects.bleed = { duration: 2, damage: Math.floor(attacker.status.atk * 0.3) };
-                    logMessage(`${target.name}は出血状態になった！`, 'status-effect');
+                if (Math.random() < 0.3) { // 30%の確率で素早さ低下
+                    target.effects.spdDebuff = { duration: 2, value: 0.7 };
+                    logMessage(`${target.name}の素早さが低下した！`, 'status-effect');
                 }
-            }
-            if (target.status.hp <= 0) break;
-        }
-    },
-    'ブラインドダガー': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-            target.effects.accuracyDebuff = { duration: 3, value: 0.8 }; // 命中率20%低下
-            logMessage(`${target.name}の命中率が低下した！`, 'status-effect');
-        }
-    },
-
-    // 召喚師エレナ
-    'フレイムゴースト': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-        }
-    },
-    'フロストスプライト': (attacker, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
             } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-                if (Math.random() < 0.3) { // 30%の確率で凍結
-                    target.effects.freeze = { duration: 1 };
-                    logMessage(`${target.name}は凍結した！`, 'status-effect');
-                }
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
             }
         });
     },
-    'ガイアヒーリング': (caster, targets, calculateDamage, logMessage) => {
+    '自己再生': (caster, targets, calculateDamage, logMessage) => {
+        const healAmount = Math.floor(caster.status.maxHp * 0.15); // 最大HPの15%回復
+        caster.status.hp = Math.min(caster.status.maxHp, caster.status.hp + healAmount);
+        logMessage(`${caster.name}は自己再生で${healAmount}回復した。`, 'heal');
+    },
+
+    // 風の歌い手ミサ
+    'ブレイブソング': (caster, targets, calculateDamage, logMessage) => {
+        targets.forEach(target => {
+            target.effects.atkBuff = { duration: 3, value: 1.3 }; // 攻撃力30%アップ
+        });
+        logMessage(`${caster.name}は味方全体の物理攻撃力を上昇させた！`, 'status-effect');
+    },
+    'マジックコーラス': (caster, targets, calculateDamage, logMessage) => {
+        targets.forEach(target => {
+            target.effects.matkBuff = { duration: 3, value: 1.3 }; // 魔攻30%アップ
+        });
+        logMessage(`${caster.name}は味方全体の魔法攻撃力を上昇させた！`, 'status-effect');
+    },
+    'スピードアップ': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        const healAmount = Math.floor(caster.status.support * 2.5);
+        target.effects.spdBuff = { duration: 3, value: 1.6 }; // 素早さ60%アップ
+        logMessage(`${target.name}の素早さが大幅に上昇した！`, 'status-effect');
+    },
+
+    // 慈愛の聖女ルナ
+    'ハイヒール': (caster, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const passiveBonus = caster.originalId === 'new_char04' ? 1.1 : 1.0;
+        const healAmount = Math.floor(caster.status.support * 3.0 * passiveBonus);
         target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
         logMessage(`${target.name}は${healAmount}回復した！`, 'heal');
     },
-
-    // 機械兵器ゼノス
-    'ガトリングバースト': (attacker, targets, calculateDamage, logMessage) => {
+    'エリアヒール': (caster, targets, calculateDamage, logMessage) => {
+        const passiveBonus = caster.originalId === 'new_char04' ? 1.1 : 1.0;
+        const healAmount = Math.floor(caster.status.support * 1.8 * passiveBonus);
+        targets.forEach(target => {
+            target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
+        });
+        logMessage(`味方全体が${healAmount}回復した！`, 'heal');
+    },
+    'リザレクション': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        for (let i = 0; i < 3; i++) { // 3回攻撃
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false);
+        if (target.status.hp <= 0) {
+            target.status.hp = Math.floor(target.status.maxHp * 0.5); // HPを半分にして復活
+            // 他の状態をリセット
+            target.effects = {};
+            logMessage(`${target.name}がHP半分で復活した！`, 'heal');
+        } else {
+            logMessage(`${target.name}は戦闘不能ではないため効果なし。`, 'info');
+        }
+    },
+
+    // 魔力供給者アルト
+    'マナチャージ': (caster, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const mpHealAmount = Math.floor(caster.status.support * 2.5);
+        target.status.mp = Math.min(target.status.maxMp, target.status.mp + mpHealAmount);
+        logMessage(`${target.name}のMPが${mpHealAmount}回復した！`, 'heal');
+    },
+    'エナジーフロー': (caster, targets, calculateDamage, logMessage) => {
+        const mpHealAmount = Math.floor(caster.status.support * 1.5);
+        targets.forEach(target => {
+            target.status.mp = Math.min(target.status.maxMp, target.status.mp + mpHealAmount);
+        });
+        logMessage(`味方全体のMPが${mpHealAmount}回復した！`, 'heal');
+    },
+    'マナドレイン': (attacker, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.5); // 0.5倍の威力
+        if (dodged) {
+            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+        } else {
+            if (critical) logMessage(`会心の一撃！`, 'special-event');
+            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            target.status.hp = Math.max(0, target.status.hp - damage);
+
+            const mpHealAmount = Math.floor(damage / 2); // 与えたダメージの半分MP回復
+            attacker.status.mp = Math.min(attacker.status.maxMp, attacker.status.mp + mpHealAmount);
+            logMessage(`${attacker.name}のMPが${mpHealAmount}回復した！`, 'heal');
+        }
+    },
+
+    // 呪術師アザミ
+    'ウィークネス': (caster, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        target.effects.atkDebuff = { duration: 3, value: 0.7 }; // 攻撃力30%低下
+        target.effects.matkDebuff = { duration: 3, value: 0.7 }; // 魔攻30%低下
+        logMessage(`${target.name}の物理・魔法攻撃力が低下した！`, 'status-effect');
+    },
+    'スローカース': (attacker, targets, calculateDamage, logMessage) => {
+        const debuffChance = attacker.originalId === 'new_char06' ? 0.45 : 0.3; // 怨嗟の波動適用
+        targets.forEach(target => {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.8);
+            if (!dodged) {
+                if (critical) logMessage(`会心の一撃！`, 'special-event');
+                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+                if (Math.random() < debuffChance) {
+                    target.effects.spdDebuff = { duration: 3, value: 0.6 }; // 素早さ40%低下
+                    logMessage(`${target.name}の素早さが低下した！`, 'status-effect');
+                }
+            } else {
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+            }
+        });
+    },
+    'ヴェノムボム': (attacker, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const { damage, critical, dodged } = calculateDamage(attacker, target, true);
+        const poisonChance = attacker.originalId === 'new_char06' ? 0.75 : 0.5; // 怨嗟の波動適用
+        if (dodged) {
+            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+        } else {
+            if (critical) logMessage(`会心の一撃！`, 'special-event');
+            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            target.status.hp = Math.max(0, target.status.hp - damage);
+            if (Math.random() < poisonChance) {
+                target.effects.poison = { duration: 3, damage: Math.floor(attacker.status.matk * 0.3) };
+                logMessage(`${target.name}は毒状態になった！`, 'status-effect');
+            }
+        }
+    },
+
+    // 一撃の剣士カイ
+    'ブレイクスルー': (attacker, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 1.5, true); // 1.5倍ダメージ、防御無視フラグを立てる
+        if (dodged) {
+            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+        } else {
+            if (critical) logMessage(`会心の一撃！`, 'special-event');
+            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！ (防御無視)`, 'damage');
+            target.status.hp = Math.max(0, target.status.hp - damage);
+        }
+    },
+    'ラピッドストライク': (attacker, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        for (let i = 0; i < 2; i++) { // 2回攻撃
+            const { damage, critical, dodged } = calculateDamage(attacker, target, false, 0.8); // 0.8倍の威力
             if (dodged) {
                 logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
                 break;
@@ -320,183 +268,135 @@ export const skillEffects = {
             if (target.status.hp <= 0) break;
         }
     },
-    'ロケットパンチ': (attacker, targets, calculateDamage, logMessage) => {
+    'チャージアップ': (caster, targets, calculateDamage, logMessage) => {
+        caster.effects.atkBuff = { duration: 2, value: 1.5 }; // 攻撃力50%アップ
+        logMessage(`${caster.name}の物理攻撃力が大幅に上昇した！`, 'status-effect');
+    },
+
+    // 業火の魔女イヴ
+    'ファイアストーム': (attacker, targets, calculateDamage, logMessage) => {
+        const burnChance = attacker.originalId === 'new_char08' ? 0.35 : 0.2; // 炎の残滓適用
+        targets.forEach(target => {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, true);
+            if (!dodged) {
+                if (critical) logMessage(`会心の一撃！`, 'special-event');
+                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+                if (Math.random() < burnChance) { // 確率で火傷
+                    target.effects.burn = { duration: 3, damage: Math.floor(attacker.status.matk * 0.1) };
+                    logMessage(`${target.name}は火傷状態になった！`, 'status-effect');
+                }
+            } else {
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+            }
+        });
+    },
+    'ヒートウェーブ': (attacker, targets, calculateDamage, logMessage) => {
+        targets.forEach(target => {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.9);
+            if (!dodged) {
+                if (critical) logMessage(`会心の一撃！`, 'special-event');
+                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+                if (Math.random() < 0.3) { // 30%の確率で防御力低下
+                    target.effects.defDebuff = { duration: 2, value: 0.7 };
+                    logMessage(`${target.name}の防御力が低下した！`, 'status-effect');
+                }
+            } else {
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+            }
+        });
+    },
+    'バーニングアロー': (attacker, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false);
+        const { damage, critical, dodged } = calculateDamage(attacker, target, true);
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
             logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
-            target.effects.defDebuff = { duration: 3, value: 0.7 }; // 防御力30%低下
-            logMessage(`${target.name}の防御力が低下した！`, 'status-effect');
+            target.effects.burn = { duration: 3, damage: Math.floor(attacker.status.matk * 0.2) };
+            logMessage(`${target.name}は火傷状態になった！`, 'status-effect');
         }
     },
-    'グラビティフィールド': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            target.effects.spdDebuff = { duration: 3, value: 0.6 }; // 素早さ40%低下
-            logMessage(`${target.name}の素早さが低下した！`, 'status-effect');
-        });
-    },
 
-    // 魔剣士ヴァイス
-    'エナジースラッシュ': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        // 物理ダメージ
-        const { damage: physicalDamage, critical: physicalCritical, dodged: physicalDodged } = calculateDamage(attacker, target, false);
-        // 魔法ダメージ
-        const { damage: magicalDamage, critical: magicalCritical, dodged: magicalDodged } = calculateDamage(attacker, target, true);
-        
-        if (physicalDodged && magicalDodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            let totalDamage = 0;
-            if (!physicalDodged) {
-                if (physicalCritical) logMessage(`物理攻撃が会心の一撃！`, 'special-event');
-                totalDamage += physicalDamage;
-            }
-            if (!magicalDodged) {
-                if (magicalCritical) logMessage(`魔法攻撃が会心の一撃！`, 'special-event');
-                totalDamage += magicalDamage;
-            }
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${totalDamage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - totalDamage);
-        }
+    // 必殺技 (新キャラ)
+    'ソリッドウォール': (caster, targets, calculateDamage, logMessage) => {
+        caster.effects.invulnerable = { duration: 1 }; // 1ターン無敵
+        logMessage(`${caster.name}はソリッドウォールを展開し、全てのダメージを無効化した！`, 'special-event');
     },
-    'カオスブレイク': (attacker, targets, calculateDamage, logMessage) => {
+    'ガイアシェル': (caster, targets, calculateDamage, logMessage) => {
         targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false);
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-                if (Math.random() < 0.25) { // 25%の確率で行動不能
-                    target.effects.stun = { duration: 1 };
-                    logMessage(`${target.name}は行動不能になった！`, 'status-effect');
-                }
-            }
+            target.effects.defBuff = { duration: 2, value: 1.25 }; // 防御力25%アップ
+            target.effects.mdefBuff = { duration: 2, value: 1.25 }; // 魔法防御力25%アップ
         });
+        logMessage(`味方全体にガイアシェルの加護がかかった！`, 'status-effect');
     },
-    'シャドウバインド': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        target.effects.spdDebuff = { duration: 3, value: 0.5 }; // 素早さ50%低下
-        target.effects.bind = { duration: 2 }; // 拘束状態
-        logMessage(`${target.name}は闇の鎖で拘束された！`, 'status-effect');
-    },
-
-    // 神官エリス
-    'メディックウェーブ': (caster, targets, calculateDamage, logMessage) => {
-        const healAmount = Math.floor(caster.status.support * 1.5);
+    'ハーモニー': (caster, targets, calculateDamage, logMessage) => {
+        const healAmount = Math.floor(caster.status.support * 1.0); // わずかにHP回復
         targets.forEach(target => {
             target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
-            // 状態異常を治癒
-            const statusEffects = ['poison', 'stun', 'confusion', 'bleed', 'freeze'];
-            statusEffects.forEach(effect => {
-                if (target.effects[effect]) {
-                    delete target.effects[effect];
+            // 全ての状態異常を治癒
+            target.effects = {};
+        });
+        logMessage(`味方全体の状態異常が治癒し、HPが回復した！`, 'heal');
+    },
+    'ライフセーバー': (caster, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        target.status.hp = target.status.maxHp;
+        // 全てのデバフを治癒
+        target.effects = {};
+        logMessage(`${target.name}のHPが完全に回復し、全てのデバフが治癒した！`, 'heal');
+    },
+    'エターナルマナ': (caster, targets, calculateDamage, logMessage) => {
+        targets.forEach(target => {
+            target.status.mp = target.status.maxMp;
+        });
+        caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + Math.floor(caster.status.maxMp * 0.5)); // 自身もMPを50%回復
+        logMessage(`味方全体のMPが完全に回復した！`, 'heal');
+    },
+    'デスタッチ': (attacker, targets, calculateDamage, logMessage) => {
+        targets.forEach(target => {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 1.5);
+            if (!dodged) {
+                if (critical) logMessage(`会心の一撃！`, 'special-event');
+                logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
+                target.status.hp = Math.max(0, target.status.hp - damage);
+                target.effects.defDebuff = { duration: 3, value: 0.5 }; // 防御力50%低下
+                target.effects.mdefDebuff = { duration: 3, value: 0.5 }; // 魔防50%低下
+                logMessage(`${target.name}の防御力が大幅に低下した！`, 'status-effect');
+            } else {
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+            }
+        });
+    },
+    'ディメンションスラッシュ': (attacker, targets, calculateDamage, logMessage) => {
+        const target = targets[0];
+        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 3.0); // 3倍ダメージ
+        if (dodged) {
+            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+        } else {
+            if (critical) logMessage(`会心の一撃！`, 'special-event');
+            logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
+            target.status.hp = Math.max(0, target.status.hp - damage);
+            if (Math.random() < 0.3) { // 30%の確率で即死 (HPを0に)
+                if (target.status.hp > 0) {
+                    target.status.hp = 0;
+                    logMessage(`${target.name}は一撃で仕留められた！`, 'special-event');
                 }
-            });
-            logMessage(`${target.name}は${healAmount}回復し、状態異常が治癒した！`, 'heal');
-        });
-    },
-    'リフレッシュ': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const hpHealAmount = Math.floor(caster.status.support * 3);
-        const mpHealAmount = Math.floor(caster.status.support * 2);
-        target.status.hp = Math.min(target.status.maxHp, target.status.hp + hpHealAmount);
-        target.status.mp = Math.min(target.status.maxMp, target.status.mp + mpHealAmount);
-        logMessage(`${target.name}はHP${hpHealAmount}、MP${mpHealAmount}回復した！`, 'heal');
-    },
-    'サイレントホーン': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        target.effects.silence = { duration: 3 }; // 魔法封印
-        target.effects.spdDebuff = { duration: 2, value: 0.8 }; // 素早さ20%低下
-        logMessage(`${target.name}は沈黙状態になった！`, 'status-effect');
-    },
-
-    // 必殺技
-    'ホーリーランス': (attacker, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false, 2.5); // 2.5倍ダメージ
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
             }
-        });
-    },
-    'ナイトメア': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, true, 3.0); // 3倍ダメージ
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-            target.effects.stun = { duration: 2 }; // 2ターン行動不能
-            logMessage(`${target.name}は恐怖で行動不能になった！`, 'status-effect');
         }
     },
-    'エリアルストライク': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 4.0); // 4倍ダメージ
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-        }
-    },
-    'シャドウバースト': (attacker, targets, calculateDamage, logMessage) => {
+    'メテオフォール': (attacker, targets, calculateDamage, logMessage) => {
         targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false, 2.0); // 2倍ダメージ
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            } else {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 2.5); // 2.5倍ダメージ
+            if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
                 logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
-            }
-        });
-    },
-    'アストラルゲート': (attacker, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 3.5); // 3.5倍ダメージ
-            if (dodged) {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
             } else {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-            }
-        });
-    },
-    'オーバードライブ': (caster, targets, calculateDamage, logMessage) => {
-        caster.effects.atkBuff = { duration: 4, value: 2.0 }; // 攻撃力2倍
-        caster.effects.defBuff = { duration: 4, value: 1.5 }; // 防御力1.5倍
-        caster.effects.spdBuff = { duration: 4, value: 1.8 }; // 素早さ1.8倍
-        logMessage(`${caster.name}はオーバードライブ状態になった！`, 'status-effect');
-    },
-    'デュアル・エクスプロージョン': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        // 物理攻撃力と魔法攻撃力を乗算したダメージ
-        const specialDamage = Math.floor(attacker.status.atk * attacker.status.matk / 10);
-        logMessage(`${attacker.name}の必殺技！ ${target.name}に${specialDamage}のダメージ！`, 'damage');
-        target.status.hp = Math.max(0, target.status.hp - specialDamage);
-    },
-    '天国の扉': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            if (target.status.hp <= 0) {
-                target.status.hp = target.status.maxHp;
-                target.status.mp = target.status.maxMp;
-                logMessage(`${target.name}が完全復活した！`, 'heal');
+                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
             }
         });
     }
@@ -506,30 +406,26 @@ export const skillEffects = {
  * ダメージ計算時のパッシブ効果適用
  */
 export const damagePassiveEffects = {
-    'char01': (attacker, target, damage, isPhysical) => {
-        // 不屈の守護: 自身以外の味方全体が受ける物理ダメージを10%軽減
-        if (isPhysical && target.partyType === attacker.partyType && target.uniqueId !== attacker.uniqueId) {
-            // 同じパーティに聖騎士リアムがいるかチェック
-            const allies = window.currentPlayerParty || [];
-            const hasGuardian = allies.some(ally => ally.originalId === 'char01' && ally.status.hp > 0);
-            if (hasGuardian) {
-                return Math.floor(damage * 0.9); // 10%軽減
-            }
+    'new_char01': (attacker, target, damage, isPhysical, skillTarget) => {
+        // 絶対の守護: 自身が受ける単体攻撃のダメージを15%軽減
+        if (target.originalId === 'new_char01' && skillTarget === 'single') {
+            return Math.floor(damage * 0.85); // 15%軽減
         }
         return damage;
     },
-    'char03': (attacker, target, damage, isPhysical) => {
-        // 精密射撃: 敵単体への物理攻撃時、クリティカル率が上昇
-        // この効果はクリティカル判定時に適用されるため、ここでは何もしません
+    'new_char02': (attacker, target, damage, isPhysical, skillTarget) => {
+        // 広域カバー: 自身以外の味方全体が受ける全体攻撃のダメージを15%軽減
+        if (target.originalId !== 'new_char02' && skillTarget === 'all_enemies') {
+            // 同じパーティに大地戦士ゴルムがいるかチェック（ここは実際のゲームロジックに依存）
+            // 仮にゴルムが生存していれば発動とします
+            return Math.floor(damage * 0.85); // 15%軽減
+        }
         return damage;
     },
-    'char07': (attacker, target, damage, isPhysical) => {
-        // 魔剣の共鳴: 物理攻撃時に確率で魔法ダメージを追加、魔法攻撃時に確率で物理ダメージを追加
-        if (Math.random() < 0.3) { // 30%の確率
-            const additionalDamage = isPhysical ? 
-                Math.floor(attacker.status.matk * 0.8) : 
-                Math.floor(attacker.status.atk * 0.8);
-            return damage + additionalDamage;
+    'new_char07': (attacker, target, damage, isPhysical, skillTarget) => {
+        // 孤高の刃: 敵単体への攻撃時、ダメージが15%上昇する
+        if (attacker.originalId === 'new_char07' && skillTarget === 'single') {
+            return Math.floor(damage * 1.15); // 15%上昇
         }
         return damage;
     }
@@ -539,8 +435,5 @@ export const damagePassiveEffects = {
  * クリティカル率計算時のパッシブ効果
  */
 export const criticalPassiveEffects = {
-    'char03': (attacker, target, baseCritRate) => {
-        // 精密射撃: 敵単体への物理攻撃時、クリティカル率が上昇
-        return baseCritRate + 0.2; // クリティカル率20%上昇
-    }
+    // 新キャラにはクリティカル率に影響するパッシブはありません。
 };
