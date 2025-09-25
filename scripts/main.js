@@ -402,7 +402,16 @@ function handleDataChannelMessage(event) {
     } else if (eventType === 'execute_action') {
         window.executeAction(eventData);
     } else if (eventType === 'sync_game_state') {
-        if (isHost && window.syncGameStateHostSide) {
+        if (!isHost) {
+            // クライアント側はホストから送られてきた状態を同期
+            window.syncGameStateClientSide(eventData);
+
+            // ★追加: 同期後、戦闘が終了しているかチェック
+            if (window.isBattleOver && window.isBattleOver()) {
+                window.handleBattleEnd();
+            }
+
+        } else if (isHost && window.syncGameStateHostSide) {
             // ★重要修正★
             // ホストが接続してから一定時間（例: 2秒）が経過していない場合、
             // または戦闘開始フラグがまだ立っていない場合は、バトル終了判定を含む

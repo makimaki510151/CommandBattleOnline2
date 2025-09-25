@@ -893,8 +893,8 @@ function performAttack(attacker, target) {
 
 function selectTarget(selectAlly = false, allowedTargets = null) {
     return new Promise(resolve => {
-        const potentialTargets = allowedTargets 
-            ? allowedTargets 
+        const potentialTargets = allowedTargets
+            ? allowedTargets
             : (selectAlly ? currentPlayerParty : (window.isOnlineMode() ? opponentParty : currentEnemies));
 
         if (!potentialTargets) {
@@ -944,7 +944,7 @@ function selectTarget(selectAlly = false, allowedTargets = null) {
             resetHighlights();
             document.removeEventListener('click', clickHandler, true);
         };
-        
+
         document.addEventListener('click', clickHandler, true);
     });
 }
@@ -1038,7 +1038,7 @@ function updateCommandMenu(player) {
     const specialButton = document.createElement('button');
     specialButton.className = 'command-button action-special';
     specialButton.textContent = '必殺技';
-    
+
     specialItem.appendChild(specialButton);
 
     if (player.special && player.special.desc) {
@@ -1051,7 +1051,7 @@ function updateCommandMenu(player) {
             specialDesc.style.left = `${e.clientX + 15}px`;
             specialDesc.style.top = `${e.clientY + 15}px`;
         };
-        
+
         specialButton.addEventListener('mouseenter', (e) => {
             specialDesc.classList.remove('hidden');
             moveHandler(e);
@@ -1236,6 +1236,8 @@ window.handleOpponentParty = handleOpponentParty;
 window.checkBothPartiesReady = checkBothPartiesReady;
 window.startOnlineBattleHostSide = startOnlineBattleHostSide;
 window.startOnlineBattleClientSide = startOnlineBattleClientSide;
-window.handleActionRequest = window.handleActionRequest;
 window.executeAction = executeAction;
 window.returnToPartyScreen = returnToPartyScreen;
+window.isBattleOngoing = () => isBattleOngoing;
+window.isBattleOver = isBattleOver;
+window.handleBattleEnd = handleBattleEnd;
