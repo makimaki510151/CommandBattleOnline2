@@ -804,8 +804,9 @@ window.executeAction = (data) => {
             if (forced) return { uniqueId: forced.uniqueId, reason: 'taunted_by_actor' };
         }
         // 2) 選択ターゲットが「かばう」状態（ランパート等）：単体対象はtoへ差し替え
+        // ※敵に付与されたtaunt（プロヴォーク）は「敵が行動するとき」のみ適用。味方が敵を攻撃する際はリダイレクトしない
         const chosen = allCombatants.find(c => c.uniqueId === chosenTargetUniqueId);
-        if (chosen?.effects?.taunt?.to) {
+        if (chosen?.effects?.taunt?.to && chosen.partyType === actor.partyType) {
             const forced = allCombatants.find(c => c.uniqueId === chosen.effects.taunt.to && c.status.hp > 0);
             if (forced) return { uniqueId: forced.uniqueId, reason: 'guarded_target' };
         }

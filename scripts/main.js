@@ -46,9 +46,7 @@ function setupLogSkillTooltips() {
     const logEl = document.getElementById('message-log');
     if (!logEl) return;
     let tooltipEl = null;
-    let hideTimer = null;
     logEl.addEventListener('mouseover', (e) => {
-        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
         const el = e.target.closest('.log-skill-name');
         if (!el) return;
         if (tooltipEl) return;
@@ -66,7 +64,7 @@ function setupLogSkillTooltips() {
     });
     logEl.addEventListener('mouseout', (e) => {
         if (!e.relatedTarget?.closest?.('.log-skill-name')) {
-            hideTimer = setTimeout(() => { if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; } }, 150);
+            if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
         }
     });
 }
@@ -254,8 +252,7 @@ window.handleDataChannelMessage = function (payload) {
                 break;
             }
             case 'log_message': {
-                // クライアント側のみログを表示（ホスト側は既に表示済み）
-                if (!window.isHost() && eventData?.message && window.logMessage) {
+                if (eventData?.message && window.logMessage) {
                     window.logMessage(eventData.message, eventData.type || '', eventData.skillInfo || null);
                 }
                 break;

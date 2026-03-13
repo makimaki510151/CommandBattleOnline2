@@ -1,3 +1,11 @@
+import { generateSkillDesc } from './skillDefinitions.js';
+
+function sk(name, mp, target, flavor) {
+    const s = { name, mp, target, flavor };
+    s.desc = generateSkillDesc(s);
+    return s;
+}
+
 export const characters = [
     // 1. 仲間一人を強固に守るタンク
     {
@@ -18,9 +26,9 @@ export const characters = [
             flavor: '（彼の盾は、一つの刃を決して通さない。）'
         },
         active: [
-            { name: 'ランパート', mp: 15, desc: '味方単体への次の敵の単体攻撃を、自身に引き付ける。', flavor: '（仲間を護るため、彼は一歩前に出る。）', target: 'ally_single' },
-            { name: 'シールドバッシュ', mp: 10, desc: '敵単体に物理攻撃を行い、確率で行動順を遅らせる。', flavor: '（盾で敵を強打し、その動きを乱す。）', target: 'single' },
-            { name: 'ストロングガード', mp: 20, desc: '自身の物理・魔法防御力を上昇させる。', flavor: '（全身の装甲を固定し、守りを固める。）', target: 'self' }
+            sk('ランパート', 15, 'ally_single', '（仲間を護るため、彼は一歩前に出る。）'),
+            sk('シールドバッシュ', 10, 'single', '（盾で敵を強打し、その動きを乱す。）'),
+            sk('ストロングガード', 20, 'self', '（全身の装甲を固定し、守りを固める。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -46,9 +54,9 @@ export const characters = [
             flavor: '（大地のような広さで仲間を守る。）'
         },
         active: [
-            { name: 'プロヴォーク', mp: 15, desc: '敵全体を挑発し、2ターンの間、自身への攻撃を引き付ける。', flavor: '（雄叫びを上げ、敵の注意を一身に集める。）', target: 'all_enemies' },
-            { name: 'アースクエイク', mp: 20, desc: '敵全体に物理攻撃を行い、確率で素早さを低下させる。', flavor: '（地面を叩きつけ、衝撃波を発生させる。）', target: 'all_enemies' },
-            { name: '自己再生', mp: 10, desc: '自身のHPをわずかに回復する。', flavor: '（大地の力で、傷ついた体を癒す。）', target: 'self' }
+            sk('プロヴォーク', 15, 'all_enemies', '（雄叫びを上げ、敵の注意を一身に集める。）'),
+            sk('アースクエイク', 20, 'all_enemies', '（地面を叩きつけ、衝撃波を発生させる。）'),
+            sk('自己再生', 10, 'self', '（大地の力で、傷ついた体を癒す。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -74,9 +82,9 @@ export const characters = [
             flavor: '（彼女の歌声は、戦う者の力を引き出す。）'
         },
         active: [
-            { name: 'ブレイブソング', mp: 25, desc: '味方全体に物理攻撃力上昇バフを付与する。', flavor: '（勇気を鼓舞する歌で、戦士の力を高める。）', target: 'all_allies' },
-            { name: 'マジックコーラス', mp: 25, desc: '味方全体に魔法攻撃力上昇バフを付与する。', flavor: '（魔力を増幅させる合唱で、魔導士の力を高める。）', target: 'all_allies' },
-            { name: 'スピードアップ', mp: 15, desc: '味方単体の素早さを大幅に上昇させる。', flavor: '（風の精霊が、仲間の足取りを軽くする。）', target: 'ally_single' }
+            sk('ブレイブソング', 25, 'all_allies', '（勇気を鼓舞する歌で、戦士の力を高める。）'),
+            sk('マジックコーラス', 25, 'all_allies', '（魔力を増幅させる合唱で、魔導士の力を高める。）'),
+            sk('スピードアップ', 15, 'ally_single', '（風の精霊が、仲間の足取りを軽くする。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -102,9 +110,9 @@ export const characters = [
             flavor: '（彼女の祈りは、奇跡を起こす。）'
         },
         active: [
-            { name: 'ハイヒール', mp: 20, desc: '味方単体のHPを大きく回復する。', flavor: '（聖なる光が傷を瞬時に癒す。）', target: 'ally_single' },
-            { name: 'エリアヒール', mp: 35, desc: '味方全体のHPを回復する。', flavor: '（広範囲に優しい癒やしの光を放つ。）', target: 'all_allies' },
-            { name: 'リザレクション', mp: 50, desc: '戦闘不能の味方単体をHPを半分にして復活させる。', flavor: '（一度失われた命を呼び戻す奇跡。）', target: 'ally_single_dead' }
+            sk('ハイヒール', 20, 'ally_single', '（聖なる光が傷を瞬時に癒す。）'),
+            sk('エリアヒール', 35, 'all_allies', '（広範囲に優しい癒やしの光を放つ。）'),
+            sk('リザレクション', 50, 'ally_single_dead', '（一度失われた命を呼び戻す奇跡。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -130,9 +138,9 @@ export const characters = [
             flavor: '（彼の魔力は尽きることがない。）'
         },
         active: [
-            { name: 'マナチャージ', mp: 10, desc: '味方単体のMPを大きく回復する。', flavor: '（純粋な魔力を直接注入する。）', target: 'ally_single' },
-            { name: 'エナジーフロー', mp: 40, desc: '味方全体のMPを回復する。', flavor: '（パーティ全体に魔力の流れを作り出す。）', target: 'all_allies' },
-            { name: 'マナドレイン', mp: 0, desc: '敵単体にわずかな魔法ダメージを与え、与えたダメージの半分のMPを回復する。', flavor: '（敵の魔力を吸収し、自身の力に変える。）', target: 'single' }
+            sk('マナチャージ', 10, 'ally_single', '（純粋な魔力を直接注入する。）'),
+            sk('エナジーフロー', 40, 'all_allies', '（パーティ全体に魔力の流れを作り出す。）'),
+            sk('マナドレイン', 0, 'single', '（敵の魔力を吸収し、自身の力に変える。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -158,9 +166,9 @@ export const characters = [
             flavor: '（彼女の放つ呪いは、必ず敵の心身を蝕む。）'
         },
         active: [
-            { name: 'ウィークネス', mp: 20, desc: '敵単体の物理・魔法攻撃力を低下させる。', flavor: '（呪いの力で、敵の力を奪う。）', target: 'single' },
-            { name: 'スローカース', mp: 25, desc: '敵全体に魔法攻撃を行い、確率で素早さを低下させる。', flavor: '（足枷となる重い呪いを敵全体にかける。）', target: 'all_enemies' },
-            { name: 'ヴェノムボム', mp: 15, desc: '敵単体に魔法攻撃を行い、高確率で毒状態にする。', flavor: '（強力な毒を仕込んだ爆弾を投擲する。）', target: 'single' }
+            sk('ウィークネス', 20, 'single', '（呪いの力で、敵の力を奪う。）'),
+            sk('スローカース', 25, 'all_enemies', '（足枷となる重い呪いを敵全体にかける。）'),
+            sk('ヴェノムボム', 15, 'single', '（強力な毒を仕込んだ爆弾を投擲する。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -186,9 +194,9 @@ export const characters = [
             flavor: '（狙った獲物は逃さない、孤高の剣。）'
         },
         active: [
-            { name: 'ブレイクスルー', mp: 30, desc: '敵単体に超大な物理攻撃を行い、防御力無視効果がある。', flavor: '（敵の防御を貫く、渾身の一撃。）', target: 'single' },
-            { name: 'ラピッドストライク', mp: 15, desc: '敵単体に素早い物理攻撃を2回行う。', flavor: '（瞬時のうちに二連撃を叩き込む。）', target: 'single' },
-            { name: 'チャージアップ', mp: 10, desc: '自身の物理攻撃力を一時的に上昇させる。', flavor: '（力を溜め、次の一撃に全てを懸ける。）', target: 'self' }
+            sk('ブレイクスルー', 30, 'single', '（敵の防御を貫く、渾身の一撃。）'),
+            sk('ラピッドストライク', 15, 'single', '（瞬時のうちに二連撃を叩き込む。）'),
+            sk('チャージアップ', 10, 'self', '（力を溜め、次の一撃に全てを懸ける。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
@@ -214,9 +222,9 @@ export const characters = [
             flavor: '（彼女の魔法が通った後には、燃え尽きた灰しか残らない。）'
         },
         active: [
-            { name: 'ファイアストーム', mp: 35, desc: '敵全体に強力な魔法攻撃を行う。', flavor: '（炎の嵐を呼び寄せ、全てを焼き払う。）', target: 'all_enemies' },
-            { name: 'ヒートウェーブ', mp: 20, desc: '敵全体に魔法攻撃を行い、確率で防御力を低下させる。', flavor: '（超高熱の波動で、敵の装甲を脆くする。）', target: 'all_enemies' },
-            { name: 'バーニングアロー', mp: 10, desc: '敵単体に魔法攻撃を行い、数ターンの間、火傷ダメージを与える。', flavor: '（炎を纏った矢を放ち、敵の体を内側から燃やす。）', target: 'single' }
+            sk('ファイアストーム', 35, 'all_enemies', '（炎の嵐を呼び寄せ、全てを焼き払う。）'),
+            sk('ヒートウェーブ', 20, 'all_enemies', '（超高熱の波動で、敵の装甲を脆くする。）'),
+            sk('バーニングアロー', 10, 'single', '（炎を纏った矢を放ち、敵の体を内側から燃やす。）')
         ],
         // 必殺技無効化（復活時はコメントを外す）
         // special: {
