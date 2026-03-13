@@ -1,4 +1,8 @@
-const { SkyWayContext, SkyWayRoom } = skyway_room;
+// main.js
+
+// SkyWay SDKのクラスをグローバルから取得
+let SkyWayContext, SkyWayRoom;
+
 let room = null;
 let me = null;
 let dataStream = null;
@@ -6,54 +10,43 @@ let dataStream = null;
 let isOnlineMode = false;
 let isHost = false;
 
-// グローバルスコープでDOM要素を宣言
-let onlinePartyGoButton;
-let connectionStatusEl;
-let onlineScreen;
-let messageLogEl;
-let modeSelectionEl;
-let showHostUiButton;
-let showClientUiButton;
-let hostUiEl;
-let clientUiEl;
-let goButton;
+// DOM要素の宣言
+let onlinePartyGoButton, connectionStatusEl, onlineScreen, messageLogEl;
+let goButton, roomNameInput, joinRoomButton, backToTitleButton;
 
-// 戦闘が開始されたかを追跡するフラグ
-let isBattleStarted = false;
-
-// グローバルにアクセス可能な変数と関数
-window.isOnlineMode = () => isOnlineMode;
-window.isHost = () => isHost;
-
-// ログ表示関数をグローバルに公開
+// ログ表示関数
 window.logMessage = (message, type = '') => {
     const p = document.createElement('p');
     p.textContent = message;
-    if (type) {
-        p.classList.add('log-message', type);
-    }
+    if (type) p.classList.add('log-message', type);
     if (messageLogEl) {
         messageLogEl.appendChild(p);
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
 };
 
-// モバイル判定ロジック（維持）
+// モバイル判定
 function isMobileDevice() {
     const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     return /android|webOS|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
 }
 
-// Cloudflare Pages Functions からトークンを取得する
+// トークン取得
 async function getSkyWayToken() {
     const res = await fetch('/api/token');
     if (!res.ok) throw new Error('トークンの取得に失敗しました');
     return await res.json();
 }
 
-// --- SkyWay接続コアロジック ---
+// SkyWay接続メイン処理
 async function connectToSkyWay(roomName) {
     try {
+        const sw = window.skyway_room;
+        if (!sw) throw new Error("SkyWay SDKが読み込まれていません。");
+        
+        SkyWayContext = sw.SkyWayContext;
+        SkyWayRoom = sw.SkyWayRoom;
+
         if (connectionStatusEl) connectionStatusEl.textContent = '接続中...';
         
         const { token } = await getSkyWayToken();
@@ -66,10 +59,10 @@ async function connectToSkyWay(roomName) {
 
         me = await room.join();
         
-        // 自分が最初の一人ならホスト
+        // 1人目ならホスト、2人目ならクライアント
         isHost = room.members.length === 1;
 
-        // データ送信用ストリームの準備
+        // データ通信用のストリームを作成して公開
         dataStream = await SkyWayContext.CreateDataStream();
         await me.publish(dataStream);
 
@@ -78,163 +71,116 @@ async function connectToSkyWay(roomName) {
         }
 
         setupSkyWayEventListeners();
-
-        // 接続できたらパーティー編成ボタンを出す
-        if (onlinePartyGoButton) {
-            onlinePartyGoButton.classList.remove('hidden');
-        }
+        
+        // 接続できたら「パーティー編成へ」ボタンを含むエリアを表示
+        document.getElementById('online-setup')?.classList.remove('hidden');
+        if (onlinePartyGoButton) onlinePartyGoButton.classList.remove('hidden');
 
     } catch (err) {
         console.error('SkyWay接続エラー:', err);
-        if (connectionStatusEl) connectionStatusEl.textContent = '接続に失敗しました。';
+        if (connectionStatusEl) connectionStatusEl.textContent = 'エラー: ' + err.message;
     }
 }
 
+// 受信イベント設定
 function setupSkyWayEventListeners() {
-    // 相手が参加したとき
     room.onMemberJoined.add((e) => {
         window.logMessage(`対戦相手が参加しました`, 'status-effect');
     });
 
-    // データ受信時の処理
     me.onPublicationSubscribed.add(({ stream }) => {
         if (stream.contentType === 'data') {
             stream.onData.add((data) => {
-                handleDataChannelMessage(data);
+                if (window.handleDataChannelMessage) {
+                    window.handleDataChannelMessage(data);
+                }
             });
         }
     });
 }
 
-// --- メッセージ受信ハンドラ（既存ロジックを完全維持） ---
-function handleDataChannelMessage(message) {
-    const { eventType, eventData } = message;
-
-    if (eventType === 'opponent_party') {
-        if (isHost && window.handleOpponentParty) {
-            window.handleOpponentParty(eventData.party);
-        }
-    } else if (eventType === 'sync_party') {
-        window.handleOpponentParty(eventData.partyData);
-    } else if (eventType === 'start_battle') {
-        if (!isHost) {
-            window.startOnlineBattleClientSide(eventData.initialState);
-        }
-    } else if (eventType === 'execute_action') {
-        window.executeAction(eventData);
-    } else if (eventType === 'sync_game_state') {
-        if (!isHost) {
-            window.syncGameStateClientSide(eventData);
-            if (window.isBattleOver && window.isBattleOver()) {
-                window.handleBattleEnd();
-            }
-        } else if (isHost && window.syncGameStateHostSide) {
-            window.syncGameStateHostSide(eventData);
-        }
-    } else if (eventType === 'log_message') {
-        window.logMessage(eventData.message, eventData.type || 'from-host');
-    } else if (eventType === 'request_action') {
-        if (!isHost) {
-            window.handleActionRequest(eventData);
-        }
-    } else if (eventType === 'return_to_party_screen') {
-        if (!isHost && window.returnToPartyScreen) {
-            window.returnToPartyScreen();
-            cleanupConnection();
-        }
-    }
-}
-
-// 送信関数（既存の window.sendData をSkyWay用にラップ）
+// データ送信関数
 window.sendData = function (eventType, data) {
     if (dataStream) {
         dataStream.write({ eventType, eventData: data });
     }
 };
 
-// --- 初期化とイベントリスナー ---
+// --- 初期化処理 ---
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM要素の紐付け
+    // DOM要素の取得
     onlinePartyGoButton = document.getElementById('online-party-go-button');
     connectionStatusEl = document.getElementById('connection-status');
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
-    modeSelectionEl = document.getElementById('mode-selection');
-    showHostUiButton = document.getElementById('show-host-ui-button');
-    showClientUiButton = document.getElementById('show-client-ui-button');
-    hostUiEl = document.getElementById('host-ui');
-    clientUiEl = document.getElementById('client-ui');
     goButton = document.getElementById('go-button');
+    roomNameInput = document.getElementById('room-name-input');
+    joinRoomButton = document.getElementById('join-room-button');
+    backToTitleButton = document.getElementById('back-to-title-button');
 
-    // モバイル警告（維持）
-    const mobileWarningOverlay = document.getElementById('mobile-warning-overlay');
-    const closeWarningButton = document.getElementById('close-warning-button');
-
-    if (closeWarningButton) {
-        closeWarningButton.addEventListener('click', () => {
-            if (mobileWarningOverlay) mobileWarningOverlay.classList.add('hidden');
-        });
-    }
-
-    if (isMobileDevice() && mobileWarningOverlay) {
-        mobileWarningOverlay.classList.remove('hidden');
-    }
-
-    // オンラインモード切替
-    document.getElementById('online-button')?.addEventListener('click', () => {
-        cleanupConnection();
-        isOnlineMode = true;
-        document.getElementById('title-screen').classList.add('hidden');
-        if (onlineScreen) onlineScreen.classList.remove('hidden');
+    // ルーム接続ボタンのクリックハンドラ
+    joinRoomButton?.addEventListener('click', () => {
+        const roomName = roomNameInput?.value;
+        if (!roomName) {
+            alert("ルームIDを入力してください");
+            return;
+        }
+        connectToSkyWay(roomName);
     });
 
-    document.getElementById('back-to-title-button')?.addEventListener('click', () => {
+    // タイトル画面の「オンライン対戦」ボタン
+    document.getElementById('online-button')?.addEventListener('click', () => {
+        isOnlineMode = true;
+        document.getElementById('title-screen')?.classList.add('hidden');
+        onlineScreen?.classList.remove('hidden');
+    });
+
+    // タイトルに戻るボタン
+    backToTitleButton?.addEventListener('click', () => {
         cleanupConnection();
-        isOnlineMode = false;
-        if (onlineScreen) onlineScreen.classList.add('hidden');
+        onlineScreen?.classList.add('hidden');
         document.getElementById('title-screen')?.classList.remove('hidden');
     });
 
-    // ルームID入力による接続（SkyWay方式への変更点）
-    const roomJoinHandler = () => {
-        const roomName = document.getElementById('room-id-input')?.value;
-        if (!roomName) return alert("ルームIDを入力してください");
-        
-        if (modeSelectionEl) modeSelectionEl.classList.add('hidden');
-        connectToSkyWay(roomName);
-    };
-
-    // ホスト・クライアントどちらのボタンでもルームID入力後に接続
-    showHostUiButton?.addEventListener('click', roomJoinHandler);
-    showClientUiButton?.addEventListener('click', roomJoinHandler);
-
-    // パーティー画面へ
+    // 「バトル開始！（パーティー編成へ）」ボタン
     onlinePartyGoButton?.addEventListener('click', () => {
-        const playerPartyData = window.getSelectedParty();
-        window.initializePlayerParty(playerPartyData);
         if (onlineScreen) onlineScreen.classList.add('hidden');
         document.getElementById('party-screen')?.classList.remove('hidden');
         if (goButton) goButton.disabled = false;
     });
 
-    // 戦闘開始
+    // パーティー画面の「出かける（GO）」ボタン
     goButton?.addEventListener('click', () => {
+        if (!window.getSelectedParty) return;
         const selectedParty = window.getSelectedParty();
-        if (selectedParty.length === 0) return;
+        if (selectedParty.length === 0) {
+            alert("パーティーを選択してください");
+            return;
+        }
 
         document.getElementById('party-screen')?.classList.add('hidden');
         document.getElementById('battle-screen')?.classList.remove('hidden');
 
-        if (window.isOnlineMode()) {
-            const myPartyData = window.getSelectedParty();
-            window.initializePlayerParty(myPartyData);
-            window.sendData('sync_party', { partyData: myPartyData });
+        if (isOnlineMode) {
+            window.sendData('sync_party', { partyData: selectedParty });
         } else {
-            window.startBattle(selectedParty);
+            if (window.startBattle) window.startBattle(selectedParty);
         }
     });
+
+    // モバイル警告
+    const closeWarningButton = document.getElementById('close-warning-button');
+    if (closeWarningButton) {
+        closeWarningButton.addEventListener('click', () => {
+            document.getElementById('mobile-warning-overlay')?.classList.add('hidden');
+        });
+    }
+    if (isMobileDevice()) {
+        document.getElementById('mobile-warning-overlay')?.classList.remove('hidden');
+    }
 });
 
+// クリーンアップ
 function cleanupConnection() {
     if (room) {
         room.leave();
@@ -242,6 +188,11 @@ function cleanupConnection() {
     }
     isOnlineMode = false;
     if (onlinePartyGoButton) onlinePartyGoButton.classList.add('hidden');
+    document.getElementById('online-setup')?.classList.add('hidden');
     if (connectionStatusEl) connectionStatusEl.textContent = '';
-    if (modeSelectionEl) modeSelectionEl.classList.remove('hidden');
 }
+
+// グローバル公開用
+window.isOnlineMode = () => isOnlineMode;
+window.isHost = () => isHost;
+window.cleanupConnection = cleanupConnection;
