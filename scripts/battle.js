@@ -357,8 +357,11 @@ async function battleLoop() {
             // このターン中にspdが変動したら、次の行動順にも反映されるようにする
             // 「次に動くキャラ」を毎回並べ替えて決める（行動済みは除外）
             const acted = new Set();
+            // 決定論的タイブレークで表示と実行の順序を一致させる
+            const spdSort = (a, b) => effectiveSpd(b) - effectiveSpd(a) || (a.uniqueId < b.uniqueId ? -1 : 1);
 
-            logMessage(`行動順: ${aliveCombatants.map(c => c.name).join(' → ')}`);
+            const displayOrder = [...aliveCombatants].filter(c => c.status.hp > 0).sort(spdSort);
+            logMessage(`行動順: ${displayOrder.map(c => c.name).join(' → ')}`);
 
             while (true) {
                 if (isBattleOver()) break;
@@ -367,7 +370,7 @@ async function battleLoop() {
                     .filter(c => !acted.has(c.uniqueId));
                 if (candidates.length === 0) break;
 
-                candidates.sort((a, b) => effectiveSpd(b) - effectiveSpd(a) || Math.random() - 0.5);
+                candidates.sort(spdSort);
                 const combatant = candidates[0];
                 acted.add(combatant.uniqueId);
 
@@ -572,6 +575,7 @@ async function playerTurn(actor) {
                 commandAreaEl.removeEventListener('click', handleCommand);
                 commandAreaEl.classList.add('hidden');
                 removeCancelButton();
+                document.querySelectorAll('.skill-description').forEach(el => el.remove());
                 executeAction(actionData);
                 resolve();
             }
@@ -767,6 +771,7 @@ window.handleActionRequest = async (data) => {
                 commandAreaEl.removeEventListener('click', handleCommand);
                 commandAreaEl.classList.add('hidden');
                 removeCancelButton();
+                document.querySelectorAll('.skill-description').forEach(el => el.remove());
                 actionData.actorUniqueId = actor.uniqueId;
                 window.sendData('execute_action', actionData);
                 resolve();
@@ -814,6 +819,10 @@ window.executeAction = (data) => {
                 if (resolved.reason !== 'none' && resolved.uniqueId !== data.targetUniqueId) {
                     const forcedName = allCombatants.find(c => c.uniqueId === resolved.uniqueId)?.name;
                     logMessage(`ターゲットが強制されました → ${forcedName || '不明'}`, 'status-effect');
+                    if (resolved.reason === 'guarded_target') {
+                        const chosen = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
+                        if (chosen?.effects?.taunt) delete chosen.effects.taunt;
+                    }
                 }
                 data.targetUniqueId = resolved.uniqueId;
             }
@@ -836,6 +845,10 @@ window.executeAction = (data) => {
                         if (resolved.reason !== 'none' && resolved.uniqueId !== data.targetUniqueId) {
                             const forcedName = allCombatants.find(c => c.uniqueId === resolved.uniqueId)?.name;
                             logMessage(`ターゲットが強制されました → ${forcedName || '不明'}`, 'status-effect');
+                            if (resolved.reason === 'guarded_target') {
+                                const chosen = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
+                                if (chosen?.effects?.taunt) delete chosen.effects.taunt;
+                            }
                         }
                         data.targetUniqueId = resolved.uniqueId;
                     }
@@ -1091,6 +1104,9 @@ function renderParty(containerEl, party, isOpponent = false) {
 }
 
 function updateCommandMenu(player) {
+    // 前回のスキル説明ツールチップを削除（残り続ける問題対策）
+    document.querySelectorAll('.skill-description').forEach(el => el.remove());
+
     commandAreaEl.innerHTML = '';
 
     const attackButton = document.createElement('button');
