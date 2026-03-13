@@ -1,5 +1,7 @@
 // main.js
 
+import { characters } from './characters.js';
+
 // SkyWay SDKのクラスをグローバルから取得
 let SkyWayContext, SkyWayRoom;
 
@@ -13,6 +15,7 @@ let isHost = false;
 // DOM要素の宣言
 let onlinePartyGoButton, connectionStatusEl, onlineScreen, messageLogEl;
 let goButton, roomNameInput, joinRoomButton, backToTitleButton;
+let characterListOverlay, settingsOverlay;
 
 // ログ表示関数（skillInfo = { name, desc, flavor } でスキル名にホバー説明を付与）
 function escapeHtml(str) {
@@ -40,6 +43,85 @@ window.logMessage = (message, type = '', skillInfo = null) => {
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
 };
+
+// キャラ一覧オーバーレイ用：詳細描画
+function renderCharacterDetailsPreview(char) {
+    const el = document.getElementById('character-details-preview');
+    if (!el) return;
+    if (!char) {
+        el.innerHTML = '<p class="placeholder">キャラクターを選択してください</p>';
+        return;
+    }
+    el.innerHTML = `
+        <img src="${char.image}" alt="${char.name}" class="char-image">
+        <h4>${escapeHtml(char.name)} <small>(${escapeHtml(char.role)})</small></h4>
+        <div class="status-list">
+            <p><strong>HP:</strong> ${char.status.hp} / ${char.status.maxHp}</p>
+            <p><strong>MP:</strong> ${char.status.mp} / ${char.status.maxMp}</p>
+            <p><strong>攻撃力:</strong> ${char.status.atk}</p>
+            <p><strong>魔法力:</strong> ${char.status.matk}</p>
+            <p><strong>防御力:</strong> ${char.status.def}</p>
+            <p><strong>魔法防御力:</strong> ${char.status.mdef}</p>
+            <p><strong>速度:</strong> ${char.status.spd}</p>
+            <p><strong>補助力:</strong> ${char.status.support}</p>
+            <p><strong>会心率:</strong> ${char.status.criticalRate * 100}%</p>
+            <p><strong>回避率:</strong> ${char.status.dodgeRate * 100}%</p>
+            <p><strong>会心倍率:</strong> ${char.status.criticalMultiplier}倍</p>
+        </div>
+        <h5>パッシブスキル</h5>
+        <p>
+            <strong class="skill-name">${escapeHtml(char.passive.name)}</strong>: ${escapeHtml(char.passive.desc)}
+        </p>
+        <h5>アクティブスキル</h5>
+        <ul>
+            ${char.active.map(skill => `
+            <li><strong class="skill-name">${escapeHtml(skill.name)}</strong>: ${escapeHtml(skill.desc)}</li>
+            `).join('')}
+        </ul>
+        ${char.special ? `<h5>必殺技</h5><p><strong class="skill-name">${escapeHtml(char.special.name)}</strong>: ${escapeHtml(char.special.desc)}</p>` : ''}
+    `;
+}
+
+// キャラ一覧オーバーレイ用：カード描画・開閉
+function openCharacterListOverlay() {
+    const grid = document.getElementById('character-list-preview');
+    const overlay = document.getElementById('character-list-overlay');
+    if (!grid || !overlay) return;
+    grid.innerHTML = '';
+    characters.forEach(char => {
+        const card = document.createElement('div');
+        card.className = 'character-card character-card-preview';
+        card.dataset.id = char.id;
+        card.innerHTML = `
+            <img src="${char.image}" alt="${char.name}" class="char-thumb">
+            <div class="char-info"><h4>${escapeHtml(char.name)}</h4><p>${escapeHtml(char.role)}</p></div>
+        `;
+        card.addEventListener('click', () => {
+            if (window.playUIClick) window.playUIClick();
+            document.querySelectorAll('.character-card-preview').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            renderCharacterDetailsPreview(char);
+        });
+        grid.appendChild(card);
+    });
+    renderCharacterDetailsPreview(null);
+    overlay.classList.remove('hidden');
+}
+
+function closeCharacterListOverlay() {
+    document.getElementById('character-list-overlay')?.classList.add('hidden');
+    if (window.playCancel) window.playCancel();
+}
+
+function openSettingsOverlay() {
+    document.getElementById('settings-overlay')?.classList.remove('hidden');
+    if (window.playUIClick) window.playUIClick();
+}
+
+function closeSettingsOverlay() {
+    document.getElementById('settings-overlay')?.classList.add('hidden');
+    if (window.playCancel) window.playCancel();
+}
 
 // ログ内スキル名のツールチップ用（DOMContentLoaded後に設定）
 function setupLogSkillTooltips() {
@@ -285,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ルーム接続ボタンのクリックハンドラ
     joinRoomButton?.addEventListener('click', () => {
+        if (window.playUIClick) window.playUIClick();
         const roomName = roomNameInput?.value;
         if (!roomName) {
             alert("ルームIDを入力してください");
@@ -293,8 +376,41 @@ document.addEventListener('DOMContentLoaded', () => {
         connectToSkyWay(roomName);
     });
 
+    // キャラ一覧オーバーレイ
+    document.getElementById('character-list-button')?.addEventListener('click', () => {
+        if (window.playSelect) window.playSelect();
+        openCharacterListOverlay();
+    });
+    document.getElementById('close-character-list-button')?.addEventListener('click', closeCharacterListOverlay);
+    document.getElementById('character-list-overlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'character-list-overlay') closeCharacterListOverlay();
+    });
+
+    // 設定オーバーレイ
+    document.getElementById('settings-button')?.addEventListener('click', openSettingsOverlay);
+    document.getElementById('close-settings-button')?.addEventListener('click', closeSettingsOverlay);
+    document.getElementById('settings-overlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'settings-overlay') closeSettingsOverlay();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const charOverlay = document.getElementById('character-list-overlay');
+            const setOverlay = document.getElementById('settings-overlay');
+            if (charOverlay && !charOverlay.classList.contains('hidden')) closeCharacterListOverlay();
+            else if (setOverlay && !setOverlay.classList.contains('hidden')) closeSettingsOverlay();
+        }
+    });
+
+    // 音量スライダー（設定内）
+    const volumeSlider = document.getElementById('volume-slider');
+    if (volumeSlider && window.setSeVolume) {
+        window.setSeVolume(parseInt(volumeSlider.value, 10));
+        volumeSlider.addEventListener('input', () => window.setSeVolume(parseInt(volumeSlider.value, 10)));
+    }
+
     // タイトル画面の「オンライン対戦」ボタン
     document.getElementById('online-button')?.addEventListener('click', () => {
+        if (window.playSelect) window.playSelect();
         isOnlineMode = true;
         document.getElementById('title-screen')?.classList.add('hidden');
         onlineScreen?.classList.remove('hidden');
@@ -302,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // タイトルに戻るボタン
     backToTitleButton?.addEventListener('click', () => {
+        if (window.playCancel) window.playCancel();
         cleanupConnection();
         onlineScreen?.classList.add('hidden');
         document.getElementById('title-screen')?.classList.remove('hidden');
@@ -343,9 +460,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeWarningButton = document.getElementById('close-warning-button');
     if (closeWarningButton) {
         closeWarningButton.addEventListener('click', () => {
+            if (window.playUIClick) window.playUIClick();
             document.getElementById('mobile-warning-overlay')?.classList.add('hidden');
         });
     }
+
+    // その他ボタンにSE（back-button, online-party-go-buttonは既存ハンドラより先にSE再生）
+    document.getElementById('back-button')?.addEventListener('click', () => { if (window.playCancel) window.playCancel(); }, { capture: true });
+    onlinePartyGoButton?.addEventListener('click', () => { if (window.playSelect) window.playSelect(); }, { capture: true });
+    goButton?.addEventListener('click', () => { if (window.playSelect) window.playSelect(); }, { capture: true });
     if (isMobileDevice()) {
         document.getElementById('mobile-warning-overlay')?.classList.remove('hidden');
     }

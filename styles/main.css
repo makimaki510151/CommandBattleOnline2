@@ -39,6 +39,7 @@ body {
 
 #start-button,
 #online-button,
+#character-list-button,
 #connect-button,
 #copy-id-button,
 #show-host-ui-button,
@@ -60,6 +61,7 @@ body {
 
 #start-button:hover,
 #online-button:hover,
+#character-list-button:hover,
 #connect-button:hover,
 #copy-id-button:hover,
 #show-host-ui-button:hover,
@@ -76,10 +78,143 @@ body {
     cursor: not-allowed;
 }
 
+/* グローバル設定ボタン */
+.global-settings-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: #4db6ac;
+    font-size: 1.4em;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    transition: background 0.2s, transform 0.2s;
+}
+.global-settings-btn:hover {
+    background: #fff;
+    transform: scale(1.05);
+}
+
+/* モーダルオーバーレイ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+}
+.modal-overlay.hidden {
+    display: none !important;
+}
+.modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+}
+.modal-box h2 {
+    margin: 0 0 16px 0;
+    color: #4db6ac;
+}
+.modal-close-btn {
+    margin-top: 16px;
+    padding: 10px 24px;
+    background: #81c784;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+}
+.modal-close-btn:hover {
+    background: #66bb6a;
+}
+
+/* キャラ一覧モーダル */
+.character-list-modal {
+    min-width: 640px;
+}
+.character-list-modal-content {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+.character-list-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.character-card-preview {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f9f9f9;
+}
+.character-card-preview:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+.character-card-preview.selected {
+    border-color: #2196f3;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.4);
+    background: #e3f2fd;
+}
+.character-details-preview {
+    flex: 1;
+    min-width: 280px;
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.character-details-preview .char-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 8px;
+}
+.character-details-preview .status-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    font-size: 0.85em;
+}
+.character-details-preview .placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+/* 設定モーダル */
+.settings-modal {
+    min-width: 320px;
+}
+.settings-content {
+    padding: 8px 0;
+}
 .volume-control {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+}
+.volume-control label {
+    min-width: 70px;
 }
 
 #volume-slider {
