@@ -20,9 +20,10 @@ export async function onRequest(context) {
 async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
-    
+
     // SkyWayが必須とするフィールドをすべて網羅
     const payload = {
+        version: 3,
         iat: now,
         exp: now + 3600,
         jti: crypto.randomUUID(), // これが欠けるとデコードエラーになります
@@ -45,17 +46,16 @@ async function createSkyWayToken(appId, secret) {
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
 
-    const dataToSign = `${encodedHeader}.${encodedPayload}`;
-    
-    // Web Crypto APIによるHS256署名
+    const rawSecret = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
+
     const key = await crypto.subtle.importKey(
         "raw",
-        encoder.encode(secret),
+        rawSecret,
         { name: "HMAC", hash: "SHA-256" },
         false,
         ["sign"]
     );
-    
+
     const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(dataToSign));
     const encodedSignature = b64UrlEncode(new Uint8Array(signature));
 
