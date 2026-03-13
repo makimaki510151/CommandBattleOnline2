@@ -82,6 +82,15 @@
 .character-card:hover {
     background-color: #e3f2fd;
     border-color: #2196f3;
+    cursor: grab;
+}
+
+.character-card[draggable="true"] {
+    cursor: grab;
+}
+
+.character-card[draggable="true"]:active {
+    cursor: grabbing;
 }
 
 .character-card.selected {
@@ -265,9 +274,14 @@
     border-color: #333 transparent transparent transparent;
 }
 
-#details-content .skill-name:hover .skill-tooltip {
+#details-content .skill-name:hover .skill-tooltip,
+#details-content .skill-name:hover ~ .skill-tooltip {
     visibility: visible;
     opacity: 1;
+}
+
+#details-content .skill-tooltip {
+    pointer-events: none;
 }
 
 .placeholder {

@@ -254,7 +254,8 @@ window.handleDataChannelMessage = function (payload) {
                 break;
             }
             case 'log_message': {
-                if (eventData?.message && window.logMessage) {
+                // クライアント側のみログを表示（ホスト側は既に表示済み）
+                if (!window.isHost() && eventData?.message && window.logMessage) {
                     window.logMessage(eventData.message, eventData.type || '', eventData.skillInfo || null);
                 }
                 break;
