@@ -14,7 +14,7 @@ export const skillData = {
     },
     'ストロングガード': {
         effect: 'buff',
-        buffs: [{ stat: 'def', value: 1.5 }, { stat: 'mdef', value: 1.5 }],
+        buffs: [{ stat: 'def', value: 1.4 }, { stat: 'mdef', value: 1.4 }],
         duration: 3
     },
 
@@ -28,13 +28,13 @@ export const skillData = {
     '自己再生': { effect: 'heal_self', healRatio: 0.15 },
 
     // 風の歌い手ミサ
-    'ブレイブソング': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.3 }], duration: 3 },
-    'マジックコーラス': { effect: 'buff', buffs: [{ stat: 'matk', value: 1.3 }], duration: 3 },
-    'スピードアップ': { effect: 'buff', buffs: [{ stat: 'spd', value: 1.6 }], duration: 3 },
+    'ブレイブソング': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.25 }], duration: 3 },
+    'マジックコーラス': { effect: 'buff', buffs: [{ stat: 'matk', value: 1.25 }], duration: 3 },
+    'スピードアップ': { effect: 'buff', buffs: [{ stat: 'spd', value: 1.45 }], duration: 3 },
 
     // 慈愛の聖女ルナ
-    'ハイヒール': { effect: 'heal', supportMul: 3.0 },
-    'エリアヒール': { effect: 'heal', supportMul: 1.8 },
+    'ハイヒール': { effect: 'heal', supportMul: 2.5 },
+    'エリアヒール': { effect: 'heal', supportMul: 1.5 },
     'リザレクション': { effect: 'revive', reviveRatio: 0.5 },
 
     // 魔力供給者アルト
@@ -84,14 +84,14 @@ export const skillData = {
     },
 
     // 一撃の剣士カイ
-    'ブレイクスルー': { effect: 'damage', power: 1.5, ignoreDefense: true },
-    'ラピッドストライク': { effect: 'damage_hits', power: 0.8, hits: 2 },
-    'チャージアップ': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.5 }], duration: 2 },
+    'ブレイクスルー': { effect: 'damage', power: 1.2, ignoreDefense: true },
+    'ラピッドストライク': { effect: 'damage_hits', power: 0.72, hits: 2 },
+    'チャージアップ': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.35 }], duration: 2 },
 
     // 業火の魔女イヴ
     'ファイアストーム': {
         effect: 'damage',
-        power: 1,
+        power: 0.88,
         isMagic: true,
         proc: {
             chance: 0.2,
@@ -105,7 +105,7 @@ export const skillData = {
     },
     'ヒートウェーブ': {
         effect: 'damage',
-        power: 0.9,
+        power: 0.82,
         isMagic: true,
         proc: {
             chance: 0.3,
@@ -117,7 +117,7 @@ export const skillData = {
     },
     'バーニングアロー': {
         effect: 'damage',
-        power: 1,
+        power: 0.9,
         isMagic: true,
         proc: { chance: 1, effect: 'burn', duration: 3, descKey: '火傷にする' }
     }

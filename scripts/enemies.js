@@ -1,30 +1,30 @@
 // enemies.js
 
-// 単体の敵データ
+// 単体の敵データ（プレイヤー4体分の火力・耐久に合わせて調整）
 export const enemyData = [
     {
         id: 'enemy01', name: 'スライム', image: 'images/enemy01.png',
-        status: { maxHp: 120, hp: 120, maxMp: 0, mp: 0, atk: 20, def: 15, matk: 0, mdef: 10, spd: 20, criticalRate: 0.05, dodgeRate: 0.1, criticalMultiplier: 1.5 }
+        status: { maxHp: 110, hp: 110, maxMp: 0, mp: 0, atk: 18, def: 12, matk: 0, mdef: 8, spd: 18, criticalRate: 0.05, dodgeRate: 0.1, criticalMultiplier: 1.5 }
     },
     {
         id: 'enemy02', name: 'ゴブリン', image: 'images/enemy02.png',
-        status: { maxHp: 180, hp: 180, maxMp: 10, mp: 10, atk: 35, def: 25, matk: 5, mdef: 15, spd: 35, criticalRate: 0.1, dodgeRate: 0.08, criticalMultiplier: 1.5 }
+        status: { maxHp: 165, hp: 165, maxMp: 8, mp: 8, atk: 30, def: 22, matk: 4, mdef: 12, spd: 32, criticalRate: 0.08, dodgeRate: 0.08, criticalMultiplier: 1.5 }
     },
     {
         id: 'enemy03', name: 'オーク', image: 'images/enemy03.png',
-        status: { maxHp: 250, hp: 250, maxMp: 15, mp: 15, atk: 50, def: 40, matk: 10, mdef: 20, spd: 25, criticalRate: 0.05, dodgeRate: 0.05, criticalMultiplier: 1.5 }
+        status: { maxHp: 240, hp: 240, maxMp: 12, mp: 12, atk: 42, def: 35, matk: 8, mdef: 18, spd: 24, criticalRate: 0.05, dodgeRate: 0.05, criticalMultiplier: 1.5 }
     },
     {
         id: 'enemy04', name: 'スケルトン', image: 'images/enemy04.png',
-        status: { maxHp: 150, hp: 150, maxMp: 5, mp: 5, atk: 30, def: 20, matk: 5, mdef: 10, spd: 45, criticalRate: 0.15, dodgeRate: 0.15, criticalMultiplier: 1.5 }
+        status: { maxHp: 140, hp: 140, maxMp: 4, mp: 4, atk: 26, def: 18, matk: 4, mdef: 10, spd: 42, criticalRate: 0.12, dodgeRate: 0.12, criticalMultiplier: 1.5 }
     },
     {
         id: 'enemy05', name: 'オーガ', image: 'images/enemy05.png',
-        status: { maxHp: 500, hp: 500, maxMp: 20, mp: 20, atk: 70, def: 55, matk: 15, mdef: 30, spd: 15, criticalRate: 0.08, dodgeRate: 0.02, criticalMultiplier: 1.5 }
+        status: { maxHp: 420, hp: 420, maxMp: 16, mp: 16, atk: 58, def: 48, matk: 12, mdef: 26, spd: 14, criticalRate: 0.06, dodgeRate: 0.02, criticalMultiplier: 1.5 }
     },
     {
         id: 'enemy06', name: 'ドラゴン', image: 'images/enemy06.png',
-        status: { maxHp: 1000, hp: 1000, maxMp: 20, mp: 50, atk: 90, def: 70, matk: 60, mdef: 50, spd: 40, criticalRate: 0.2, dodgeRate: 0.05, criticalMultiplier: 2.0 }
+        status: { maxHp: 720, hp: 720, maxMp: 18, mp: 45, atk: 68, def: 55, matk: 48, mdef: 42, spd: 36, criticalRate: 0.15, dodgeRate: 0.05, criticalMultiplier: 1.8 }
     }
 ];
 

@@ -12,11 +12,11 @@ export const characters = [
         id: 'char01', name: '鉄壁の騎士ゼイド', role: '単体守護者', image: 'images/char01.png',
         attackType: 'physical',
         status: {
-            maxHp: 320, hp: 320,
-            maxMp: 60, mp: 60,
-            atk: 40, matk: 10,
-            def: 70, mdef: 30,
-            spd: 15,
+            maxHp: 380, hp: 380,
+            maxMp: 65, mp: 65,
+            atk: 38, matk: 8,
+            def: 72, mdef: 32,
+            spd: 14,
             support: 10,
             criticalRate: 0.05, dodgeRate: 0.05, criticalMultiplier: 1.5
         },
@@ -40,11 +40,11 @@ export const characters = [
         id: 'char02', name: '大地戦士ゴルム', role: '全体守護者', image: 'images/char02.png',
         attackType: 'physical',
         status: {
-            maxHp: 350, hp: 350,
-            maxMp: 50, mp: 50,
-            atk: 35, matk: 10,
-            def: 65, mdef: 40,
-            spd: 10,
+            maxHp: 400, hp: 400,
+            maxMp: 55, mp: 55,
+            atk: 34, matk: 8,
+            def: 68, mdef: 42,
+            spd: 11,
             support: 5,
             criticalRate: 0.05, dodgeRate: 0.02, criticalMultiplier: 1.3
         },
@@ -68,12 +68,12 @@ export const characters = [
         id: 'char03', name: '風の歌い手ミサ', role: '万能支援', image: 'images/char03.png',
         attackType: 'magic',
         status: {
-            maxHp: 180, hp: 180,
-            maxMp: 150, mp: 150,
-            atk: 10, matk: 30,
-            def: 20, mdef: 40,
-            spd: 50,
-            support: 65,
+            maxHp: 200, hp: 200,
+            maxMp: 140, mp: 140,
+            atk: 12, matk: 28,
+            def: 22, mdef: 42,
+            spd: 48,
+            support: 62,
             criticalRate: 0.05, dodgeRate: 0.15, criticalMultiplier: 1.5
         },
         passive: {
@@ -96,12 +96,12 @@ export const characters = [
         id: 'char04', name: '慈愛の聖女ルナ', role: 'HPヒーラー', image: 'images/char04.png',
         attackType: 'magic',
         status: {
-            maxHp: 200, hp: 200,
-            maxMp: 160, mp: 160,
-            atk: 5, matk: 25,
-            def: 30, mdef: 60,
-            spd: 25,
-            support: 80,
+            maxHp: 220, hp: 220,
+            maxMp: 150, mp: 150,
+            atk: 5, matk: 22,
+            def: 32, mdef: 58,
+            spd: 28,
+            support: 72,
             criticalRate: 0.05, dodgeRate: 0.1, criticalMultiplier: 1.5
         },
         passive: {
@@ -124,12 +124,12 @@ export const characters = [
         id: 'char05', name: '魔力供給者アルト', role: 'MPバッテリー', image: 'images/char05.png',
         attackType: 'magic',
         status: {
-            maxHp: 170, hp: 170,
-            maxMp: 220, mp: 220,
-            atk: 5, matk: 35,
-            def: 25, mdef: 50,
-            spd: 35,
-            support: 70,
+            maxHp: 185, hp: 185,
+            maxMp: 200, mp: 200,
+            atk: 5, matk: 32,
+            def: 26, mdef: 48,
+            spd: 36,
+            support: 68,
             criticalRate: 0.05, dodgeRate: 0.1, criticalMultiplier: 1.5
         },
         passive: {
@@ -152,13 +152,13 @@ export const characters = [
         id: 'char06', name: '呪術師アザミ', role: 'デバフ専門', image: 'images/char06.png',
         attackType: 'magic',
         status: {
-            maxHp: 160, hp: 160,
-            maxMp: 170, mp: 170,
-            atk: 10, matk: 50,
-            def: 15, mdef: 45,
-            spd: 45,
-            support: 50,
-            criticalRate: 0.1, dodgeRate: 0.2, criticalMultiplier: 1.8
+            maxHp: 175, hp: 175,
+            maxMp: 165, mp: 165,
+            atk: 10, matk: 44,
+            def: 18, mdef: 44,
+            spd: 44,
+            support: 48,
+            criticalRate: 0.1, dodgeRate: 0.18, criticalMultiplier: 1.7
         },
         passive: {
             name: '怨嗟の波動',
@@ -180,13 +180,13 @@ export const characters = [
         id: 'char07', name: '一撃の剣士カイ', role: '単体特化攻撃', image: 'images/char07.png',
         attackType: 'physical',
         status: {
-            maxHp: 220, hp: 220,
-            maxMp: 70, mp: 70,
-            atk: 80, matk: 5,
-            def: 30, mdef: 15,
-            spd: 55,
+            maxHp: 230, hp: 230,
+            maxMp: 65, mp: 65,
+            atk: 58, matk: 5,
+            def: 28, mdef: 14,
+            spd: 52,
             support: 10,
-            criticalRate: 0.35, dodgeRate: 0.1, criticalMultiplier: 2.0
+            criticalRate: 0.18, dodgeRate: 0.1, criticalMultiplier: 1.8
         },
         passive: {
             name: '孤高の刃',
@@ -208,13 +208,13 @@ export const characters = [
         id: 'char08', name: '業火の魔女イヴ', role: '全体削り', image: 'images/char08.png',
         attackType: 'magic',
         status: {
-            maxHp: 190, hp: 190,
-            maxMp: 190, mp: 190,
-            atk: 5, matk: 65,
-            def: 25, mdef: 35,
-            spd: 40,
-            support: 15,
-            criticalRate: 0.1, dodgeRate: 0.1, criticalMultiplier: 1.7
+            maxHp: 195, hp: 195,
+            maxMp: 170, mp: 170,
+            atk: 5, matk: 50,
+            def: 24, mdef: 34,
+            spd: 38,
+            support: 14,
+            criticalRate: 0.1, dodgeRate: 0.1, criticalMultiplier: 1.6
         },
         passive: {
             name: '炎の残滓',
