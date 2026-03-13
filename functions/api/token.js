@@ -21,10 +21,9 @@ async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
 
-    // SkyWay Auth Token v3 の仕様に準拠したペイロード
     const payload = {
         iat: now,
-        exp: now + 3600, // 有効期限 1時間
+        exp: now + 3600,
         jti: crypto.randomUUID(),
         version: 3,
         scope: {
@@ -36,8 +35,12 @@ async function createSkyWayToken(appId, secret) {
                     member: {
                         name: "*",
                         methods: ["create", "delete", "update", "subscribe", "publish"],
-                        publication: { methods: ["create", "delete", "update"] },
-                        subscription: { methods: ["create", "delete"] }
+                        publication: {
+                            methods: ["create", "delete", "update"]
+                        },
+                        subscription: {
+                            methods: ["create", "delete"]
+                        }
                     }
                 }
             ]
@@ -51,10 +54,9 @@ async function createSkyWayToken(appId, secret) {
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
     // Secretをバイナリとしてインポート
-    const rawSecret = encoder.encode(secret);
     const key = await crypto.subtle.importKey(
         "raw",
-        rawSecret,
+        encoder.encode(secret),
         { name: "HMAC", hash: "SHA-256" },
         false,
         ["sign"]
@@ -66,7 +68,6 @@ async function createSkyWayToken(appId, secret) {
     return `${dataToSign}.${encodedSignature}`;
 }
 
-// 標準的なBase64Urlエンコード（パディング削除、記号置換）
 function b64UrlEncode(u8arr) {
     const binstr = Array.from(u8arr).map(b => String.fromCharCode(b)).join('');
     return btoa(binstr)
