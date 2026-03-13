@@ -1,15 +1,10 @@
-// functions/api/token.js
-
 export async function onRequest(context) {
     const { env } = context;
     const appId = env.SKYWAY_APP_ID;
     const secret = env.SKYWAY_SECRET;
 
     if (!appId || !secret) {
-        return new Response(JSON.stringify({ error: "Environment variables not set" }), { 
-            status: 500,
-            headers: { "Content-Type": "application/json" }
-        });
+        return new Response(JSON.stringify({ error: "Environment variables not set" }), { status: 500 });
     }
 
     try {
@@ -18,10 +13,7 @@ export async function onRequest(context) {
             headers: { "Content-Type": "application/json" }
         });
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { 
-            status: 500,
-            headers: { "Content-Type": "application/json" }
-        });
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
     }
 }
 
@@ -29,11 +21,11 @@ async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
     
+    // SkyWayが必須とするフィールドをすべて網羅
     const payload = {
         iat: now,
         exp: now + 3600,
-        // SkyWay SDKがデコード時にUUID形式を強く推奨するため変更
-        jti: crypto.randomUUID(), 
+        jti: crypto.randomUUID(), // これが欠けるとデコードエラーになります
         scope: {
             appId: appId,
             rooms: [{
@@ -50,14 +42,12 @@ async function createSkyWayToken(appId, secret) {
     };
 
     const encoder = new TextEncoder();
-    
-    // JSON文字列化してからエンコード
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
 
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
     
-    // HMAC SHA-256 署名の作成
+    // Web Crypto APIによるHS256署名
     const key = await crypto.subtle.importKey(
         "raw",
         encoder.encode(secret),
@@ -72,9 +62,8 @@ async function createSkyWayToken(appId, secret) {
     return `${dataToSign}.${encodedSignature}`;
 }
 
-// 厳密な Base64URL エンコード (パディング '=' を削除し、記号を置換)
 function b64UrlEncode(u8arr) {
-    const binstr = Array.from(u8arr).map(b => String.fromCharCode(b)).join("");
+    const binstr = String.fromCharCode(...u8arr);
     return btoa(binstr)
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
