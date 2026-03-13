@@ -78,7 +78,10 @@ async function connectToSkyWay(roomName) {
         isHost = room.members.length === 1;
 
         // データ通信用のストリームを作成して公開
-        dataStream = await SkyWayContext.CreateDataStream();
+        if (!sw.StreamFactory?.createDataStream) {
+            throw new Error("SkyWay SDKのStreamFactoryが見つかりません（DataStream生成API不一致の可能性）");
+        }
+        dataStream = await sw.StreamFactory.createDataStream();
         await me.publish(dataStream);
 
         if (connectionStatusEl) {
