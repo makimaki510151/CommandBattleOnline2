@@ -78,10 +78,11 @@ async function connectToSkyWay(roomName) {
         isHost = room.members.length === 1;
 
         // データ通信用のストリームを作成して公開
-        if (!sw.StreamFactory?.createDataStream) {
-            throw new Error("SkyWay SDKのStreamFactoryが見つかりません（DataStream生成API不一致の可能性）");
+        const streamFactory = sw.SkyWayStreamFactory ?? sw.StreamFactory;
+        if (!streamFactory?.createDataStream) {
+            throw new Error("SkyWay SDKのStreamFactoryが見つかりません（SkyWayStreamFactory/StreamFactory どちらも未定義）");
         }
-        dataStream = await sw.StreamFactory.createDataStream();
+        dataStream = await streamFactory.createDataStream();
         await me.publish(dataStream);
 
         if (connectionStatusEl) {
