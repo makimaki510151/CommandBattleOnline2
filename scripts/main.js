@@ -35,7 +35,7 @@ function isMobileDevice() {
 async function getSkyWayToken() {
     try {
         const res = await fetch('/api/token');
-        
+
         if (!res.ok) {
             const errorDetail = await res.json().catch(() => ({ error: 'Unknown error' }));
             throw new Error(errorDetail.error || `HTTP ${res.status}`);
@@ -45,7 +45,7 @@ async function getSkyWayToken() {
         if (!data.token) {
             throw new Error('レスポンスにトークンが含まれていません');
         }
-        
+
         return data;
     } catch (err) {
         console.error('Token fetch error:', err);
@@ -58,30 +58,26 @@ async function connectToSkyWay(roomName) {
     try {
         const sw = window.skyway_room;
         if (!sw) throw new Error("SkyWay SDKが読み込まれていません。");
-        
+
         SkyWayContext = sw.SkyWayContext;
         SkyWayRoom = sw.SkyWayRoom;
 
         if (connectionStatusEl) connectionStatusEl.textContent = '接続中...';
-        
+
         const { token } = await getSkyWayToken();
         const context = await SkyWayContext.Create(token);
-        
+
         room = await SkyWayRoom.FindOrCreate(context, {
             type: 'p2p',
             name: roomName,
         });
 
         me = await room.join();
-        
-        // 1人目ならホスト、2人目ならクライアント
+
+        // 1人目ならホスト、2人目以降ならクライアント
         isHost = room.members.length === 1;
 
-        // データ通信用のストリームを作成して公開
         const streamFactory = sw.SkyWayStreamFactory ?? sw.StreamFactory;
-        if (!streamFactory?.createDataStream) {
-            throw new Error("SkyWay SDKのStreamFactoryが見つかりません（SkyWayStreamFactory/StreamFactory どちらも未定義）");
-        }
         dataStream = await streamFactory.createDataStream();
         await me.publish(dataStream);
 
@@ -90,10 +86,14 @@ async function connectToSkyWay(roomName) {
         }
 
         setupSkyWayEventListeners();
-        
-        // 接続できたら「パーティー編成へ」ボタンを含むエリアを表示
-        document.getElementById('online-setup')?.classList.remove('hidden');
-        if (onlinePartyGoButton) onlinePartyGoButton.classList.remove('hidden');
+
+        // クライアント側（2人目）なら、参加した瞬間に画面遷移
+        if (!isHost) {
+            transitionToPartyScreen();
+        } else {
+            // ホスト側は相手を待つ状態なので、案内を表示
+            window.logMessage("対戦相手の参加を待っています...", "status-effect");
+        }
 
     } catch (err) {
         console.error('SkyWay接続エラー:', err);
@@ -105,6 +105,11 @@ async function connectToSkyWay(roomName) {
 function setupSkyWayEventListeners() {
     room.onMemberJoined.add((e) => {
         window.logMessage(`対戦相手が参加しました`, 'status-effect');
+
+        // ホスト側：クライアントが来たら自動でパーティー編成へ
+        if (isHost) {
+            transitionToPartyScreen();
+        }
     });
 
     me.onPublicationSubscribed.add(({ stream }) => {
@@ -116,6 +121,15 @@ function setupSkyWayEventListeners() {
             });
         }
     });
+}
+
+function transitionToPartyScreen() {
+    if (onlineScreen) onlineScreen.classList.add('hidden');
+    document.getElementById('party-screen')?.classList.remove('hidden');
+    if (goButton) goButton.disabled = false;
+
+    // オンライン用のセットアップUIを非表示にする（任意）
+    document.getElementById('online-setup')?.classList.add('hidden');
 }
 
 // データ送信関数
