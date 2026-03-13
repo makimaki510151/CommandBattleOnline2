@@ -512,6 +512,7 @@ async function playerTurn(actor) {
                         actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillName: skill.name };
                     }
                 }
+            /* 必殺技無効化（復活時はコメントを外す）
             } else if (target.matches('.action-special')) {
                 isActionInProgress = true;
                 disableCommandButtons(true);
@@ -551,6 +552,8 @@ async function playerTurn(actor) {
                         actionData = { action: 'special', actorUniqueId: actor.uniqueId, specialName: special.name };
                     }
                 }
+            }
+            */
             } else if (target.matches('.action-cancel')) {
                 isActionInProgress = false;
                 disableCommandButtons(false);
@@ -704,6 +707,7 @@ window.handleActionRequest = async (data) => {
                         actionData = { action: 'skill', skillName: skill.name };
                     }
                 }
+            /* 必殺技無効化（復活時はコメントを外す）
             } else if (target.matches('.action-special')) {
                 isActionInProgress = true;
                 disableCommandButtons(true);
@@ -743,6 +747,8 @@ window.handleActionRequest = async (data) => {
                         actionData = { action: 'special', specialName: special.name };
                     }
                 }
+            }
+            */
             } else if (target.matches('.action-cancel')) {
                 isActionInProgress = false;
                 disableCommandButtons(false);
@@ -853,6 +859,7 @@ window.executeAction = (data) => {
                 executeSkill(actor, skill, skillTargets);
             }
             break;
+        /* 必殺技無効化（復活時はコメントを外す）
         case 'special':
             const special = actor.special;
             if (special && special.name === data.specialName) {
@@ -886,6 +893,7 @@ window.executeAction = (data) => {
                 executeSpecial(actor, special, specialTargets);
             }
             break;
+        */
     }
 
     updateAllDisplays();
@@ -1136,50 +1144,47 @@ function updateCommandMenu(player) {
     }
     commandAreaEl.appendChild(skillMenuEl);
 
+    /* 必殺技無効化（復活時はコメントを外す）
     // 必殺技ボタンと説明文を生成
     const specialItem = document.createElement('div');
     specialItem.className = 'skill-item';
-
     const specialButton = document.createElement('button');
     specialButton.className = 'command-button action-special';
     specialButton.textContent = '必殺技';
-
     specialItem.appendChild(specialButton);
-
     if (player.special && player.special.desc) {
         const specialDesc = document.createElement('div');
         specialDesc.className = 'skill-description hidden';
         specialDesc.textContent = player.special.desc;
         document.body.appendChild(specialDesc);
-
         const moveHandler = (e) => {
             specialDesc.style.left = `${e.clientX + 15}px`;
             specialDesc.style.top = `${e.clientY + 15}px`;
         };
-
         specialButton.addEventListener('mouseenter', (e) => {
             specialDesc.classList.remove('hidden');
             moveHandler(e);
             specialButton.addEventListener('mousemove', moveHandler);
         });
-
         specialButton.addEventListener('mouseleave', () => {
             specialDesc.classList.add('hidden');
             specialButton.removeEventListener('mousemove', moveHandler);
         });
     }
     commandAreaEl.appendChild(specialItem);
+    */
 
     const defendButton = document.createElement('button');
     defendButton.className = 'command-button action-defend';
     defendButton.textContent = '防御';
     commandAreaEl.appendChild(defendButton);
 
-    if (specialAbilityConditions[player.originalId] && specialAbilityConditions[player.originalId](player, currentPlayerParty)) {
-        specialButton.disabled = false;
-    } else {
-        specialButton.disabled = true;
-    }
+    // 必殺技無効化（復活時は specialButton を復活させ、以下を有効に）
+    // if (specialAbilityConditions[player.originalId] && specialAbilityConditions[player.originalId](player, currentPlayerParty)) {
+    //     specialButton.disabled = false;
+    // } else {
+    //     specialButton.disabled = true;
+    // }
 
     if (isSkillMenuOpen) {
         addCancelButton();

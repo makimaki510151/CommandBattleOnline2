@@ -61,18 +61,19 @@ export const endTurnPassiveAbilities = {
 };
 
 /**
- * 必殺技の発動条件
+ * 必殺技の発動条件（必殺技無効化時は空。復活時はコメントを外す）
  */
-export const specialAbilityConditions = {
-    'char01': (player) => player.status.mp >= 50,
-    'char02': (player) => player.status.mp >= 40,
-    'char03': (player) => player.status.mp >= 60,
-    'char04': (player) => player.status.mp >= 80,
-    'char05': (player) => player.status.mp >= 60,
-    'char06': (player) => player.status.mp >= 70,
-    'char07': (player) => player.status.mp >= 60,
-    'char08': (player) => player.status.mp >= 75
-};
+// export const specialAbilityConditions = {
+//     'char01': (player) => player.status.mp >= 50,
+//     'char02': (player) => player.status.mp >= 40,
+//     'char03': (player) => player.status.mp >= 60,
+//     'char04': (player) => player.status.mp >= 80,
+//     'char05': (player) => player.status.mp >= 60,
+//     'char06': (player) => player.status.mp >= 70,
+//     'char07': (player) => player.status.mp >= 60,
+//     'char08': (player) => player.status.mp >= 75
+// };
+export const specialAbilityConditions = {};
 
 /**
  * アクティブスキルの効果
@@ -332,85 +333,83 @@ export const skillEffects = {
         }
     },
 
-    // 必殺技 (新キャラ)
-    'ソリッドウォール': (caster, targets, calculateDamage, logMessage) => {
-        caster.effects.invulnerable = { duration: 1 }; // 1ターン無敵
-        logMessage(`${caster.name}はソリッドウォールを展開し、全てのダメージを無効化した！`, 'special-event');
-    },
-    'ガイアシェル': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            target.effects.defBuff = { duration: 2, value: 1.25 }; // 防御力25%アップ
-            target.effects.mdefBuff = { duration: 2, value: 1.25 }; // 魔法防御力25%アップ
-        });
-        logMessage(`味方全体にガイアシェルの加護がかかった！`, 'status-effect');
-    },
-    'ハーモニー': (caster, targets, calculateDamage, logMessage) => {
-        const healAmount = Math.floor(caster.status.support * 1.0); // わずかにHP回復
-        targets.forEach(target => {
-            target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
-            // 全ての状態異常を治癒
-            target.effects = {};
-        });
-        logMessage(`味方全体の状態異常が治癒し、HPが回復した！`, 'heal');
-    },
-    'ライフセーバー': (caster, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        target.status.hp = target.status.maxHp;
-        // 全てのデバフを治癒
-        target.effects = {};
-        logMessage(`${target.name}のHPが完全に回復し、全てのデバフが治癒した！`, 'heal');
-    },
-    'エターナルマナ': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            target.status.mp = target.status.maxMp;
-        });
-        caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + Math.floor(caster.status.maxMp * 0.5)); // 自身もMPを50%回復
-        logMessage(`味方全体のMPが完全に回復した！`, 'heal');
-    },
-    'デスタッチ': (attacker, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 1.5);
-            if (!dodged) {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-                target.effects.defDebuff = { duration: 3, value: 0.5 }; // 防御力50%低下
-                target.effects.mdefDebuff = { duration: 3, value: 0.5 }; // 魔防50%低下
-                logMessage(`${target.name}の防御力が大幅に低下した！`, 'status-effect');
-            } else {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            }
-        });
-    },
-    'ディメンションスラッシュ': (attacker, targets, calculateDamage, logMessage) => {
-        const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 3.0); // 3倍ダメージ
-        if (dodged) {
-            logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-        } else {
-            if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-            target.status.hp = Math.max(0, target.status.hp - damage);
-            if (Math.random() < 0.3) { // 30%の確率で即死 (HPを0に)
-                if (target.status.hp > 0) {
-                    target.status.hp = 0;
-                    logMessage(`${target.name}は一撃で仕留められた！`, 'special-event');
-                }
-            }
-        }
-    },
-    'メテオフォール': (attacker, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            const { damage, critical, dodged } = calculateDamage(attacker, target, true, 2.5); // 2.5倍ダメージ
-            if (!dodged) {
-                if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
-                target.status.hp = Math.max(0, target.status.hp - damage);
-            } else {
-                logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
-            }
-        });
-    }
+    // 必殺技無効化（復活時はコメントを外す）
+    // 'ソリッドウォール': (caster, targets, calculateDamage, logMessage) => {
+    //     caster.effects.invulnerable = { duration: 1 }; // 1ターン無敵
+    //     logMessage(`${caster.name}はソリッドウォールを展開し、全てのダメージを無効化した！`, 'special-event');
+    // },
+    // 'ガイアシェル': (caster, targets, calculateDamage, logMessage) => {
+    //     targets.forEach(target => {
+    //         target.effects.defBuff = { duration: 2, value: 1.25 }; // 防御力25%アップ
+    //         target.effects.mdefBuff = { duration: 2, value: 1.25 }; // 魔法防御力25%アップ
+    //     });
+    //     logMessage(`味方全体にガイアシェルの加護がかかった！`, 'status-effect');
+    // },
+    // 'ハーモニー': (caster, targets, calculateDamage, logMessage) => {
+    //     const healAmount = Math.floor(caster.status.support * 1.0); // わずかにHP回復
+    //     targets.forEach(target => {
+    //         target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
+    //         target.effects = {};
+    //     });
+    //     logMessage(`味方全体の状態異常が治癒し、HPが回復した！`, 'heal');
+    // },
+    // 'ライフセーバー': (caster, targets, calculateDamage, logMessage) => {
+    //     const target = targets[0];
+    //     target.status.hp = target.status.maxHp;
+    //     target.effects = {};
+    //     logMessage(`${target.name}のHPが完全に回復し、全てのデバフが治癒した！`, 'heal');
+    // },
+    // 'エターナルマナ': (caster, targets, calculateDamage, logMessage) => {
+    //     targets.forEach(target => {
+    //         target.status.mp = target.status.maxMp;
+    //     });
+    //     caster.status.mp = Math.min(caster.status.maxMp, caster.status.mp + Math.floor(caster.status.maxMp * 0.5));
+    //     logMessage(`味方全体のMPが完全に回復した！`, 'heal');
+    // },
+    // 'デスタッチ': (attacker, targets, calculateDamage, logMessage) => {
+    //     targets.forEach(target => {
+    //         const { damage, critical, dodged } = calculateDamage(attacker, target, true, 1.5);
+    //         if (!dodged) {
+    //             if (critical) logMessage(`会心の一撃！`, 'special-event');
+    //             logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
+    //             target.status.hp = Math.max(0, target.status.hp - damage);
+    //             target.effects.defDebuff = { duration: 3, value: 0.5 };
+    //             target.effects.mdefDebuff = { duration: 3, value: 0.5 };
+    //             logMessage(`${target.name}の防御力が大幅に低下した！`, 'status-effect');
+    //         } else {
+    //             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+    //         }
+    //     });
+    // },
+    // 'ディメンションスラッシュ': (attacker, targets, calculateDamage, logMessage) => {
+    //     const target = targets[0];
+    //     const { damage, critical, dodged } = calculateDamage(attacker, target, false, 3.0);
+    //     if (dodged) {
+    //         logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+    //     } else {
+    //         if (critical) logMessage(`会心の一撃！`, 'special-event');
+    //         logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
+    //         target.status.hp = Math.max(0, target.status.hp - damage);
+    //         if (Math.random() < 0.3) {
+    //             if (target.status.hp > 0) {
+    //                 target.status.hp = 0;
+    //                 logMessage(`${target.name}は一撃で仕留められた！`, 'special-event');
+    //             }
+    //         }
+    //     }
+    // },
+    // 'メテオフォール': (attacker, targets, calculateDamage, logMessage) => {
+    //     targets.forEach(target => {
+    //         const { damage, critical, dodged } = calculateDamage(attacker, target, true, 2.5);
+    //         if (!dodged) {
+    //             if (critical) logMessage(`会心の一撃！`, 'special-event');
+    //             logMessage(`${attacker.name}の必殺技！ ${target.name}に${damage}のダメージ！`, 'damage');
+    //             target.status.hp = Math.max(0, target.status.hp - damage);
+    //         } else {
+    //             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
+    //         }
+    //     });
+    // }
 };
 
 /**

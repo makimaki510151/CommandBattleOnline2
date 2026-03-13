@@ -62,11 +62,13 @@ function renderCharacterDetails(char) {
             </li>
             `).join("")}
         </ul>
+        ${char.special ? `
         <h5>必殺技</h5>
         <p>
             <strong class="skill-name" data-description="${char.special.flavor}">${char.special.name}</strong>: ${char.special.desc}
             <span class="skill-tooltip">${char.special.flavor}</span>
         </p>
+        ` : '<!-- 必殺技無効化 -->'}
     `;
 }
 

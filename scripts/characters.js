@@ -22,9 +22,10 @@ export const characters = [
             { name: 'シールドバッシュ', mp: 10, desc: '敵単体に物理攻撃を行い、確率で行動順を遅らせる。', flavor: '（盾で敵を強打し、その動きを乱す。）', target: 'single' },
             { name: 'ストロングガード', mp: 20, desc: '自身の物理・魔法防御力を上昇させる。', flavor: '（全身の装甲を固定し、守りを固める。）', target: 'self' }
         ],
-        special: {
-            name: 'ソリッドウォール', mp: 50, desc: '自身への全てのダメージを1ターン無効化する。', flavor: '（一瞬、鋼鉄の壁と化す。）', target: 'self'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'ソリッドウォール', mp: 50, desc: '自身への全てのダメージを1ターン無効化する。', flavor: '（一瞬、鋼鉄の壁と化す。）', target: 'self'
+        // }
     },
     // 2. 仲間全体を守り盾になるタンク
     {
@@ -49,9 +50,10 @@ export const characters = [
             { name: 'アースクエイク', mp: 20, desc: '敵全体に物理攻撃を行い、確率で素早さを低下させる。', flavor: '（地面を叩きつけ、衝撃波を発生させる。）', target: 'all_enemies' },
             { name: '自己再生', mp: 10, desc: '自身のHPをわずかに回復する。', flavor: '（大地の力で、傷ついた体を癒す。）', target: 'self' }
         ],
-        special: {
-            name: 'ガイアシェル', mp: 40, desc: '味方全体に物理・魔法ダメージ軽減バフを付与する。', flavor: '（大地の硬い甲羅が仲間を包む。）', target: 'all_allies'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'ガイアシェル', mp: 40, desc: '味方全体に物理・魔法ダメージ軽減バフを付与する。', flavor: '（大地の硬い甲羅が仲間を包む。）', target: 'all_allies'
+        // }
     },
     // 3. 様々な支援を行うサポーター
     {
@@ -76,9 +78,10 @@ export const characters = [
             { name: 'マジックコーラス', mp: 25, desc: '味方全体に魔法攻撃力上昇バフを付与する。', flavor: '（魔力を増幅させる合唱で、魔導士の力を高める。）', target: 'all_allies' },
             { name: 'スピードアップ', mp: 15, desc: '味方単体の素早さを大幅に上昇させる。', flavor: '（風の精霊が、仲間の足取りを軽くする。）', target: 'ally_single' }
         ],
-        special: {
-            name: 'ハーモニー', mp: 60, desc: '味方全体の状態異常を全て治癒し、HPをわずかに回復する。', flavor: '（全てを洗い流す清らかな調べ。）', target: 'all_allies'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'ハーモニー', mp: 60, desc: '味方全体の状態異常を全て治癒し、HPをわずかに回復する。', flavor: '（全てを洗い流す清らかな調べ。）', target: 'all_allies'
+        // }
     },
     // 4. 体力回復特化の回復職
     {
@@ -103,9 +106,10 @@ export const characters = [
             { name: 'エリアヒール', mp: 35, desc: '味方全体のHPを回復する。', flavor: '（広範囲に優しい癒やしの光を放つ。）', target: 'all_allies' },
             { name: 'リザレクション', mp: 50, desc: '戦闘不能の味方単体をHPを半分にして復活させる。', flavor: '（一度失われた命を呼び戻す奇跡。）', target: 'ally_single_dead' }
         ],
-        special: {
-            name: 'ライフセーバー', mp: 80, desc: '味方単体のHPを最大値まで完全に回復し、全てのデバフを治癒する。', flavor: '（生命の源泉が湧き出る。）', target: 'ally_single'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'ライフセーバー', mp: 80, desc: '味方単体のHPを最大値まで完全に回復し、全てのデバフを治癒する。', flavor: '（生命の源泉が湧き出る。）', target: 'ally_single'
+        // }
     },
     // 5. MP回復特化の回復職
     {
@@ -130,9 +134,10 @@ export const characters = [
             { name: 'エナジーフロー', mp: 40, desc: '味方全体のMPを回復する。', flavor: '（パーティ全体に魔力の流れを作り出す。）', target: 'all_allies' },
             { name: 'マナドレイン', mp: 0, desc: '敵単体にわずかな魔法ダメージを与え、与えたダメージの半分のMPを回復する。', flavor: '（敵の魔力を吸収し、自身の力に変える。）', target: 'single' }
         ],
-        special: {
-            name: 'エターナルマナ', mp: 60, desc: '味方全体のMPを最大値まで完全に回復し、自身のMPも回復する。', flavor: '（無限の魔力の扉を開く。）', target: 'all_allies'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'エターナルマナ', mp: 60, desc: '味方全体のMPを最大値まで完全に回復し、自身のMPも回復する。', flavor: '（無限の魔力の扉を開く。）', target: 'all_allies'
+        // }
     },
     // 6. 様々なデバフをばら撒くサポーター
     {
@@ -157,9 +162,10 @@ export const characters = [
             { name: 'スローカース', mp: 25, desc: '敵全体に魔法攻撃を行い、確率で素早さを低下させる。', flavor: '（足枷となる重い呪いを敵全体にかける。）', target: 'all_enemies' },
             { name: 'ヴェノムボム', mp: 15, desc: '敵単体に魔法攻撃を行い、高確率で毒状態にする。', flavor: '（強力な毒を仕込んだ爆弾を投擲する。）', target: 'single' }
         ],
-        special: {
-            name: 'デスタッチ', mp: 70, desc: '敵全体に強力な呪いをかけ、防御力と魔法防御力を大幅に低下させる。', flavor: '（死を予感させる、抗えない呪い。）', target: 'all_enemies'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'デスタッチ', mp: 70, desc: '敵全体に強力な呪いをかけ、防御力と魔法防御力を大幅に低下させる。', flavor: '（死を予感させる、抗えない呪い。）', target: 'all_enemies'
+        // }
     },
     // 7. 単体特化のアタッカー
     {
@@ -184,9 +190,10 @@ export const characters = [
             { name: 'ラピッドストライク', mp: 15, desc: '敵単体に素早い物理攻撃を2回行う。', flavor: '（瞬時のうちに二連撃を叩き込む。）', target: 'single' },
             { name: 'チャージアップ', mp: 10, desc: '自身の物理攻撃力を一時的に上昇させる。', flavor: '（力を溜め、次の一撃に全てを懸ける。）', target: 'self' }
         ],
-        special: {
-            name: 'ディメンションスラッシュ', mp: 60, desc: '敵単体に超大な物理ダメージを与え、高確率で即死させる。', flavor: '（次元をも切り裂く、究極の一閃。）', target: 'single'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'ディメンションスラッシュ', mp: 60, desc: '敵単体に超大な物理ダメージを与え、高確率で即死させる。', flavor: '（次元をも切り裂く、究極の一閃。）', target: 'single'
+        // }
     },
     // 8. 全体的にじわじわ削っていくアタッカー
     {
@@ -211,8 +218,9 @@ export const characters = [
             { name: 'ヒートウェーブ', mp: 20, desc: '敵全体に魔法攻撃を行い、確率で防御力を低下させる。', flavor: '（超高熱の波動で、敵の装甲を脆くする。）', target: 'all_enemies' },
             { name: 'バーニングアロー', mp: 10, desc: '敵単体に魔法攻撃を行い、数ターンの間、火傷ダメージを与える。', flavor: '（炎を纏った矢を放ち、敵の体を内側から燃やす。）', target: 'single' }
         ],
-        special: {
-            name: 'メテオフォール', mp: 75, desc: '空から巨大な隕石を落とし、敵全体に超大な魔法ダメージを与える。', flavor: '（星の破片が大地に降り注ぎ、全てを破壊する。）', target: 'all_enemies'
-        }
+        // 必殺技無効化（復活時はコメントを外す）
+        // special: {
+        //     name: 'メテオフォール', mp: 75, desc: '空から巨大な隕石を落とし、敵全体に超大な魔法ダメージを与える。', flavor: '（星の破片が大地に降り注ぎ、全てを破壊する。）', target: 'all_enemies'
+        // }
     }
 ];
