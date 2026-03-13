@@ -29,11 +29,11 @@ async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
     
-    // SkyWay Auth Token 必須ペイロード
     const payload = {
         iat: now,
         exp: now + 3600,
-        jti: crypto.randomUUID(), // UUIDを使用するのが最も確実です
+        // SkyWay SDKがデコード時にUUID形式を強く推奨するため変更
+        jti: crypto.randomUUID(), 
         scope: {
             appId: appId,
             rooms: [{
@@ -50,12 +50,14 @@ async function createSkyWayToken(appId, secret) {
     };
 
     const encoder = new TextEncoder();
+    
+    // JSON文字列化してからエンコード
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
 
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
     
-    // HMAC SHA-256 署名
+    // HMAC SHA-256 署名の作成
     const key = await crypto.subtle.importKey(
         "raw",
         encoder.encode(secret),
@@ -70,9 +72,9 @@ async function createSkyWayToken(appId, secret) {
     return `${dataToSign}.${encodedSignature}`;
 }
 
-// 厳密な Base64URL エンコード関数
+// 厳密な Base64URL エンコード (パディング '=' を削除し、記号を置換)
 function b64UrlEncode(u8arr) {
-    const binstr = String.fromCharCode(...u8arr);
+    const binstr = Array.from(u8arr).map(b => String.fromCharCode(b)).join("");
     return btoa(binstr)
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
