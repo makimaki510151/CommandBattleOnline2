@@ -139,6 +139,60 @@ window.sendData = function (eventType, data) {
     }
 };
 
+// データ受信（battle.jsへルーティング）
+window.handleDataChannelMessage = function (payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const { eventType, eventData } = payload;
+
+    try {
+        switch (eventType) {
+            case 'sync_party': {
+                const partyData = eventData?.partyData;
+                if (partyData && window.handleOpponentParty) {
+                    window.handleOpponentParty(partyData);
+                }
+                break;
+            }
+            case 'start_battle': {
+                // クライアント：ホストから開始通知を受けて戦闘画面へ
+                document.getElementById('party-screen')?.classList.add('hidden');
+                document.getElementById('battle-screen')?.classList.remove('hidden');
+                if (window.startOnlineBattleClientSide) {
+                    window.startOnlineBattleClientSide(eventData?.initialState);
+                }
+                break;
+            }
+            case 'request_action': {
+                if (window.handleActionRequest) window.handleActionRequest(eventData);
+                break;
+            }
+            case 'execute_action': {
+                if (window.executeAction) window.executeAction(eventData);
+                break;
+            }
+            case 'sync_game_state': {
+                if (window.syncGameStateClientSide) window.syncGameStateClientSide(eventData);
+                break;
+            }
+            case 'log_message': {
+                if (eventData?.message && window.logMessage) {
+                    window.logMessage(eventData.message, eventData.type || '');
+                }
+                break;
+            }
+            case 'return_to_party_screen': {
+                if (window.returnToPartyScreen) window.returnToPartyScreen();
+                break;
+            }
+            default:
+                // unknown eventType: ignore
+                break;
+        }
+    } catch (e) {
+        console.error('DataChannel message handling error:', e, payload);
+    }
+};
+
 // --- 初期化処理 ---
 document.addEventListener('DOMContentLoaded', () => {
     // DOM要素の取得
@@ -195,7 +249,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('battle-screen')?.classList.remove('hidden');
 
         if (isOnlineMode) {
+            // battle.js側の「自分のパーティ準備完了」フラグを立てる
+            if (window.initializePlayerParty) {
+                window.initializePlayerParty(selectedParty);
+            }
             window.sendData('sync_party', { partyData: selectedParty });
+            window.logMessage?.('対戦相手の準備を待っています...', 'status-effect');
+            if (goButton) goButton.disabled = true;
         } else {
             if (window.startBattle) window.startBattle(selectedParty);
         }
