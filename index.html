@@ -33,48 +33,20 @@
     <div id="online-screen" class="hidden">
         <h2>オンライン対戦</h2>
         <div class="online-controls">
-            <div id="mode-selection">
-                <button id="show-host-ui-button">ホストとしてルームを作成</button>
-                <p>または</p>
-                <button id="show-client-ui-button">既存のルームに参加</button>
+            <div id="room-selection">
+                <input type="text" id="room-name-input" placeholder="ルームIDを入力 (例: battle123)">
+                <button id="join-room-button">入室して対戦相手を待つ</button>
             </div>
-            <div id="host-ui" class="hidden">
-                <p>生成されたSDPを相手に伝えてください。</p>
-                <div id="my-peer-id-container">
-                    <textarea id="my-peer-id" readonly></textarea>
-                    <button id="copy-id-button">コピー</button>
-                </div>
-
-                <div id="connect-container-host">
-                    <p>相手のSDPを貼り付けて接続を完了させてください。</p>
-                    <textarea id="peer-id-input-host" placeholder="相手のSDPをここに貼り付け"></textarea>
-                    <button id="connect-button-host">接続完了</button>
-                </div>
-
-                <div class="status-box">
-                    <p>状態：<span id="connection-status">未接続</span></p>
-                </div>
-            </div>
-            <div id="client-ui" class="hidden">
-                <p>相手のSDPをここに貼り付けて接続を開始します。</p>
-                <div id="peer-id-input-container">
-                    <textarea id="peer-id-input" placeholder="相手のSDPをここに貼り付け"></textarea>
-                </div>
-
-                <div id="my-peer-id-container-client">
-                    <p>生成されたSDPをホストに渡してください。</p>
-                    <textarea id="my-peer-id-client" readonly></textarea>
-                    <button id="copy-id-button-client">コピー</button>
-                </div>
-                <div class="status-box">
-                    <p>状態：<span id="connection-status">未接続</span></p>
-                </div>
-            </div>
-            <div class="go-to-party-container">
-                <button id="online-party-go-button" class="hidden">パーティー編成へ</button>
-            </div>
-            <button id="back-to-title-button">タイトルへ戻る</button>
+            <div id="connection-status"></div>
+            <div id="player-count"></div>
         </div>
+
+        <div id="online-setup" class="hidden">
+            <p>相手の準備を待っています...</p>
+            <button id="online-party-go-button" class="hidden">バトル開始！</button>
+        </div>
+
+        <button id="back-to-title-button">タイトルに戻る</button>
     </div>
 
     <div id="party-screen" class="hidden">
@@ -135,10 +107,10 @@
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway_room-latest.js"></script>
     <script type="module" src="scripts/party.js"></script>
     <script type="module" src="scripts/battle.js"></script>
-    <script defer type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/main.js"></script>
     <script type="module" src="scripts/characters.js"></script>
     <script type="module" src="scripts/enemies.js"></script>
 </body>
