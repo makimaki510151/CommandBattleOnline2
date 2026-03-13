@@ -33,9 +33,24 @@ function isMobileDevice() {
 
 // トークン取得
 async function getSkyWayToken() {
-    const res = await fetch('/api/token');
-    if (!res.ok) throw new Error('トークンの取得に失敗しました');
-    return await res.json();
+    try {
+        const res = await fetch('/api/token');
+        
+        if (!res.ok) {
+            const errorDetail = await res.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(errorDetail.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (!data.token) {
+            throw new Error('レスポンスにトークンが含まれていません');
+        }
+        
+        return data;
+    } catch (err) {
+        console.error('Token fetch error:', err);
+        throw new Error(`認証エラー: ${err.message}`);
+    }
 }
 
 // SkyWay接続メイン処理
