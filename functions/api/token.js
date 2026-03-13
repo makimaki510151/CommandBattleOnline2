@@ -45,10 +45,15 @@ async function createSkyWayToken(appId, secret) {
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
 
-    // ここで dataToSign を定義します
+    // 1. 署名対象の文字列を作成
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    const rawSecret = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
+    // 2. Secretのデコード（安全な方法に変更）
+    const binarySecret = atob(secret);
+    const rawSecret = new Uint8Array(binarySecret.length);
+    for (let i = 0; i < binarySecret.length; i++) {
+        rawSecret[i] = binarySecret.charCodeAt(i);
+    }
 
     const key = await crypto.subtle.importKey(
         "raw",
