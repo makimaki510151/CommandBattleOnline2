@@ -28,8 +28,7 @@ export const passiveAbilities = {
         // 祈りの光: 回復魔法の効果が10%上昇する。（スキル効果の計算時に適用）
     },
     'char05': (character) => {
-        // 魔力の泉: 自身のMP回復量が15%上昇する。
-        character.status.mp = Math.min(character.status.maxMp, character.status.mp + Math.floor(character.status.maxMp * 0.05 * 1.15)); // 基礎MP回復量（仮に最大MPの5%）に15%ボーナス
+        // 魔力の泉: 自身のMP回復量が15%上昇する。（MP回復スキル適用時に計算）
     },
     'char06': (character, allies, enemies) => {
         // 怨嗟の波動: 自身のデバフ効果の付与確率が上昇する。（スキル効果の計算時に適用）
@@ -41,6 +40,18 @@ export const passiveAbilities = {
         // 炎の残滓: 全体魔法攻撃時、確率で敵全体を火傷状態にする。（スキル効果の計算時に適用）
     }
 };
+
+function applyHeal(caster, baseAmount) {
+    // 祈りの光（char04）：回復魔法の効果10%UP
+    const bonus = caster?.originalId === 'char04' ? 1.1 : 1.0;
+    return Math.floor(baseAmount * bonus);
+}
+
+function applyMpHeal(target, baseAmount) {
+    // 魔力の泉（char05）：自身が受けるMP回復量15%UP
+    const bonus = target?.originalId === 'char05' ? 1.15 : 1.0;
+    return Math.floor(baseAmount * bonus);
+}
 
 /**
  * ターン終了時のパッシブ効果
@@ -145,14 +156,12 @@ export const skillEffects = {
     // 慈愛の聖女ルナ
     'ハイヒール': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
-        const passiveBonus = caster.originalId === 'char04' ? 1.1 : 1.0;
-        const healAmount = Math.floor(caster.status.support * 3.0 * passiveBonus);
+        const healAmount = applyHeal(caster, caster.status.support * 3.0);
         target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
         logMessage(`${target.name}は${healAmount}回復した！`, 'heal');
     },
     'エリアヒール': (caster, targets, calculateDamage, logMessage) => {
-        const passiveBonus = caster.originalId === 'char04' ? 1.1 : 1.0;
-        const healAmount = Math.floor(caster.status.support * 1.8 * passiveBonus);
+        const healAmount = applyHeal(caster, caster.status.support * 1.8);
         targets.forEach(target => {
             target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
         });
@@ -174,15 +183,17 @@ export const skillEffects = {
     'マナチャージ': (caster, targets, calculateDamage, logMessage) => {
         const target = targets[0];
         const mpHealAmount = Math.floor(caster.status.support * 2.5);
-        target.status.mp = Math.min(target.status.maxMp, target.status.mp + mpHealAmount);
-        logMessage(`${target.name}のMPが${mpHealAmount}回復した！`, 'heal');
+        const finalAmount = applyMpHeal(target, mpHealAmount);
+        target.status.mp = Math.min(target.status.maxMp, target.status.mp + finalAmount);
+        logMessage(`${target.name}のMPが${finalAmount}回復した！`, 'heal');
     },
     'エナジーフロー': (caster, targets, calculateDamage, logMessage) => {
         const mpHealAmount = Math.floor(caster.status.support * 1.5);
         targets.forEach(target => {
-            target.status.mp = Math.min(target.status.maxMp, target.status.mp + mpHealAmount);
+            const finalAmount = applyMpHeal(target, mpHealAmount);
+            target.status.mp = Math.min(target.status.maxMp, target.status.mp + finalAmount);
         });
-        logMessage(`味方全体のMPが${mpHealAmount}回復した！`, 'heal');
+        logMessage(`味方全体のMPが回復した！`, 'heal');
     },
     'マナドレイン': (attacker, targets, calculateDamage, logMessage) => {
         const target = targets[0];

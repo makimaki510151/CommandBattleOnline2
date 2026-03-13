@@ -348,13 +348,22 @@ async function battleLoop() {
             const combatants = [...currentPlayerParty, ...opponentParty];
             const aliveCombatants = combatants.filter(c => c.status.hp > 0);
             applyPassiveAbilities(aliveCombatants);
-            aliveCombatants.sort((a, b) => b.status.spd - a.status.spd || Math.random() - 0.5);
+            const effectiveSpd = (c) => {
+                let spd = c.status.spd;
+                if (c.effects.spdBuff) spd *= c.effects.spdBuff.value;
+                if (c.effects.spdDebuff) spd *= c.effects.spdDebuff.value;
+                return spd;
+            };
+            aliveCombatants.sort((a, b) => effectiveSpd(b) - effectiveSpd(a) || Math.random() - 0.5);
 
             logMessage(`行動順: ${aliveCombatants.map(c => c.name).join(' → ')}`);
 
             for (const combatant of aliveCombatants) {
                 if (isBattleOver()) break;
                 if (combatant.status.hp <= 0) continue;
+
+                // 防御は「次に行動するまで」の一時状態にする
+                if (combatant.isDefending) combatant.isDefending = false;
 
                 const actionSkipped = processStatusEffects(combatant);
                 if (actionSkipped) continue;
@@ -767,8 +776,25 @@ window.executeAction = (data) => {
         return;
     }
 
+    // ターゲット強制（挑発/かばう）
+    const resolveForcedTargetUniqueId = (chosenTargetUniqueId) => {
+        // 1) 行動者が挑発されている（プロヴォーク等）：単体対象はtoへ強制
+        if (actor.effects?.taunt?.to) {
+            const forced = allCombatants.find(c => c.uniqueId === actor.effects.taunt.to && c.status.hp > 0);
+            if (forced) return forced.uniqueId;
+        }
+        // 2) 選択ターゲットが「かばう」状態（ランパート等）：単体対象はtoへ差し替え
+        const chosen = allCombatants.find(c => c.uniqueId === chosenTargetUniqueId);
+        if (chosen?.effects?.taunt?.to) {
+            const forced = allCombatants.find(c => c.uniqueId === chosen.effects.taunt.to && c.status.hp > 0);
+            if (forced) return forced.uniqueId;
+        }
+        return chosenTargetUniqueId;
+    };
+
     switch (data.action) {
         case 'attack':
+            data.targetUniqueId = resolveForcedTargetUniqueId(data.targetUniqueId);
             const target = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
             if (target) {
                 performAttack(actor, target);
@@ -783,6 +809,9 @@ window.executeAction = (data) => {
             if (skill) {
                 const skillTargets = [];
                 if (skill.target === 'single' || skill.target === 'ally_single' || skill.target === 'self') {
+                    if (skill.target === 'single') {
+                        data.targetUniqueId = resolveForcedTargetUniqueId(data.targetUniqueId);
+                    }
                     const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
                     if (targetChar) skillTargets.push(targetChar);
                 } else if (skill.target === 'all_enemies') {
@@ -800,6 +829,9 @@ window.executeAction = (data) => {
             if (special && special.name === data.specialName) {
                 const specialTargets = [];
                 if (special.target === 'single' || special.target === 'ally_single' || special.target === 'self') {
+                    if (special.target === 'single') {
+                        data.targetUniqueId = resolveForcedTargetUniqueId(data.targetUniqueId);
+                    }
                     const targetChar = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
                     if (targetChar) specialTargets.push(targetChar);
                 } else if (special.target === 'all_enemies') {
@@ -826,7 +858,7 @@ window.executeAction = (data) => {
     }
 };
 
-function calculateDamage(attacker, target, isMagic = false) {
+function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.0, ignoreDefense = false, skillTarget = 'single') {
     let attackPower;
     let defensePower;
     let damageMultiplier = 1;
@@ -836,10 +868,23 @@ function calculateDamage(attacker, target, isMagic = false) {
     if (isMagic) {
         attackPower = attacker.status.matk;
         defensePower = target.status.mdef;
+
+        if (attacker.effects.matkBuff) attackPower *= attacker.effects.matkBuff.value;
+        if (attacker.effects.matkDebuff) attackPower *= attacker.effects.matkDebuff.value;
+        if (target.effects.mdefBuff) defensePower *= target.effects.mdefBuff.value;
+        if (target.effects.mdefDebuff) defensePower *= target.effects.mdefDebuff.value;
     } else {
         attackPower = attacker.status.atk;
         defensePower = target.status.def;
+
+        if (attacker.effects.atkBuff) attackPower *= attacker.effects.atkBuff.value;
+        if (attacker.effects.atkDebuff) attackPower *= attacker.effects.atkDebuff.value;
+        if (target.effects.defBuff) defensePower *= target.effects.defBuff.value;
+        if (target.effects.defDebuff) defensePower *= target.effects.defDebuff.value;
     }
+
+    if (ignoreDefense) defensePower = 0;
+    attackPower *= powerMultiplier;
 
     let dodgeRate = target.status.dodgeRate || 0;
     if (target.effects.accuracyDebuff) {
@@ -867,7 +912,7 @@ function calculateDamage(attacker, target, isMagic = false) {
     let damage = Math.max(1, Math.floor((attackPower * damageMultiplier) - (defensePower / 2)));
 
     if (damagePassiveEffects[attacker.originalId]) {
-        damage = damagePassiveEffects[attacker.originalId](attacker, target, damage, !isMagic);
+        damage = damagePassiveEffects[attacker.originalId](attacker, target, damage, !isMagic, skillTarget);
     }
 
     return { damage, critical: isCritical, dodged: isDodged };
@@ -875,7 +920,7 @@ function calculateDamage(attacker, target, isMagic = false) {
 
 function performAttack(attacker, target) {
     logMessage(`${attacker.name}の攻撃！`);
-    const { damage, critical, dodged } = calculateDamage(attacker, target, false);
+    const { damage, critical, dodged } = calculateDamage(attacker, target, false, 1.0, false, 'single');
 
     if (dodged) {
         logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
@@ -1123,6 +1168,14 @@ function processEndTurnEffects(combatants) {
             logMessage(`${c.name}は毒で${poisonDamage}のダメージを受けた！`, 'damage');
             if (c.status.hp <= 0) {
                 logMessage(`${c.name}は毒で倒れた...`, 'fainted');
+            }
+        }
+        if (c.effects.burn && c.effects.burn.duration > 0) {
+            const burnDamage = c.effects.burn.damage;
+            c.status.hp = Math.max(0, c.status.hp - burnDamage);
+            logMessage(`${c.name}は火傷で${burnDamage}のダメージを受けた！`, 'damage');
+            if (c.status.hp <= 0) {
+                logMessage(`${c.name}は火傷で倒れた...`, 'fainted');
             }
         }
         if (c.effects.bleed && c.effects.bleed.duration > 0) {
