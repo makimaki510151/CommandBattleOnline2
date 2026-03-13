@@ -14,16 +14,62 @@ let isHost = false;
 let onlinePartyGoButton, connectionStatusEl, onlineScreen, messageLogEl;
 let goButton, roomNameInput, joinRoomButton, backToTitleButton;
 
-// ログ表示関数
-window.logMessage = (message, type = '') => {
+// ログ表示関数（skillInfo = { name, desc, flavor } でスキル名にホバー説明を付与）
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+window.logMessage = (message, type = '', skillInfo = null) => {
     const p = document.createElement('p');
-    p.textContent = message;
     if (type) p.classList.add('log-message', type);
+
+    if (skillInfo && skillInfo.name) {
+        const safeMsg = escapeHtml(message);
+        const safeName = escapeHtml(skillInfo.name);
+        const span = `<span class="log-skill-name" data-desc="${escapeHtml(skillInfo.desc || '')}" data-flavor="${escapeHtml(skillInfo.flavor || '')}">${safeName}</span>`;
+        p.innerHTML = safeMsg.includes(safeName) ? safeMsg.replace(safeName, span) : safeMsg;
+    } else {
+        p.textContent = message;
+    }
+
     if (messageLogEl) {
         messageLogEl.appendChild(p);
         messageLogEl.scrollTop = messageLogEl.scrollHeight;
     }
 };
+
+// ログ内スキル名のツールチップ用（DOMContentLoaded後に設定）
+function setupLogSkillTooltips() {
+    const logEl = document.getElementById('message-log');
+    if (!logEl) return;
+    let tooltipEl = null;
+    let hideTimer = null;
+    logEl.addEventListener('mouseover', (e) => {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        const el = e.target.closest('.log-skill-name');
+        if (!el) return;
+        if (tooltipEl) return;
+        const desc = el.dataset.desc;
+        const flavor = el.dataset.flavor;
+        if (!desc && !flavor) return;
+        tooltipEl = document.createElement('div');
+        tooltipEl.className = 'log-skill-tooltip';
+        tooltipEl.innerHTML = desc ? `<div>${escapeHtml(desc)}</div>` : '';
+        if (flavor) tooltipEl.innerHTML += `<div class="log-skill-flavor">${escapeHtml(flavor)}</div>`;
+        document.body.appendChild(tooltipEl);
+        const rect = el.getBoundingClientRect();
+        tooltipEl.style.left = `${Math.min(rect.left, window.innerWidth - 280)}px`;
+        tooltipEl.style.top = `${rect.bottom + 4}px`;
+    });
+    logEl.addEventListener('mouseout', (e) => {
+        if (!e.relatedTarget?.closest?.('.log-skill-name')) {
+            hideTimer = setTimeout(() => { if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; } }, 150);
+        }
+    });
+}
 
 // モバイル判定
 function isMobileDevice() {
@@ -209,7 +255,7 @@ window.handleDataChannelMessage = function (payload) {
             }
             case 'log_message': {
                 if (eventData?.message && window.logMessage) {
-                    window.logMessage(eventData.message, eventData.type || '');
+                    window.logMessage(eventData.message, eventData.type || '', eventData.skillInfo || null);
                 }
                 break;
             }
@@ -233,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
     connectionStatusEl = document.getElementById('connection-status');
     onlineScreen = document.getElementById('online-screen');
     messageLogEl = document.getElementById('message-log');
+    setupLogSkillTooltips();
     goButton = document.getElementById('go-button');
     roomNameInput = document.getElementById('room-name-input');
     joinRoomButton = document.getElementById('join-room-button');

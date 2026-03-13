@@ -39,15 +39,15 @@ function generateUniqueId() {
     return `unique_${Date.now()}_${uniqueIdCounter++}`;
 }
 
-// ログメッセージを同期する関数
-function logMessage(message, type = '') {
+// ログメッセージを同期する関数（skillInfo = { name, desc, flavor } でスキル名にホバー説明）
+function logMessage(message, type = '', skillInfo = null) {
     if (window.logMessage) {
-        window.logMessage(message, type);
+        window.logMessage(message, type, skillInfo);
     }
 
     // オンラインモードでホストの場合、ログをクライアントに送信
     if (window.isOnlineMode() && window.isHost()) {
-        window.sendData('log_message', { message: message, type: type });
+        window.sendData('log_message', { message, type, skillInfo: skillInfo || undefined });
     }
 }
 
@@ -999,15 +999,17 @@ function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.
     return { damage, critical: isCritical, dodged: isDodged };
 }
 
+const NORMAL_ATTACK_INFO = { name: '通常攻撃', desc: '通常の物理攻撃。', flavor: '' };
+
 function performAttack(attacker, target) {
-    logMessage(`${attacker.name}の攻撃！`);
+    logMessage(`${attacker.name}の通常攻撃！`, '', NORMAL_ATTACK_INFO);
     const { damage, critical, dodged } = calculateDamage(attacker, target, false, 1.0, false, 'single');
 
     if (dodged) {
         logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
     } else {
         if (critical) logMessage(`会心の一撃！`, 'special-event');
-        logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+        logMessage(`${attacker.name}の通常攻撃！ ${target.name}に${damage}のダメージ！`, 'damage', NORMAL_ATTACK_INFO);
         target.status.hp = Math.max(0, target.status.hp - damage);
         if (target.status.hp <= 0) {
             target.status.hp = 0;
@@ -1283,7 +1285,9 @@ function executeSkill(actor, skill, skillTargets) {
     const effectFunc = skillEffects[skill.name];
     if (effectFunc) {
         actor.status.mp -= skill.mp;
-        effectFunc(actor, skillTargets, calculateDamage, logMessage);
+        const skillInfo = { name: skill.name, desc: skill.desc || '', flavor: skill.flavor || '' };
+        const logWithSkill = (msg, t = '') => logMessage(msg, t, skillInfo);
+        effectFunc(actor, skillTargets, calculateDamage, logWithSkill, skill);
     }
 }
 

@@ -80,19 +80,19 @@ export const specialAbilityConditions = {};
  */
 export const skillEffects = {
     // 鉄壁の騎士ゼイド
-    'ランパート': (caster, targets, calculateDamage, logMessage) => {
+    'ランパート': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        target.effects.taunt = { duration: 1, to: caster.uniqueId }; // 次の単体攻撃をゼイドに引き付ける
-        logMessage(`${caster.name}が${target.name}を護るため、次の攻撃を引き付けた！`, 'status-effect');
+        target.effects.taunt = { duration: 1, to: caster.uniqueId };
+        logMessage(`${caster.name}は${skill.name}で${target.name}を護り、次の攻撃を引き付けた！`, 'status-effect');
     },
-    'シールドバッシュ': (attacker, targets, calculateDamage, logMessage) => {
+    'シールドバッシュ': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         const { damage, critical, dodged } = calculateDamage(attacker, target, false);
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
             if (Math.random() < 0.4) { // 40%の確率で行動順を遅らせる（spdDebuffで代用）
                 target.effects.spdDebuff = { duration: 1, value: 0.5 };
@@ -100,25 +100,25 @@ export const skillEffects = {
             }
         }
     },
-    'ストロングガード': (caster, targets, calculateDamage, logMessage) => {
+    'ストロングガード': (caster, targets, calculateDamage, logMessage, skill) => {
         caster.effects.defBuff = { duration: 3, value: 1.5 };
         caster.effects.mdefBuff = { duration: 3, value: 1.5 };
-        logMessage(`${caster.name}の物理・魔法防御力が大幅に上昇した！`, 'status-effect');
+        logMessage(`${caster.name}は${skill.name}で物理・魔法防御力が大幅に上昇した！`, 'status-effect');
     },
 
     // 大地戦士ゴルム
-    'プロヴォーク': (caster, targets, calculateDamage, logMessage) => {
+    'プロヴォーク': (caster, targets, calculateDamage, logMessage, skill) => {
         targets.forEach(target => {
-            target.effects.taunt = { duration: 2, to: caster.uniqueId, all: true }; // 2ターン全体攻撃を引き付ける（全て自身へ）
+            target.effects.taunt = { duration: 2, to: caster.uniqueId, all: true };
         });
-        logMessage(`${caster.name}が敵全体を挑発し、攻撃を引き付けた！`, 'status-effect');
+        logMessage(`${caster.name}は${skill.name}で敵全体を挑発し、攻撃を引き付けた！`, 'status-effect');
     },
-    'アースクエイク': (attacker, targets, calculateDamage, logMessage) => {
+    'アースクエイク': (attacker, targets, calculateDamage, logMessage, skill) => {
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, false);
             if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
                 if (Math.random() < 0.3) { // 30%の確率で素早さ低下
                     target.effects.spdDebuff = { duration: 2, value: 0.7 };
@@ -129,81 +129,74 @@ export const skillEffects = {
             }
         });
     },
-    '自己再生': (caster, targets, calculateDamage, logMessage) => {
-        const healAmount = Math.floor(caster.status.maxHp * 0.15); // 最大HPの15%回復
+    '自己再生': (caster, targets, calculateDamage, logMessage, skill) => {
+        const healAmount = Math.floor(caster.status.maxHp * 0.15);
         caster.status.hp = Math.min(caster.status.maxHp, caster.status.hp + healAmount);
-        logMessage(`${caster.name}は自己再生で${healAmount}回復した。`, 'heal');
+        logMessage(`${caster.name}は${skill.name}で${healAmount}回復した。`, 'heal');
     },
 
     // 風の歌い手ミサ
-    'ブレイブソング': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            target.effects.atkBuff = { duration: 3, value: 1.3 }; // 攻撃力30%アップ
-        });
-        logMessage(`${caster.name}は味方全体の物理攻撃力を上昇させた！`, 'status-effect');
+    'ブレイブソング': (caster, targets, calculateDamage, logMessage, skill) => {
+        targets.forEach(target => { target.effects.atkBuff = { duration: 3, value: 1.3 }; });
+        logMessage(`${caster.name}は${skill.name}で味方全体の物理攻撃力を上昇させた！`, 'status-effect');
     },
-    'マジックコーラス': (caster, targets, calculateDamage, logMessage) => {
-        targets.forEach(target => {
-            target.effects.matkBuff = { duration: 3, value: 1.3 }; // 魔攻30%アップ
-        });
-        logMessage(`${caster.name}は味方全体の魔法攻撃力を上昇させた！`, 'status-effect');
+    'マジックコーラス': (caster, targets, calculateDamage, logMessage, skill) => {
+        targets.forEach(target => { target.effects.matkBuff = { duration: 3, value: 1.3 }; });
+        logMessage(`${caster.name}は${skill.name}で味方全体の魔法攻撃力を上昇させた！`, 'status-effect');
     },
-    'スピードアップ': (caster, targets, calculateDamage, logMessage) => {
+    'スピードアップ': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        target.effects.spdBuff = { duration: 3, value: 1.6 }; // 素早さ60%アップ
-        logMessage(`${target.name}の素早さが大幅に上昇した！`, 'status-effect');
+        target.effects.spdBuff = { duration: 3, value: 1.6 };
+        logMessage(`${caster.name}は${skill.name}で${target.name}の素早さを大幅に上昇させた！`, 'status-effect');
     },
 
     // 慈愛の聖女ルナ
-    'ハイヒール': (caster, targets, calculateDamage, logMessage) => {
+    'ハイヒール': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         const healAmount = applyHeal(caster, caster.status.support * 3.0);
         target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
-        logMessage(`${target.name}は${healAmount}回復した！`, 'heal');
+        logMessage(`${caster.name}は${skill.name}で${target.name}を${healAmount}回復した！`, 'heal');
     },
-    'エリアヒール': (caster, targets, calculateDamage, logMessage) => {
+    'エリアヒール': (caster, targets, calculateDamage, logMessage, skill) => {
         const healAmount = applyHeal(caster, caster.status.support * 1.8);
-        targets.forEach(target => {
-            target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount);
-        });
-        logMessage(`味方全体が${healAmount}回復した！`, 'heal');
+        targets.forEach(target => { target.status.hp = Math.min(target.status.maxHp, target.status.hp + healAmount); });
+        logMessage(`${caster.name}は${skill.name}で味方全体を${healAmount}回復した！`, 'heal');
     },
-    'リザレクション': (caster, targets, calculateDamage, logMessage) => {
+    'リザレクション': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         if (target.status.hp <= 0) {
-            target.status.hp = Math.floor(target.status.maxHp * 0.5); // HPを半分にして復活
-            // 他の状態をリセット
+            target.status.hp = Math.floor(target.status.maxHp * 0.5);
             target.effects = {};
-            logMessage(`${target.name}がHP半分で復活した！`, 'heal');
+            logMessage(`${caster.name}は${skill.name}で${target.name}をHP半分で復活させた！`, 'heal');
         } else {
             logMessage(`${target.name}は戦闘不能ではないため効果なし。`, 'info');
         }
     },
 
     // 魔力供給者アルト
-    'マナチャージ': (caster, targets, calculateDamage, logMessage) => {
+    'マナチャージ': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         const mpHealAmount = Math.floor(caster.status.support * 2.5);
         const finalAmount = applyMpHeal(target, mpHealAmount);
         target.status.mp = Math.min(target.status.maxMp, target.status.mp + finalAmount);
-        logMessage(`${target.name}のMPが${finalAmount}回復した！`, 'heal');
+        logMessage(`${caster.name}は${skill.name}で${target.name}のMPを${finalAmount}回復した！`, 'heal');
     },
-    'エナジーフロー': (caster, targets, calculateDamage, logMessage) => {
+    'エナジーフロー': (caster, targets, calculateDamage, logMessage, skill) => {
         const mpHealAmount = Math.floor(caster.status.support * 1.5);
         targets.forEach(target => {
             const finalAmount = applyMpHeal(target, mpHealAmount);
             target.status.mp = Math.min(target.status.maxMp, target.status.mp + finalAmount);
         });
-        logMessage(`味方全体のMPが回復した！`, 'heal');
+        logMessage(`${caster.name}は${skill.name}で味方全体のMPを回復した！`, 'heal');
     },
-    'マナドレイン': (attacker, targets, calculateDamage, logMessage) => {
+    'マナドレイン': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.5); // 0.5倍の威力
+        const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.5);
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
 
             const mpHealAmount = Math.floor(damage / 2); // 与えたダメージの半分MP回復
@@ -213,19 +206,19 @@ export const skillEffects = {
     },
 
     // 呪術師アザミ
-    'ウィークネス': (caster, targets, calculateDamage, logMessage) => {
+    'ウィークネス': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        target.effects.atkDebuff = { duration: 3, value: 0.7 }; // 攻撃力30%低下
-        target.effects.matkDebuff = { duration: 3, value: 0.7 }; // 魔攻30%低下
-        logMessage(`${target.name}の物理・魔法攻撃力が低下した！`, 'status-effect');
+        target.effects.atkDebuff = { duration: 3, value: 0.7 };
+        target.effects.matkDebuff = { duration: 3, value: 0.7 };
+        logMessage(`${caster.name}は${skill.name}で${target.name}の物理・魔法攻撃力を低下させた！`, 'status-effect');
     },
-    'スローカース': (attacker, targets, calculateDamage, logMessage) => {
-        const debuffChance = attacker.originalId === 'char06' ? 0.45 : 0.3; // 怨嗟の波動適用
+    'スローカース': (attacker, targets, calculateDamage, logMessage, skill) => {
+        const debuffChance = attacker.originalId === 'char06' ? 0.45 : 0.3;
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.8);
             if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
                 if (Math.random() < debuffChance) {
                     target.effects.spdDebuff = { duration: 3, value: 0.6 }; // 素早さ40%低下
@@ -236,15 +229,15 @@ export const skillEffects = {
             }
         });
     },
-    'ヴェノムボム': (attacker, targets, calculateDamage, logMessage) => {
+    'ヴェノムボム': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         const { damage, critical, dodged } = calculateDamage(attacker, target, true);
-        const poisonChance = attacker.originalId === 'char06' ? 0.75 : 0.5; // 怨嗟の波動適用
+        const poisonChance = attacker.originalId === 'char06' ? 0.75 : 0.5;
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
             if (Math.random() < poisonChance) {
                 target.effects.poison = { duration: 3, damage: Math.floor(attacker.status.matk * 0.3) };
@@ -254,45 +247,45 @@ export const skillEffects = {
     },
 
     // 一撃の剣士カイ
-    'ブレイクスルー': (attacker, targets, calculateDamage, logMessage) => {
+    'ブレイクスルー': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 1.5, true); // 1.5倍ダメージ、防御無視フラグを立てる
+        const { damage, critical, dodged } = calculateDamage(attacker, target, false, 1.5, true);
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！ (防御無視)`, 'damage');
+            logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！ (防御無視)`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
         }
     },
-    'ラピッドストライク': (attacker, targets, calculateDamage, logMessage) => {
+    'ラピッドストライク': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
-        for (let i = 0; i < 2; i++) { // 2回攻撃
-            const { damage, critical, dodged } = calculateDamage(attacker, target, false, 0.8); // 0.8倍の威力
+        for (let i = 0; i < 2; i++) {
+            const { damage, critical, dodged } = calculateDamage(attacker, target, false, 0.8);
             if (dodged) {
                 logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
                 break;
             } else {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
             }
             if (target.status.hp <= 0) break;
         }
     },
-    'チャージアップ': (caster, targets, calculateDamage, logMessage) => {
-        caster.effects.atkBuff = { duration: 2, value: 1.5 }; // 攻撃力50%アップ
-        logMessage(`${caster.name}の物理攻撃力が大幅に上昇した！`, 'status-effect');
+    'チャージアップ': (caster, targets, calculateDamage, logMessage, skill) => {
+        caster.effects.atkBuff = { duration: 2, value: 1.5 };
+        logMessage(`${caster.name}は${skill.name}で物理攻撃力が大幅に上昇した！`, 'status-effect');
     },
 
     // 業火の魔女イヴ
-    'ファイアストーム': (attacker, targets, calculateDamage, logMessage) => {
-        const burnChance = attacker.originalId === 'char08' ? 0.35 : 0.2; // 炎の残滓適用
+    'ファイアストーム': (attacker, targets, calculateDamage, logMessage, skill) => {
+        const burnChance = attacker.originalId === 'char08' ? 0.35 : 0.2;
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, true);
             if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
                 if (Math.random() < burnChance) { // 確率で火傷
                     target.effects.burn = { duration: 3, damage: Math.floor(attacker.status.matk * 0.1) };
@@ -303,12 +296,12 @@ export const skillEffects = {
             }
         });
     },
-    'ヒートウェーブ': (attacker, targets, calculateDamage, logMessage) => {
+    'ヒートウェーブ': (attacker, targets, calculateDamage, logMessage, skill) => {
         targets.forEach(target => {
             const { damage, critical, dodged } = calculateDamage(attacker, target, true, 0.9);
             if (!dodged) {
                 if (critical) logMessage(`会心の一撃！`, 'special-event');
-                logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+                logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
                 target.status.hp = Math.max(0, target.status.hp - damage);
                 if (Math.random() < 0.3) { // 30%の確率で防御力低下
                     target.effects.defDebuff = { duration: 2, value: 0.7 };
@@ -319,14 +312,14 @@ export const skillEffects = {
             }
         });
     },
-    'バーニングアロー': (attacker, targets, calculateDamage, logMessage) => {
+    'バーニングアロー': (attacker, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
         const { damage, critical, dodged } = calculateDamage(attacker, target, true);
         if (dodged) {
             logMessage(`${target.name}は攻撃を回避した！`, 'status-effect');
         } else {
             if (critical) logMessage(`会心の一撃！`, 'special-event');
-            logMessage(`${attacker.name}の攻撃！ ${target.name}に${damage}のダメージ！`, 'damage');
+            logMessage(`${attacker.name}の${skill.name}！ ${target.name}に${damage}のダメージ！`, 'damage');
             target.status.hp = Math.max(0, target.status.hp - damage);
             target.effects.burn = { duration: 3, damage: Math.floor(attacker.status.matk * 0.2) };
             logMessage(`${target.name}は火傷状態になった！`, 'status-effect');
