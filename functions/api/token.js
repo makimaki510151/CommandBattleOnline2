@@ -21,12 +21,11 @@ async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
 
-    // SkyWayが必須とするフィールドをすべて網羅
     const payload = {
         version: 3,
         iat: now,
         exp: now + 3600,
-        jti: crypto.randomUUID(), // これが欠けるとデコードエラーになります
+        jti: crypto.randomUUID(),
         scope: {
             appId: appId,
             rooms: [{
@@ -45,6 +44,9 @@ async function createSkyWayToken(appId, secret) {
     const encoder = new TextEncoder();
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
+
+    // ここで dataToSign を定義します
+    const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
     const rawSecret = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
 
