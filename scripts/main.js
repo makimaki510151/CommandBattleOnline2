@@ -112,6 +112,39 @@ function setupSkyWayEventListeners() {
         }
     });
 
+    // 相手がpublishしたDataStreamを購読しないと受信できない
+    // (publishは自動購読されない)
+    const trySubscribeDataPublication = async (publication) => {
+        try {
+            if (!publication) return;
+            if (publication.publisher?.id === me?.id) return; // 自分のpublicationは不要
+            if (publication.contentType !== 'data') return;
+            await me.subscribe(publication.id);
+        } catch (err) {
+            console.warn('Failed to subscribe data publication:', err);
+        }
+    };
+
+    // 既に存在するpublicationがあれば購読（入室順によっては必要）
+    try {
+        if (Array.isArray(room.publications)) {
+            room.publications.forEach((p) => { void trySubscribeDataPublication(p); });
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    // 新しくpublishされたら都度購読
+    if (room.onStreamPublished?.add) {
+        room.onStreamPublished.add((e) => {
+            void trySubscribeDataPublication(e?.publication);
+        });
+    } else if (room.onPublicationPublished?.add) {
+        room.onPublicationPublished.add((e) => {
+            void trySubscribeDataPublication(e?.publication);
+        });
+    }
+
     me.onPublicationSubscribed.add(({ stream }) => {
         if (stream.contentType === 'data') {
             stream.onData.add((data) => {
