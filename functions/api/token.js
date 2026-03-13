@@ -27,32 +27,22 @@ async function createSkyWayToken(appId, secret) {
         jti: crypto.randomUUID(),
         version: 3,
         scope: {
-            app: {
-                id: appId,
-                actions: ["read"], // アプリ情報の参照権限
-                rooms: [
-                    {
+            appId,
+            // 未指定でも enabled:true 扱いだが明示しておく
+            turn: { enabled: true },
+            rooms: [
+                {
+                    id: "*",
+                    name: "*",
+                    // Roomライブラリで FindOrCreate/join するための最小権限
+                    methods: ["create"],
+                    member: {
+                        id: "*",
                         name: "*",
-                        methods: ["create", "delete", "aggregate"],
-                        members: [ // 'member' ではなく 'members' (複数形)
-                            {
-                                name: "*",
-                                methods: ["create", "delete", "update"],
-                                publications: [ // 'publication' ではなく 'publications'
-                                    {
-                                        methods: ["create", "delete", "update", "publish"] // publish権限はこちらに含める
-                                    }
-                                ],
-                                subscriptions: [ // 'subscription' ではなく 'subscriptions'
-                                    {
-                                        methods: ["create", "delete", "subscribe"] // subscribe権限はこちらに含める
-                                    }
-                                ]
-                            }
-                        ]
+                        methods: ["publish", "subscribe"]
                     }
-                ]
-            }
+                }
+            ]
         }
     };
 
