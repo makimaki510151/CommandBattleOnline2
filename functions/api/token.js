@@ -21,23 +21,26 @@ async function createSkyWayToken(appId, secret) {
     const header = { alg: "HS256", typ: "JWT" };
     const now = Math.floor(Date.now() / 1000);
 
+    // SkyWay Auth Token v3 の仕様に準拠したペイロード
     const payload = {
-        version: 3,
         iat: now,
-        exp: now + 3600,
+        exp: now + 3600, // 有効期限 1時間
         jti: crypto.randomUUID(),
+        version: 3,
         scope: {
             appId: appId,
-            rooms: [{
-                name: "*",
-                methods: ["create", "delete", "aggregate"],
-                members: [{
+            rooms: [
+                {
                     name: "*",
-                    methods: ["create", "delete", "update", "subscribe", "publish"],
-                    publication: { methods: ["create", "delete", "update"] },
-                    subscription: { methods: ["create", "delete"] },
-                }]
-            }]
+                    methods: ["create", "delete", "aggregate"],
+                    member: {
+                        name: "*",
+                        methods: ["create", "delete", "update", "subscribe", "publish"],
+                        publication: { methods: ["create", "delete", "update"] },
+                        subscription: { methods: ["create", "delete"] }
+                    }
+                }
+            ]
         }
     };
 
@@ -45,16 +48,10 @@ async function createSkyWayToken(appId, secret) {
     const encodedHeader = b64UrlEncode(encoder.encode(JSON.stringify(header)));
     const encodedPayload = b64UrlEncode(encoder.encode(JSON.stringify(payload)));
 
-    // 1. 署名対象の文字列を作成
     const dataToSign = `${encodedHeader}.${encodedPayload}`;
 
-    // 2. Secretのデコード（安全な方法に変更）
-    const binarySecret = atob(secret);
-    const rawSecret = new Uint8Array(binarySecret.length);
-    for (let i = 0; i < binarySecret.length; i++) {
-        rawSecret[i] = binarySecret.charCodeAt(i);
-    }
-
+    // Secretをバイナリとしてインポート
+    const rawSecret = encoder.encode(secret);
     const key = await crypto.subtle.importKey(
         "raw",
         rawSecret,
@@ -69,8 +66,9 @@ async function createSkyWayToken(appId, secret) {
     return `${dataToSign}.${encodedSignature}`;
 }
 
+// 標準的なBase64Urlエンコード（パディング削除、記号置換）
 function b64UrlEncode(u8arr) {
-    const binstr = String.fromCharCode(...u8arr);
+    const binstr = Array.from(u8arr).map(b => String.fromCharCode(b)).join('');
     return btoa(binstr)
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
