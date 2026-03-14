@@ -158,6 +158,12 @@
     background-color: #bbdefb;
 }
 
+.party-slot.drop-target {
+    border-color: #ff9800;
+    box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.5);
+    background-color: #ffe0b2;
+}
+
 .party-slot .char-icon {
     width: 80px;
     height: 80px;

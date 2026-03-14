@@ -371,6 +371,17 @@ async function battleLoop() {
                 if (candidates.length === 0) break;
 
                 candidates.sort(spdSort);
+
+                // 速度変化により行動順が変わった場合はログに記録
+                const expectedRemaining = displayOrder
+                    .filter(c => c.status.hp > 0 && !acted.has(c.uniqueId))
+                    .map(c => c.name)
+                    .join(' → ');
+                const currentRemaining = candidates.map(c => c.name).join(' → ');
+                if (expectedRemaining && currentRemaining && expectedRemaining !== currentRemaining) {
+                    logMessage(`行動順が変化した: ${currentRemaining}`, 'status-effect');
+                }
+
                 const combatant = candidates[0];
                 acted.add(combatant.uniqueId);
 

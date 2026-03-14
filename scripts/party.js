@@ -16,8 +16,9 @@ function renderCharacterCards() {
         const card = document.createElement('div');
         card.className = 'character-card';
         card.dataset.id = char.id;
+        card.draggable = true;
         card.innerHTML = `
-            <img src="${char.image}" alt="${char.name}" class="char-thumb">
+            <img src="${char.image}" alt="${char.name}" class="char-thumb" draggable="false">
             <div class="char-info">
                 <h4>${char.name}</h4>
                 <p>${char.role}</p>
@@ -85,7 +86,40 @@ characterListEl.addEventListener('click', (event) => {
     renderCharacterDetails(selectedChar);
 });
 
-// パーティースロット配置イベント
+// スロットにキャラを配置する共通処理
+function placeCharInSlot(slot, char) {
+    slot.innerHTML = '';
+    const imgEl = document.createElement('img');
+    imgEl.src = char.image;
+    imgEl.alt = char.name;
+    imgEl.className = 'char-icon';
+    imgEl.draggable = false;
+    slot.appendChild(imgEl);
+    slot.dataset.charId = char.id;
+    slot.classList.add('filled');
+    slot.draggable = true;
+}
+
+// スロットからキャラを削除する共通処理
+function clearSlot(slot) {
+    slot.innerHTML = '';
+    slot.classList.remove('filled');
+    delete slot.dataset.charId;
+    slot.draggable = false;
+}
+
+// スロット状態から partyMembers を同期
+function syncPartyFromSlots() {
+    partyMembers = [];
+    document.querySelectorAll('.party-slot').forEach(slot => {
+        if (slot.classList.contains('filled') && slot.dataset.charId) {
+            const char = characters.find(c => c.id === slot.dataset.charId);
+            if (char) partyMembers.push(JSON.parse(JSON.stringify(char)));
+        }
+    });
+}
+
+// パーティースロット配置イベント（クリック）
 partySlotsEl.addEventListener('click', (event) => {
     const slot = event.target.closest('.party-slot');
     if (!slot) return;
@@ -100,32 +134,116 @@ partySlotsEl.addEventListener('click', (event) => {
         }
 
         if (char) {
-            slot.innerHTML = '';
-            const imgEl = document.createElement('img');
-            imgEl.src = char.image;
-            imgEl.alt = char.name;
-            imgEl.className = 'char-icon';
-            slot.appendChild(imgEl);
-
-            slot.dataset.charId = char.id;
-            slot.classList.add('filled');
-
-            // Deep copyでキャラクターをパーティーに追加
-            const partyChar = JSON.parse(JSON.stringify(char));
-            partyMembers.push(partyChar);
-
+            placeCharInSlot(slot, char);
+            syncPartyFromSlots();
             selectedCharacterId = null;
             document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
             renderCharacterDetails(null);
         }
     } else if (slot.classList.contains('filled')) {
-        const charIdToRemove = slot.dataset.charId;
-        slot.innerHTML = '';
-        slot.classList.remove('filled');
-        delete slot.dataset.charId;
-
-        partyMembers = partyMembers.filter(member => member.id !== charIdToRemove);
+        clearSlot(slot);
+        syncPartyFromSlots();
     }
+});
+
+// --- ドラッグ&ドロップ（キャラ一覧カード → スロット、スロット間）---
+
+// キャラ一覧カード: ドラッグ時はカードUIをプレビューに（画像単体を持ち上げない）
+characterListEl.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.character-card');
+    if (!card || !card.dataset.id) return;
+    const charId = card.dataset.id;
+    const char = characters.find(c => c.id === charId);
+    if (!char || partyMembers.some(m => m.id === charId)) return;
+
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'from-list', charId }));
+    e.dataTransfer.effectAllowed = 'copy';
+
+    // カード全体をドラッグプレビューに（画像単体を持ち上げない）
+    const rect = card.getBoundingClientRect();
+    e.dataTransfer.setDragImage(card, rect.width / 2, rect.height / 2);
+});
+
+// パーティースロット: ドラッグ時はスロットUIをプレビューに
+partySlotsEl.addEventListener('dragstart', (e) => {
+    const slot = e.target.closest('.party-slot');
+    if (!slot || !slot.classList.contains('filled')) return;
+    const charId = slot.dataset.charId;
+    const slotId = slot.dataset.slotId;
+
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'from-slot', charId, slotId }));
+    e.dataTransfer.effectAllowed = 'move';
+
+    const rect = slot.getBoundingClientRect();
+    e.dataTransfer.setDragImage(slot, rect.width / 2, rect.height / 2);
+});
+
+// スロット: ドロップ許可
+partySlotsEl.addEventListener('dragover', (e) => {
+    const slot = e.target.closest('.party-slot');
+    if (!slot) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    slot.classList.add('drop-target');
+});
+
+partySlotsEl.addEventListener('dragleave', (e) => {
+    const slot = e.target.closest('.party-slot');
+    if (slot && !slot.contains(e.relatedTarget)) slot.classList.remove('drop-target');
+});
+
+partySlotsEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const slot = e.target.closest('.party-slot');
+    if (!slot) return;
+    slot.classList.remove('drop-target');
+
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const { type, charId, slotId: sourceSlotId } = data;
+
+        const char = characters.find(c => c.id === charId);
+        if (!char) return;
+
+        const targetSlotId = slot.dataset.slotId;
+        const isSameSlot = type === 'from-slot' && sourceSlotId === targetSlotId;
+        if (isSameSlot) return;
+
+        if (type === 'from-list') {
+            if (partyMembers.some(m => m.id === charId)) return;
+            if (slot.classList.contains('filled')) {
+                clearSlot(slot);
+            }
+            placeCharInSlot(slot, char);
+            syncPartyFromSlots();
+        } else if (type === 'from-slot') {
+            const sourceSlot = document.querySelector(`.party-slot[data-slot-id="${sourceSlotId}"]`);
+            if (!sourceSlot) return;
+            if (slot.classList.contains('filled')) {
+                // スロット間スワップ
+                const targetCharId = slot.dataset.charId;
+                const targetChar = characters.find(c => c.id === targetCharId);
+                if (targetChar) {
+                    clearSlot(sourceSlot);
+                    clearSlot(slot);
+                    placeCharInSlot(sourceSlot, targetChar);
+                    placeCharInSlot(slot, char);
+                }
+            } else {
+                // 空きスロットへ移動
+                clearSlot(sourceSlot);
+                placeCharInSlot(slot, char);
+            }
+            syncPartyFromSlots();
+        }
+    } catch (_) {
+        /* 無効なデータを無視 */
+    }
+});
+
+// ドラッグ終了時にドロップターゲット用クラスを削除
+document.addEventListener('dragend', () => {
+    document.querySelectorAll('.party-slot.drop-target').forEach(s => s.classList.remove('drop-target'));
 });
 
 // パーティー編成データを取得する関数
