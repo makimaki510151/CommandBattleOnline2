@@ -52,12 +52,12 @@
 .player-character,
 .character-card {
     transition: all 0.3s ease;
-    width: 20%;
-    min-width: 100px;
+    width: 18%;
+    min-width: 72px;
     background: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    padding: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -68,17 +68,17 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     width: 100%;
 }
 
 .char-icon {
-    width: 80px;
-    height: 80px;
+    width: 48px;
+    height: 48px;
     object-fit: cover;
     border-radius: 50%;
-    border: 3px solid #ddd;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 2px solid #ddd;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .character-details {
@@ -88,16 +88,17 @@
 
 .character-name,
 .char-name {
-    margin: 5px 0;
-    font-size: 1.1em;
+    margin: 0;
+    font-size: 0.85em;
     font-weight: bold;
     color: #333;
+    line-height: 1.2;
 }
 
 .hp-bar-container,
 .mp-bar-container {
-    width: 80%;
-    height: 10px;
+    width: 90%;
+    height: 8px;
     background-color: #ccc;
     border-radius: 5px;
     margin-top: 5px;
@@ -121,9 +122,9 @@
 
 .hp-text,
 .mp-text {
-    font-size: 0.8em;
+    font-size: 0.7em;
     color: #555;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 
@@ -219,21 +220,21 @@
     display: none !important;
 }
 
-/* ハイライト機能の強化 */
+/* ハイライト機能（ログ欄との重なりを抑えるため控えめに） */
 .character-card.active {
-    outline: 4px solid #ffeb3b;
-    box-shadow: 0 0 20px 8px rgba(255, 235, 59, 0.8);
-    transform: scale(1.08);
+    outline: 2px solid #ffeb3b;
+    box-shadow: 0 0 8px 2px rgba(255, 235, 59, 0.5);
+    transform: scale(1.03);
 }
 
 .character-card.selectable {
-    outline: 3px solid #00bcd4;
-    box-shadow: 0 0 15px 5px rgba(0, 188, 212, 0.6);
+    outline: 2px solid #00bcd4;
+    box-shadow: 0 0 6px 2px rgba(0, 188, 212, 0.4);
     cursor: pointer;
 }
 
 .character-card.selectable:hover {
-    transform: scale(1.05);
+    transform: scale(1.02);
 }
 
 .character-card.fainted {
@@ -326,19 +327,19 @@
 /* ウィンドウサイズに応じたレスポンシブ調整 */
 @media (max-height: 700px) {
     .battlefield { padding: 8px; }
-    .party-area { gap: 8px; padding: 6px; }
+    .party-area { gap: 6px; padding: 6px; }
     .enemy-character, .player-character, .character-card {
-        min-width: 70px;
+        min-width: 64px;
     }
-    .char-icon { width: 50px; height: 50px; }
+    .char-icon { width: 40px; height: 40px; }
     .ui-container { max-height: 38vh; padding: 8px; }
     .log-box { max-height: 32vh; font-size: 0.85em; }
 }
 
 @media (max-width: 900px) {
     .enemy-character, .player-character, .character-card {
-        width: 22%;
-        min-width: 80px;
+        width: 20%;
+        min-width: 68px;
     }
 }
 

@@ -74,7 +74,9 @@
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 16px;
+    grid-auto-rows: min-content;
+    align-items: start;
+    gap: 12px;
     margin: 16px 0;
     overflow-y: auto;
 }
@@ -82,7 +84,7 @@
 .character-card {
     border: 1px solid #ddd;
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
@@ -110,22 +112,23 @@
 }
 
 .char-thumb {
-    width: 60px;
-    height: 60px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     object-fit: cover;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 
 .char-info h4 {
     margin: 0;
-    font-size: 1em;
+    font-size: 0.9em;
     color: #333;
+    line-height: 1.2;
 }
 
 .char-info p {
     margin: 0;
-    font-size: 0.8em;
+    font-size: 0.75em;
     color: #666;
 }
 

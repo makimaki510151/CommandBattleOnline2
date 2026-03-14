@@ -25,7 +25,7 @@ export const skillData = {
         power: 1,
         proc: { chance: 0.3, effect: 'spdDebuff', value: 0.7, duration: 2, descKey: '素早さを低下させる' }
     },
-    '自己再生': { effect: 'heal_self', healRatio: 0.15 },
+    '自己再生': { effect: 'heal_self', healRatio: 0.09 },
 
     // 風の歌い手ミサ
     'ブレイブソング': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.25 }], duration: 3 },
@@ -33,18 +33,18 @@ export const skillData = {
     'スピードアップ': { effect: 'buff', buffs: [{ stat: 'spd', value: 1.45 }], duration: 3 },
 
     // 慈愛の聖女ルナ
-    'ハイヒール': { effect: 'heal', supportMul: 2.5 },
-    'エリアヒール': { effect: 'heal', supportMul: 1.5 },
-    'リザレクション': { effect: 'revive', reviveRatio: 0.5 },
+    'ハイヒール': { effect: 'heal', supportMul: 1.7 },
+    'エリアヒール': { effect: 'heal', supportMul: 1.1 },
+    'リザレクション': { effect: 'revive', reviveRatio: 0.35 },
 
     // 魔力供給者アルト
-    'マナチャージ': { effect: 'mp_heal', supportMul: 2.5 },
-    'エナジーフロー': { effect: 'mp_heal', supportMul: 1.5 },
+    'マナチャージ': { effect: 'mp_heal', supportMul: 1.7 },
+    'エナジーフロー': { effect: 'mp_heal', supportMul: 1.1 },
     'マナドレイン': {
         effect: 'damage',
         power: 0.5,
         isMagic: true,
-        mpStealRatio: 0.5
+        mpStealRatio: 0.32
     },
 
     // 呪術師アザミ
