@@ -29,8 +29,8 @@ export const skillData = {
     '自己再生': { effect: 'heal_self', healRatio: 0.09 },
 
     // 風の歌い手ミサ
-    'ブレイブソング': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.25 }], duration: 3 },
-    'マジックコーラス': { effect: 'buff', buffs: [{ stat: 'matk', value: 1.25 }], duration: 3 },
+    'バトルソング': { effect: 'buff', buffs: [{ stat: 'atk', value: 1.25 }, { stat: 'matk', value: 1.25 }], duration: 3 },
+    'ミストステップ': { effect: 'buff', buffs: [{ stat: 'dodge', value: 1.5 }], duration: 3 },
     'スピードアップ': { effect: 'buff', buffs: [{ stat: 'spd', value: 1.45 }], duration: 3 },
 
     // 慈愛の聖女ルナ
@@ -108,7 +108,7 @@ export const skillData = {
     }
 };
 
-const STAT_NAMES = { atk: '物理攻撃力', matk: '魔法攻撃力', def: '防御力', mdef: '魔法防御力', spd: '素早さ', critRate: '会心率' };
+const STAT_NAMES = { atk: '物理攻撃力', matk: '魔法攻撃力', def: '防御力', mdef: '魔法防御力', spd: '素早さ', critRate: '会心率', dodge: '回避率' };
 const EFFECT_NAMES = { spdDebuff: '素早さ低下', orderDelay: '行動順を遅らせる', defDebuff: '防御力低下', poison: '毒', burn: '火傷' };
 
 /**

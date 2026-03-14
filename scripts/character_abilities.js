@@ -14,17 +14,8 @@ export const passiveAbilities = {
     'char02': (character, allies, enemies) => {
         // 広域カバー: 自身以外の味方全体が受ける全体攻撃のダメージを15%軽減する。（ダメージ計算時に適用）
     },
-    'char03': (character, allies) => {
-        // 調和の旋律: 毎ターン開始時、ランダムな味方単体の攻撃力か魔法攻撃力を上昇させる。
-        if (allies) {
-            const aliveAllies = allies.filter(ally => ally.status.hp > 0);
-            if (aliveAllies.length > 0) {
-                const target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
-                const buffType = Math.random() < 0.5 ? 'atkBuff' : 'matkBuff';
-                target.effects[buffType] = { duration: 2, value: 1.2 }; // 攻撃力/魔攻20%アップ
-                console.log(`${character.name}の調和の旋律で${target.name}の${buffType === 'atkBuff' ? '攻撃力' : '魔攻'}が上昇した！`);
-            }
-        }
+    'char03': (character) => {
+        // 調和の旋律: 自身の速度に応じて通常攻撃の威力上昇（performAttack時に適用）
     },
     'char04': (character, allies) => {
         // 祈りの光: 回復魔法の効果が10%上昇する。（スキル効果の計算時に適用）
@@ -161,19 +152,24 @@ export const skillEffects = {
     },
 
     // 風の歌い手ミサ
-    'ブレイブソング': (caster, targets, calculateDamage, logMessage, skill) => {
+    'バトルソング': (caster, targets, calculateDamage, logMessage, skill) => {
         const d = skillData[skill.name];
         targets.forEach(target => {
-            d.buffs.forEach(b => { target.effects[b.stat + 'Buff'] = { duration: d.duration, value: b.value }; });
+            d.buffs.forEach(b => {
+                const key = b.stat === 'dodge' ? 'dodgeBuff' : (b.stat + 'Buff');
+                target.effects[key] = { duration: d.duration, value: b.value };
+            });
         });
-        logMessage(`${caster.name}は${skill.name}で味方全体の物理攻撃力を上昇させた！`, 'status-effect');
+        logMessage(`${caster.name}は${skill.name}で味方全体の物理・魔法攻撃力を上昇させた！`, 'status-effect');
     },
-    'マジックコーラス': (caster, targets, calculateDamage, logMessage, skill) => {
+    'ミストステップ': (caster, targets, calculateDamage, logMessage, skill) => {
         const d = skillData[skill.name];
         targets.forEach(target => {
-            d.buffs.forEach(b => { target.effects[b.stat + 'Buff'] = { duration: d.duration, value: b.value }; });
+            d.buffs.forEach(b => {
+                target.effects.dodgeBuff = { duration: d.duration, value: b.value };
+            });
         });
-        logMessage(`${caster.name}は${skill.name}で味方全体の魔法攻撃力を上昇させた！`, 'status-effect');
+        logMessage(`${caster.name}は${skill.name}で味方全体の回避率を上昇させた！`, 'status-effect');
     },
     'スピードアップ': (caster, targets, calculateDamage, logMessage, skill) => {
         const target = targets[0];
@@ -505,6 +501,13 @@ export const damagePassiveEffects = {
         // 孤高の刃: ダメージ補正は削除（会心率変動に変更済み）
         return damage;
     }
+};
+
+/**
+ * 通常攻撃の威力倍率（1.0基準）
+ */
+export const normalAttackPowerMultiplier = {
+    'char03': (attacker) => 1 + (attacker.status.spd || 0) / 100
 };
 
 /**
