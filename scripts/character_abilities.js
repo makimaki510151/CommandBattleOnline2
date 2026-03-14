@@ -129,8 +129,9 @@ export const skillEffects = {
     // 大地戦士ゴルム
     'プロヴォーク': (caster, targets, calculateDamage, logMessage, skill) => {
         const d = skillData[skill.name];
+        const maxR = d.maxRedirects ?? 999;
         targets.forEach(target => {
-            target.effects.taunt = { duration: d.duration, to: caster.uniqueId, all: true };
+            target.effects.taunt = { duration: d.duration, to: caster.uniqueId, all: true, remaining: maxR };
         });
         logMessage(`${caster.name}は${skill.name}で敵全体を挑発し、攻撃を引き付けた！`, 'status-effect');
     },

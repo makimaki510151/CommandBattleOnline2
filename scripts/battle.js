@@ -865,8 +865,20 @@ window.executeAction = (data) => {
     const resolveForcedTargetUniqueId = (chosenTargetUniqueId) => {
         // 1) 行動者が挑発されている（プロヴォーク等）：単体対象はtoへ強制
         if (actor.effects?.taunt?.to) {
-            const forced = allCombatants.find(c => c.uniqueId === actor.effects.taunt.to && c.status.hp > 0);
-            if (forced) return { uniqueId: forced.uniqueId, reason: 'taunted_by_actor' };
+            const t = actor.effects.taunt;
+            const remaining = t.remaining;
+            if (remaining !== undefined && remaining <= 0) {
+                delete actor.effects.taunt;
+            } else {
+                const forced = allCombatants.find(c => c.uniqueId === t.to && c.status.hp > 0);
+                if (forced) {
+                    if (remaining !== undefined) {
+                        t.remaining = remaining - 1;
+                        if (t.remaining <= 0) delete actor.effects.taunt;
+                    }
+                    return { uniqueId: forced.uniqueId, reason: 'taunted_by_actor' };
+                }
+            }
         }
         // 2) 選択ターゲットが「かばう」状態（ランパート等）：単体対象はtoへ差し替え
         const chosen = allCombatants.find(c => c.uniqueId === chosenTargetUniqueId);

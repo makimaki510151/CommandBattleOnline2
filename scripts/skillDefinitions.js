@@ -20,7 +20,7 @@ export const skillData = {
     },
 
     // 大地戦士ゴルム
-    'プロヴォーク': { effect: 'taunt_all', duration: 2 },
+    'プロヴォーク': { effect: 'taunt_all', duration: 2, maxRedirects: 3 },
     'アースクエイク': {
         effect: 'damage',
         power: 1,
@@ -96,12 +96,12 @@ export const skillData = {
     },
     'バーンバーン': {
         effect: 'burn_consume_damage',
-        power: 1.0,
+        power: 2.5,
         isMagic: true
     },
     'バーニングアロー': {
         effect: 'damage_all_hits',
-        power: 0.9,
+        power: 0.5,
         hits: 3,
         isMagic: true,
         proc: { chance: 0.2, effect: 'burn', duration: 3, descKey: '火傷にする' }
@@ -121,8 +121,10 @@ export function generateSkillDesc(skill) {
     switch (d.effect) {
         case 'taunt':
             return `味方単体への敵の単体攻撃を、自身に引き付け、その間ダメージを${(d.damageReduction || 0) * 100}%軽減する（${d.duration}ターン）。`;
-        case 'taunt_all':
-            return `敵全体を挑発し、${d.duration}ターンの間、敵の攻撃を自身に引き付ける。`;
+        case 'taunt_all': {
+            const limit = d.maxRedirects != null ? `、単体攻撃${d.maxRedirects}回` : '';
+            return `敵全体を挑発し、${d.duration}ターン${limit}の間、敵の攻撃を自身に引き付ける。`;
+        }
         case 'burn_consume_damage':
             return '敵全体に対し、やけどデバフを受けている敵はやけどが消え、代わりに魔法ダメージを受ける。';
         case 'damage_all_hits': {
