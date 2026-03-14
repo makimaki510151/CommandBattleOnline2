@@ -1,15 +1,16 @@
+html, body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+}
 body {
     background-color: #e0f7fa;
-    /* 明るい水色 */
     color: #333;
-    /* 濃い灰色 */
     font-family: 'Arial', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    /* `height`を`min-height`に変更 */
-    margin: 0;
 }
 
 #title-screen,
@@ -19,6 +20,8 @@ body {
     padding: 40px 60px;
     border-radius: 20px;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    max-height: 95vh;
+    overflow-y: auto;
 }
 
 .game-title {
@@ -242,6 +245,47 @@ body {
     font-weight: bold;
     color: #4db6ac;
     font-family: monospace;
+}
+
+#room-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+}
+
+#room-name-input {
+    padding: 14px 20px;
+    font-size: 1.1em;
+    border: 2px solid #4db6ac;
+    border-radius: 10px;
+    background: #fff;
+    color: #333;
+    min-width: 220px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#room-name-input:focus {
+    outline: none;
+    border-color: #66bb6a;
+    box-shadow: 0 0 0 3px rgba(102, 187, 106, 0.25);
+}
+#room-name-input::placeholder {
+    color: #999;
+}
+
+#join-room-button {
+    background-color: #81c784;
+    color: white;
+    font-size: 1.2em;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+#join-room-button:hover {
+    background-color: #66bb6a;
 }
 
 #peer-id-input {

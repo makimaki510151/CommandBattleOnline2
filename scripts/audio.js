@@ -35,7 +35,7 @@ export function playUIClick() {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(660, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.03);
-        gain.gain.setValueAtTime(seVolume * 0.15, ctx.currentTime);
+        gain.gain.setValueAtTime(seVolume * 0.35, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
 
         osc.start(ctx.currentTime);
@@ -59,7 +59,7 @@ export function playSelect() {
         osc.frequency.setValueAtTime(659, ctx.currentTime + 0.05);
         osc.frequency.setValueAtTime(784, ctx.currentTime + 0.1);
         gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(seVolume * 0.12, ctx.currentTime + 0.02);
+        gain.gain.linearRampToValueAtTime(seVolume * 0.28, ctx.currentTime + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
 
         osc.start(ctx.currentTime);
@@ -81,7 +81,7 @@ export function playCancel() {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(440, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(seVolume * 0.1, ctx.currentTime);
+        gain.gain.setValueAtTime(seVolume * 0.25, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
         osc.start(ctx.currentTime);

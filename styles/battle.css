@@ -4,34 +4,46 @@
 }
 
 #battle-screen {
+    position: fixed;
+    inset: 0;
     width: 100%;
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+}
+
+.game-header {
+    flex-shrink: 0;
+    min-height: 0;
 }
 
 .battle-container {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     background-color: #bbdefb;
-    padding: 20px;
+    padding: 12px;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .battlefield {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    padding: 20px;
+    padding: 12px;
 }
 
 .party-area {
     display: flex;
     justify-content: center;
-    gap: 30px;
-    padding: 10px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px;
     background-color: rgba(255, 255, 255, 0.3);
     border-radius: 10px;
 }
@@ -41,7 +53,7 @@
 .character-card {
     transition: all 0.3s ease;
     width: 20%;
-    min-width: 150px;
+    min-width: 100px;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 10px;
     padding: 10px;
@@ -116,22 +128,25 @@
 
 
 .ui-container {
+    flex-shrink: 0;
     display: flex;
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 15px;
-    gap: 20px;
-    min-height: 450px;
+    padding: 12px;
+    gap: 16px;
+    min-height: 0;
+    max-height: 45vh;
 }
 
 .log-box {
-    flex-grow: 1;
+    flex: 1;
+    min-width: 0;
     background-color: #e3f2fd;
     padding: 10px;
     border-radius: 8px;
     overflow-y: auto;
-    height: 430px;
+    max-height: 40vh;
 }
 
 .log-box p {
@@ -306,6 +321,25 @@
 .waiting-message {
     color: #eee;
     font-style: italic;
+}
+
+/* ウィンドウサイズに応じたレスポンシブ調整 */
+@media (max-height: 700px) {
+    .battlefield { padding: 8px; }
+    .party-area { gap: 8px; padding: 6px; }
+    .enemy-character, .player-character, .character-card {
+        min-width: 70px;
+    }
+    .char-icon { width: 50px; height: 50px; }
+    .ui-container { max-height: 38vh; padding: 8px; }
+    .log-box { max-height: 32vh; font-size: 0.85em; }
+}
+
+@media (max-width: 900px) {
+    .enemy-character, .player-character, .character-card {
+        width: 22%;
+        min-width: 80px;
+    }
 }
 
 .skill-description {

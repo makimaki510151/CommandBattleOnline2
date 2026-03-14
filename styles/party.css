@@ -1,13 +1,12 @@
 /* party.css */
 #party-screen {
-    /* 画面の幅全体を使用するように設定 */
+    position: fixed;
+    inset: 0;
     width: 100%;
-
-    /* 画面いっぱいに広げ、Flexboxの子要素として適切に機能させるための設定 */
+    height: 100%;
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
-    /* 画面の高さいっぱいまで広げる（オプション） */
+    overflow: hidden;
 }
 
 #party-screen.hidden {
@@ -29,6 +28,10 @@
     font-size: 1.8em;
 }
 
+.header-spacer {
+    min-width: 80px;
+}
+
 .header-buttons .action-button {
     background-color: #ff9800;
     color: white;
@@ -46,27 +49,34 @@
 
 .main-content {
     display: flex;
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
     padding: 20px;
     gap: 20px;
     background-color: #e8eaf6;
+    overflow: hidden;
 }
 
 .character-pane {
     flex: 6;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 15px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 #character-list {
+    flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 40px;
-    margin: 30px;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+    overflow-y: auto;
 }
 
 .character-card {
@@ -121,12 +131,15 @@
 
 .right-pane {
     flex: 2;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow: hidden;
 }
 
 #party-slots-container {
+    flex-shrink: 0;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -172,13 +185,15 @@
 }
 
 #character-details {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 15px;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 
 #details-content {

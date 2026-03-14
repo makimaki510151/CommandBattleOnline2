@@ -477,8 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // その他ボタンにSE（back-button, online-party-go-buttonは既存ハンドラより先にSE再生）
-    document.getElementById('back-button')?.addEventListener('click', () => { if (window.playCancel) window.playCancel(); }, { capture: true });
+    // その他ボタンにSE
     onlinePartyGoButton?.addEventListener('click', () => { if (window.playSelect) window.playSelect(); }, { capture: true });
     goButton?.addEventListener('click', () => { if (window.playSelect) window.playSelect(); }, { capture: true });
     if (isMobileDevice()) {
