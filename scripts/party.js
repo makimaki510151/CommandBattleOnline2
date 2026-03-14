@@ -149,6 +149,7 @@ partySlotsEl.addEventListener('click', (event) => {
 // --- ドラッグ&ドロップ（キャラ一覧カード → スロット、スロット間）---
 
 // キャラ一覧カード: ドラッグ時はカードUIをプレビューに（画像単体を持ち上げない）
+if (characterListEl) {
 characterListEl.addEventListener('dragstart', (e) => {
     const card = e.target.closest('.character-card');
     if (!card || !card.dataset.id) return;
@@ -156,15 +157,19 @@ characterListEl.addEventListener('dragstart', (e) => {
     const char = characters.find(c => c.id === charId);
     if (!char || partyMembers.some(m => m.id === charId)) return;
 
-    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'from-list', charId }));
-    e.dataTransfer.effectAllowed = 'copy';
+    const data = JSON.stringify({ type: 'from-list', charId });
+    e.dataTransfer.setData('text/plain', data);
+    e.dataTransfer.setData('application/json', data);
+    e.dataTransfer.effectAllowed = 'copyMove';
 
     // カード全体をドラッグプレビューに（画像単体を持ち上げない）
     const rect = card.getBoundingClientRect();
     e.dataTransfer.setDragImage(card, rect.width / 2, rect.height / 2);
 });
 
+}
 // パーティースロット: ドラッグ時はスロットUIをプレビューに
+if (partySlotsEl) {
 partySlotsEl.addEventListener('dragstart', (e) => {
     const slot = e.target.closest('.party-slot');
     if (!slot || !slot.classList.contains('filled')) return;
@@ -172,13 +177,17 @@ partySlotsEl.addEventListener('dragstart', (e) => {
     const slotId = slot.dataset.slotId;
 
     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'from-slot', charId, slotId }));
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = 'copyMove';
 
     const rect = slot.getBoundingClientRect();
     e.dataTransfer.setDragImage(slot, rect.width / 2, rect.height / 2);
 });
 
-// スロット: ドロップ許可
+// スロット: ドロップ許可（dragenter も必要）
+partySlotsEl.addEventListener('dragenter', (e) => {
+    const slot = e.target.closest('.party-slot');
+    if (slot) e.preventDefault();
+});
 partySlotsEl.addEventListener('dragover', (e) => {
     const slot = e.target.closest('.party-slot');
     if (!slot) return;
@@ -199,7 +208,9 @@ partySlotsEl.addEventListener('drop', (e) => {
     slot.classList.remove('drop-target');
 
     try {
-        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const raw = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('application/json') || e.dataTransfer.getData('Text');
+        if (!raw) return;
+        const data = JSON.parse(raw);
         const { type, charId, slotId: sourceSlotId } = data;
 
         const char = characters.find(c => c.id === charId);
@@ -236,10 +247,11 @@ partySlotsEl.addEventListener('drop', (e) => {
             }
             syncPartyFromSlots();
         }
-    } catch (_) {
-        /* 無効なデータを無視 */
+    } catch (err) {
+        console.warn('D&D drop error:', err);
     }
 });
+}
 
 // ドラッグ終了時にドロップターゲット用クラスを削除
 document.addEventListener('dragend', () => {

@@ -401,11 +401,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 音量スライダー（設定内）
+    // 音量スライダー（設定内）- SE音量を実際に変更
     const volumeSlider = document.getElementById('volume-slider');
-    if (volumeSlider && window.setSeVolume) {
-        window.setSeVolume(parseInt(volumeSlider.value, 10));
-        volumeSlider.addEventListener('input', () => window.setSeVolume(parseInt(volumeSlider.value, 10)));
+    if (volumeSlider) {
+        const STORAGE_KEY = 'cbo2_se_volume';
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved != null) {
+            const v = Math.max(0, Math.min(100, parseInt(saved, 10)));
+            volumeSlider.value = v;
+        }
+        const applyVolume = () => {
+            const val = parseInt(volumeSlider.value, 10);
+            if (window.setSeVolume) window.setSeVolume(val);
+            try { localStorage.setItem(STORAGE_KEY, String(val)); } catch (_) {}
+        };
+        applyVolume(); // 初期値適用
+        volumeSlider.addEventListener('input', applyVolume);
+        volumeSlider.addEventListener('change', applyVolume);
     }
 
     // タイトル画面の「オンライン対戦」ボタン
