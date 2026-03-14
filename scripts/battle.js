@@ -186,11 +186,52 @@ function resetBattleState() {
 
 // --- Display Update Functions ---
 
+const EFFECT_ICONS = {
+    dodgeDebuff: { icon: '↓回避', desc: '回避率低下' },
+    critRateBuff: { icon: '↑会心', desc: '会心率上昇' },
+    critMultiplierBuff: { icon: '会心倍率', desc: '会心倍率上昇（累積）' },
+    loneBladeCritRate: { icon: '孤高', desc: '会心率上昇（孤高の刃）' },
+    atkBuff: { icon: '↑攻', desc: '物理攻撃力上昇' },
+    matkBuff: { icon: '↑魔', desc: '魔法攻撃力上昇' },
+    defBuff: { icon: '↑防', desc: '物理防御力上昇' },
+    mdefBuff: { icon: '↑魔防', desc: '魔法防御力上昇' },
+    spdBuff: { icon: '↑速', desc: '素早さ上昇' },
+    atkDebuff: { icon: '↓攻', desc: '物理攻撃力低下' },
+    matkDebuff: { icon: '↓魔', desc: '魔法攻撃力低下' },
+    defDebuff: { icon: '↓防', desc: '物理防御力低下' },
+    mdefDebuff: { icon: '↓魔防', desc: '魔法防御力低下' },
+    spdDebuff: { icon: '↓速', desc: '素早さ低下' },
+    orderDelay: { icon: '遅延', desc: '行動順遅延' },
+    poison: { icon: '毒', desc: '毒（毎ターンダメージ）' },
+    burn: { icon: '火傷', desc: '火傷（毎ターンダメージ）' },
+    taunt: { icon: '護衛', desc: '攻撃を引き付けている' },
+    guarding: { icon: '護衛中', desc: 'ダメージ軽減中' },
+    invulnerable: { icon: '無敵', desc: '無敵' }
+};
+
+function updateEffectIcons(memberEl, member) {
+    const container = memberEl?.querySelector('.effect-icons');
+    if (!container || !member?.effects) return;
+    container.innerHTML = '';
+    for (const key in member.effects) {
+        const e = member.effects[key];
+        const info = EFFECT_ICONS[key] || { icon: key, desc: key };
+        const span = document.createElement('span');
+        span.className = 'effect-icon';
+        span.title = info.desc + (e.duration !== undefined ? `（${e.duration}T）` : '');
+        span.textContent = info.icon;
+        span.dataset.effect = key;
+        container.appendChild(span);
+    }
+}
+
 function updatePartyDisplay(partyEl, partyData) {
     if (!partyData) return;
     partyData.forEach((member) => {
         const memberEl = partyEl.querySelector(`[data-unique-id="${member.uniqueId}"]`);
         if (!memberEl) return;
+
+        updateEffectIcons(memberEl, member);
 
         const hpFill = memberEl.querySelector('.hp-bar-fill');
         const hpText = memberEl.querySelector('.hp-text');
@@ -202,10 +243,11 @@ function updatePartyDisplay(partyEl, partyData) {
         if (hpText) hpText.textContent = `${member.status.hp} / ${member.status.maxHp}`;
 
         if (mpFill && member.status.maxMp > 0) {
-            const mpPercentage = (member.status.mp / member.status.maxMp) * 100;
+            const effectiveMp = (member.status.mp || 0) + (member.status.tempMp || 0);
+            const mpPercentage = Math.min(100, (effectiveMp / member.status.maxMp) * 100);
             mpFill.style.width = `${mpPercentage}%`;
         }
-        if (mpText) mpText.textContent = `${member.status.mp} / ${member.status.maxMp}`;
+        if (mpText) mpText.textContent = `${(member.status.mp || 0) + (member.status.tempMp || 0)} / ${member.status.maxMp}`;
 
         if (member.status.hp <= 0) {
             memberEl.classList.add('fainted');
@@ -235,6 +277,7 @@ function initializeParty(party, partyType = 'player') {
         member.partyType = partyType;
         member.partyIndex = index;
         member.effects = {};
+        member.status.tempMp = 0;
         if (member.originalId === 'char06') {
             member.targetMemory = { lastTargetId: null, missed: false };
         }
@@ -352,6 +395,7 @@ async function battleLoop() {
                 let spd = c.status.spd;
                 if (c.effects.spdBuff) spd *= c.effects.spdBuff.value;
                 if (c.effects.spdDebuff) spd *= c.effects.spdDebuff.value;
+                if (c.effects.orderDelay) spd *= c.effects.orderDelay.value;
                 return spd;
             };
             // このターン中にspdが変動したら、次の行動順にも反映されるようにする
@@ -492,15 +536,20 @@ async function playerTurn(actor) {
                 const skillName = target.textContent;
                 const skill = actor.active.find(s => s.name === skillName);
                 if (skill) {
-                    if (actor.status.mp < skill.mp) {
+                    const effectiveMp = (actor.status.mp || 0) + (actor.status.tempMp || 0);
+                    if (effectiveMp < skill.mp) {
                         logMessage(`MPが足りません！`);
                         isActionInProgress = false;
                         disableCommandButtons(false);
                         return;
                     }
-                    if (skill.target === 'single' || skill.target === 'ally_single') {
+                    if (skill.target === 'single' || skill.target === 'ally_single' || skill.target === 'ally_single_exclude_self') {
                         logMessage('スキル対象を選んでください。');
-                        const targetInfo = await selectTarget(skill.target === 'ally_single');
+                        const allies = window.isOnlineMode() ? [...(currentPlayerParty || []), ...(opponentParty || [])].filter(c => c && c.partyType === actor.partyType) : (currentPlayerParty || []);
+                        const allowedTargets = (skill.target === 'ally_single' || skill.target === 'ally_single_exclude_self')
+                            ? (skill.target === 'ally_single_exclude_self' ? allies.filter(a => a.uniqueId !== actor.uniqueId) : allies)
+                            : null;
+                        const targetInfo = await selectTarget(skill.target !== 'single', allowedTargets);
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
                             actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillName: skill.name, targetUniqueId: targetUniqueId };
@@ -522,7 +571,7 @@ async function playerTurn(actor) {
                             logMessage('行動をキャンセルしました。');
                             return;
                         }
-                    } else { // all_enemies, all_allies
+                    } else { // all_enemies, all_allies, all_allies_exclude_self
                         actionData = { action: 'skill', actorUniqueId: actor.uniqueId, skillName: skill.name };
                     }
                 }
@@ -688,15 +737,20 @@ window.handleActionRequest = async (data) => {
                 const skillName = target.textContent;
                 const skill = actor.active.find(s => s.name === skillName);
                 if (skill) {
-                    if (actor.status.mp < skill.mp) {
+                    const effectiveMp = (actor.status.mp || 0) + (actor.status.tempMp || 0);
+                    if (effectiveMp < skill.mp) {
                         logMessage(`MPが足りません！`);
                         isActionInProgress = false;
                         disableCommandButtons(false);
                         return;
                     }
-                    if (skill.target === 'single' || skill.target === 'ally_single') {
+                    if (skill.target === 'single' || skill.target === 'ally_single' || skill.target === 'ally_single_exclude_self') {
                         logMessage('スキル対象を選んでください。');
-                        const targetInfo = await selectTarget(skill.target === 'ally_single');
+                        const allies = window.isOnlineMode() ? [...(currentPlayerParty || []), ...(opponentParty || [])].filter(c => c && c.partyType === actor.partyType) : (currentPlayerParty || []);
+                        const allowedTargets = (skill.target === 'ally_single' || skill.target === 'ally_single_exclude_self')
+                            ? (skill.target === 'ally_single_exclude_self' ? allies.filter(a => a.uniqueId !== actor.uniqueId) : allies)
+                            : null;
+                        const targetInfo = await selectTarget(skill.target !== 'single', allowedTargets);
                         if (targetInfo) {
                             targetUniqueId = targetInfo.target.uniqueId;
                             actionData = { action: 'skill', skillName: skill.name, targetUniqueId: targetUniqueId };
@@ -815,9 +869,8 @@ window.executeAction = (data) => {
             if (forced) return { uniqueId: forced.uniqueId, reason: 'taunted_by_actor' };
         }
         // 2) 選択ターゲットが「かばう」状態（ランパート等）：単体対象はtoへ差し替え
-        // ※敵に付与されたtaunt（プロヴォーク）は「敵が行動するとき」のみ適用。味方が敵を攻撃する際はリダイレクトしない
         const chosen = allCombatants.find(c => c.uniqueId === chosenTargetUniqueId);
-        if (chosen?.effects?.taunt?.to && chosen.partyType === actor.partyType) {
+        if (chosen?.effects?.taunt?.to) {
             const forced = allCombatants.find(c => c.uniqueId === chosen.effects.taunt.to && c.status.hp > 0);
             if (forced) return { uniqueId: forced.uniqueId, reason: 'guarded_target' };
         }
@@ -828,14 +881,10 @@ window.executeAction = (data) => {
         case 'attack':
             {
                 const resolved = resolveForcedTargetUniqueId(data.targetUniqueId);
-                if (resolved.reason !== 'none' && resolved.uniqueId !== data.targetUniqueId) {
-                    const forcedName = allCombatants.find(c => c.uniqueId === resolved.uniqueId)?.name;
-                    logMessage(`ターゲットが強制されました → ${forcedName || '不明'}`, 'status-effect');
-                    if (resolved.reason === 'guarded_target') {
-                        const chosen = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
-                        if (chosen?.effects?.taunt) delete chosen.effects.taunt;
-                    }
-                }
+                        if (resolved.reason !== 'none' && resolved.uniqueId !== data.targetUniqueId) {
+                            const forcedName = allCombatants.find(c => c.uniqueId === resolved.uniqueId)?.name;
+                            logMessage(`ターゲットが強制されました → ${forcedName || '不明'}`, 'status-effect');
+                        }
                 data.targetUniqueId = resolved.uniqueId;
             }
             const target = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
@@ -851,16 +900,12 @@ window.executeAction = (data) => {
             const skill = actor.active.find(s => s.name === data.skillName);
             if (skill) {
                 const skillTargets = [];
-                if (skill.target === 'single' || skill.target === 'ally_single' || skill.target === 'self') {
+                if (skill.target === 'single' || skill.target === 'ally_single' || skill.target === 'ally_single_exclude_self' || skill.target === 'self') {
                     if (skill.target === 'single') {
                         const resolved = resolveForcedTargetUniqueId(data.targetUniqueId);
                         if (resolved.reason !== 'none' && resolved.uniqueId !== data.targetUniqueId) {
                             const forcedName = allCombatants.find(c => c.uniqueId === resolved.uniqueId)?.name;
                             logMessage(`ターゲットが強制されました → ${forcedName || '不明'}`, 'status-effect');
-                            if (resolved.reason === 'guarded_target') {
-                                const chosen = allCombatants.find(c => c.uniqueId === data.targetUniqueId);
-                                if (chosen?.effects?.taunt) delete chosen.effects.taunt;
-                            }
                         }
                         data.targetUniqueId = resolved.uniqueId;
                     }
@@ -873,12 +918,18 @@ window.executeAction = (data) => {
                     } else {
                         skillTargets.push(...(currentEnemies || []).filter(e => e.status.hp > 0));
                     }
-                } else if (skill.target === 'all_allies') {
+                } else if (skill.target === 'all_allies' || skill.target === 'all_allies_exclude_self') {
+                    let allies;
                     if (window.isOnlineMode()) {
-                        const allies = allCombatants.filter(c => c.partyType === actor.partyType);
-                        skillTargets.push(...allies.filter(a => a.status.hp > 0));
+                        allies = allCombatants.filter(c => c.partyType === actor.partyType);
                     } else {
-                        skillTargets.push(...(currentPlayerParty || []).filter(a => a.status.hp > 0));
+                        allies = currentPlayerParty || [];
+                    }
+                    const filtered = allies.filter(a => a.status.hp > 0);
+                    if (skill.target === 'all_allies_exclude_self') {
+                        skillTargets.push(...filtered.filter(a => a.uniqueId !== actor.uniqueId));
+                    } else {
+                        skillTargets.push(...filtered);
                     }
                 }
                 executeSkill(actor, skill, skillTargets);
@@ -933,14 +984,18 @@ window.executeAction = (data) => {
     }
 };
 
-function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.0, ignoreDefense = false, skillTarget = 'single') {
+function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.0, ignoreDefense = false, skillTarget = 'single', useDefForPower = false) {
     let attackPower;
     let defensePower;
     let damageMultiplier = 1;
     let isCritical = false;
     let isDodged = false;
 
-    if (isMagic) {
+    if (useDefForPower) {
+        attackPower = attacker.status.def;
+        if (attacker.effects.defBuff) attackPower *= attacker.effects.defBuff.value;
+        if (attacker.effects.defDebuff) attackPower *= attacker.effects.defDebuff.value;
+    } else if (isMagic) {
         attackPower = attacker.status.matk;
         defensePower = target.status.mdef;
 
@@ -962,10 +1017,7 @@ function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.
     attackPower *= powerMultiplier;
 
     // 回避率（dodgeRate）を基準に、命中/回避系の効果で補正
-    // 基本:
-    // - target: dodgeBuff / dodgeDebuff
-    // - attacker: accuracyBuff / accuracyDebuff
-    // 互換のため古いキー（accuracyDebuff, dodgeDebuff）も参照する
+    // 基本: target: dodgeBuff/dodgeDebuff(回避率をvalue倍), attacker: accuracyBuff/accuracyDebuff
     let dodgeRate = target.status.dodgeRate || 0;
     if (target.effects?.dodgeBuff) dodgeRate *= target.effects.dodgeBuff.value;
     if (target.effects?.dodgeDebuff) dodgeRate *= target.effects.dodgeDebuff.value;
@@ -983,14 +1035,27 @@ function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.
         return { damage: 0, critical: false, dodged: true };
     }
 
-    let criticalRate = attacker.status.criticalRate;
+    let criticalRate = attacker.status.criticalRate || 0;
+    if (attacker.effects?.critRateBuff) criticalRate += attacker.effects.critRateBuff.value;
     if (criticalPassiveEffects[attacker.originalId]) {
         criticalRate = criticalPassiveEffects[attacker.originalId](attacker, target, criticalRate);
     }
 
     if (Math.random() < criticalRate) {
         isCritical = true;
-        damageMultiplier *= attacker.status.criticalMultiplier;
+        let critMult = attacker.status.criticalMultiplier || 1.5;
+        if (attacker.effects?.critMultiplierBuff) critMult += attacker.effects.critMultiplierBuff.value;
+        damageMultiplier *= critMult;
+        if (attacker.originalId === 'char07' && skillTarget === 'single') {
+            delete attacker.effects.loneBladeCritRate;
+        }
+        if (attacker.originalId === 'char08') {
+            attacker.effects.critMultiplierBuff = { value: (attacker.effects.critMultiplierBuff?.value ?? 0) + 0.1 };
+        }
+    } else {
+        if (attacker.originalId === 'char07' && skillTarget === 'single') {
+            attacker.effects.loneBladeCritRate = (attacker.effects.loneBladeCritRate ?? 0) + 0.05;
+        }
     }
 
     let damage = Math.max(1, Math.floor((attackPower * damageMultiplier) - (defensePower / 2)));
@@ -1002,6 +1067,10 @@ function calculateDamage(attacker, target, isMagic = false, powerMultiplier = 1.
     // 無敵
     if (target.effects?.invulnerable?.duration > 0) {
         damage = 0;
+    }
+    // ランパート等の護衛中ダメージ軽減
+    if (target.effects?.guarding?.damageReduction > 0 && skillTarget === 'single') {
+        damage = Math.max(1, Math.floor(damage * (1 - target.effects.guarding.damageReduction)));
     }
 
     if (damagePassiveEffects[attacker.originalId]) {
@@ -1104,6 +1173,7 @@ function renderParty(containerEl, party, isOpponent = false) {
         charEl.innerHTML = `
             <img src="${char.image}" alt="${char.name}" class="char-icon">
             <p class="char-name">${char.name}</p>
+            <div class="effect-icons"></div>
             <div class="hp-bar-container">
                 <div class="hp-bar-fill" style="width: ${Math.max(0, char.status.hp / char.status.maxHp) * 100}%"></div>
             </div>
@@ -1226,7 +1296,7 @@ function applyPassiveAbilities(combatants) {
         if (passiveAbilities[c.originalId]) {
             const allies = combatants.filter(ally => ally.partyType === c.partyType);
             const enemies = combatants.filter(enemy => enemy.partyType !== c.partyType);
-            passiveAbilities[c.originalId](c, allies, enemies);
+            passiveAbilities[c.originalId](c, allies, enemies, logMessage);
         }
     });
 }
@@ -1248,15 +1318,18 @@ function processStatusEffects(combatant) {
 
 function processEndTurnEffects(combatants) {
     combatants.forEach(c => {
-        for (const effectName in c.effects) {
-            if (c.effects[effectName].duration !== undefined) {
-                c.effects[effectName].duration--;
-                if (c.effects[effectName].duration <= 0) {
-                    logMessage(`${c.name}の${effectName}が切れた。`, 'status-effect');
+        c.status.tempMp = 0;
+        Object.keys(c.effects || {}).forEach(effectName => {
+            const e = c.effects[effectName];
+            if (e && e.duration !== undefined) {
+                e.duration--;
+                if (e.duration <= 0) {
+                    const disp = { guarding: '護衛', taunt: '護衛', orderDelay: '行動遅延', spdDebuff: '素早さ低下', critRateBuff: '会心率上昇', defDebuff: '防御低下', mdefDebuff: '魔防低下', atkDebuff: '攻撃低下', matkDebuff: '魔攻低下', dodgeDebuff: '回避低下' }[effectName] || effectName;
+                    logMessage(`${c.name}の${disp}が切れた。`, 'status-effect');
                     delete c.effects[effectName];
                 }
             }
-        }
+        });
         if (c.effects.poison && c.effects.poison.duration > 0) {
             const poisonDamage = c.effects.poison.damage;
             c.status.hp = Math.max(0, c.status.hp - poisonDamage);
@@ -1296,7 +1369,11 @@ function applyEndTurnPassiveAbilities(combatants) {
 function executeSkill(actor, skill, skillTargets) {
     const effectFunc = skillEffects[skill.name];
     if (effectFunc) {
-        actor.status.mp -= skill.mp;
+        let mpCost = skill.mp;
+        const tempMp = actor.status.tempMp || 0;
+        const fromTemp = Math.min(tempMp, mpCost);
+        actor.status.tempMp = Math.max(0, tempMp - fromTemp);
+        actor.status.mp -= (mpCost - fromTemp);
         const skillInfo = { name: skill.name, desc: skill.desc || '', flavor: skill.flavor || '' };
         const logWithSkill = (msg, t = '') => logMessage(msg, t, skillInfo);
         effectFunc(actor, skillTargets, calculateDamage, logWithSkill, skill);

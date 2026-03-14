@@ -63,7 +63,7 @@ function renderCharacterDetailsPreview(char) {
             <p><strong>防御力:</strong> ${char.status.def}</p>
             <p><strong>魔法防御力:</strong> ${char.status.mdef}</p>
             <p><strong>速度:</strong> ${char.status.spd}</p>
-            <p><strong>補助力:</strong> ${char.status.support}</p>
+            <p><strong>支援力:</strong> ${char.status.support}</p>
             <p><strong>会心率:</strong> ${char.status.criticalRate * 100}%</p>
             <p><strong>回避率:</strong> ${char.status.dodgeRate * 100}%</p>
             <p><strong>会心倍率:</strong> ${char.status.criticalMultiplier}倍</p>
